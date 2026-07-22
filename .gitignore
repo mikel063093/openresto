@@ -77,7 +77,9 @@ page-*.png
 # Session handoff notes
 .remember/
 docs/*
-# Track user-facing docs explicitly
+# Track implementation plans and user-facing docs explicitly
+!docs/plans/
+!docs/plans/**
 !docs/backup-restore.md
 !docs/screenshots/
 

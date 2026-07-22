@@ -8,6 +8,7 @@ import "react-native-reanimated";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { AppThemeProvider } from "@/context/ThemeContext";
 import { BrandProvider, useBrand } from "@/context/BrandContext";
+import { I18nProvider, useI18n } from "@/context/I18nContext";
 
 // Synchronous theme init — runs at module load, before React mounts.
 // This is the earliest possible moment to set the correct background.
@@ -33,6 +34,7 @@ if (Platform.OS === "web" && typeof document !== "undefined") {
 
 function AppWithTheme() {
   const brand = useBrand();
+  const { t } = useI18n();
   const pathname = usePathname();
   const segments = useSegments();
 
@@ -98,11 +100,13 @@ function AppWithTheme() {
 export default function RootLayout() {
   return (
     <SafeAreaProvider>
-      <BrandProvider>
-        <AppThemeProvider>
-          <AppWithTheme />
-        </AppThemeProvider>
-      </BrandProvider>
+      <I18nProvider>
+        <BrandProvider>
+          <AppThemeProvider>
+            <AppWithTheme />
+          </AppThemeProvider>
+        </BrandProvider>
+      </I18nProvider>
     </SafeAreaProvider>
   );
 }

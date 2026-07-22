@@ -14,15 +14,17 @@ import { theme } from "@/theme/theme";
 import { Ionicons } from "@expo/vector-icons";
 import { useAppTheme } from "@/hooks/use-app-theme";
 import OverflowMenu from "@/components/layout/OverflowMenu";
+import LanguageSelector from "@/components/layout/LanguageSelector";
+import { useI18n } from "@/context/I18nContext";
 
 const NAV_LINKS = [
   {
-    label: "Locations",
+    label: "navigation.locations" as const,
     href: "/(user)/locations" as const,
     match: (p: string) => p === "/locations" || p.startsWith("/locations/"),
   },
   {
-    label: "My Bookings",
+    label: "navigation.myBookings" as const,
     href: "/(user)/lookup" as const,
     match: (p: string) => p === "/lookup" || p.startsWith("/booking-confirmation"),
   },
@@ -36,6 +38,7 @@ interface NavbarProps {
 }
 
 export default function Navbar({ onScrollToTop, onOpenShortcuts }: NavbarProps) {
+  const { t } = useI18n();
   const pathname = usePathname();
   const router = useRouter();
   const { brand, colors, primaryColor } = useAppTheme();
@@ -69,7 +72,7 @@ export default function Navbar({ onScrollToTop, onOpenShortcuts }: NavbarProps) 
             <Pressable
               onPress={() => router.back()}
               style={[styles.backBtn, isMobile && { marginLeft: -8 }]}
-              accessibilityLabel="Go back"
+              accessibilityLabel={t("navigation.goBack")}
             >
               <Ionicons name="chevron-back" size={22} color={primaryColor} />
             </Pressable>
@@ -111,7 +114,7 @@ export default function Navbar({ onScrollToTop, onOpenShortcuts }: NavbarProps) 
                     isMobile && { fontSize: 14 },
                   ]}
                 >
-                  {label}
+                  {t(label)}
                 </ThemedText>
                 {active && (
                   <View
@@ -139,6 +142,7 @@ export default function Navbar({ onScrollToTop, onOpenShortcuts }: NavbarProps) 
             );
           })}
 
+          <LanguageSelector />
           <OverflowMenu onOpenShortcuts={() => onOpenShortcuts?.()} />
         </View>
       </View>
