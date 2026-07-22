@@ -3,6 +3,7 @@ using System.Security.Claims;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
 using OpenRestoApi.Core.Application.Services;
+using OpenRestoApi.Core.Domain;
 
 namespace OpenRestoApi.Tests.Services;
 
@@ -58,7 +59,18 @@ public class JwtTokenServiceTests
         Claim email = Assert.Single(jwt.Claims, c => c.Type == ClaimTypes.Email);
         Assert.Equal("boss@openresto.com", email.Value);
         Claim role = Assert.Single(jwt.Claims, c => c.Type == ClaimTypes.Role);
-        Assert.Equal("Admin", role.Value);
+        Assert.Equal(nameof(AdminRole.SuperAdmin), role.Value);
+    }
+
+    [Fact]
+    public void Generate_Sets_The_Provided_User_Role_Claim()
+    {
+        var svc = new JwtTokenService(BuildConfig());
+
+        JwtSecurityToken jwt = Decode(svc.Generate("viewer@openresto.com", AdminRole.BookingViewer));
+
+        Claim role = Assert.Single(jwt.Claims, c => c.Type == ClaimTypes.Role);
+        Assert.Equal(nameof(AdminRole.BookingViewer), role.Value);
     }
 
     [Fact]

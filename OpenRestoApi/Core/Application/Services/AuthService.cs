@@ -28,7 +28,7 @@ public class AuthService(
             return null;
         if (!CredentialHelper.VerifyPassword(cred, password, _passwordService))
             return null;
-        return _jwtTokenService.Generate(cred.Email);
+        return _jwtTokenService.Generate(cred.Email, cred.Role);
     }
 
     public virtual async Task<bool> ChangePasswordAsync(string currentPassword, string newPassword)
@@ -55,7 +55,7 @@ public class AuthService(
             throw new BusinessRuleException("New email must be different from the current email.");
         cred.Email = normalizedEmail;
         await _credentialRepository.SaveChangesAsync();
-        return _jwtTokenService.Generate(cred.Email);
+        return _jwtTokenService.Generate(cred.Email, cred.Role);
     }
 
     public virtual async Task<bool> ResetPasswordAsync(string resetToken, string newPassword)

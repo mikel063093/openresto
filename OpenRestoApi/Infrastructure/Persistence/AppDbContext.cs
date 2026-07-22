@@ -85,6 +85,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
         modelBuilder.Entity<AdminCredential>(a =>
         {
             a.HasKey(x => x.Id);
+            a.HasIndex(x => x.Email).IsUnique();
         });
 
         modelBuilder.Entity<AdminNotification>(n =>

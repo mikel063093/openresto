@@ -1,3 +1,5 @@
+using OpenRestoApi.Core.Domain;
+
 namespace OpenRestoApi.Core.Application.Interfaces;
 
 /// <summary>
@@ -7,6 +9,6 @@ namespace OpenRestoApi.Core.Application.Interfaces;
 /// </summary>
 public interface IJwtTokenService
 {
-    /// <summary>Returns a signed JWT for the given admin email.</summary>
-    string Generate(string email);
+    /// <summary>Returns a signed JWT for the given user email and role.</summary>
+    string Generate(string email, AdminRole role = AdminRole.SuperAdmin);
 }

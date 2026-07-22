@@ -10,6 +10,7 @@ public class AdminCredential
     public string Email { get; set; } = null!;
     public string PasswordHash { get; set; } = null!;
     public string PasswordSalt { get; set; } = null!;
+    public AdminRole Role { get; set; } = AdminRole.SuperAdmin;
 
     // ── Personal Verification Question ──────────────────────────────────────
     public string? PvqQuestion { get; set; }
