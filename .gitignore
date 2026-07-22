@@ -29,6 +29,7 @@ Thumbs.db
 
 # env files
 *.env
+.env*
 
 # Local secrets (never commit)
 **/appsettings.Local.json

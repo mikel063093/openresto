@@ -1,0 +1,15 @@
+http:
+  routers:
+    test-rest-secure:
+      rule: "Host(`test-rest.joypaw.tech`)"
+      entryPoints:
+        - websecure
+      service: test-rest-openresto
+      tls:
+        certResolver: letsencrypt
+
+  services:
+    test-rest-openresto:
+      loadBalancer:
+        servers:
+          - url: "http://test-rest-reverse-proxy:80"

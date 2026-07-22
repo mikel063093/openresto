@@ -1,0 +1,93 @@
+name: test-rest
+
+volumes:
+  test_rest_db_data:
+  test_rest_media_data:
+
+networks:
+  test-rest-internal:
+    internal: true
+  test-rest-egress:
+    driver: bridge
+  dokploy-network:
+    external: true
+
+services:
+  backend:
+    build:
+      context: ./OpenRestoApi
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_URLS: http://+:8080
+      PORT: 8080
+      CORS_ORIGINS: ${CORS_ORIGINS}
+      JWT_KEY: ${JWT_KEY}
+      ADMIN_EMAIL: ${ADMIN_EMAIL}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
+      CONNECTION_STRING: Data Source=/data/openresto.db
+      DATA_PROTECTION_KEYS_PATH: /data/dp-keys
+    volumes:
+      - test_rest_db_data:/data
+      - test_rest_media_data:/app/wwwroot/media
+    networks:
+      test-rest-internal:
+        aliases:
+          - test-rest-backend
+      test-rest-egress: {}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:8080/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  frontend:
+    build:
+      context: ./openresto-frontend
+      dockerfile: Dockerfile
+      args:
+        EXPO_PUBLIC_API_URL: /api
+    restart: unless-stopped
+    environment:
+      EXPO_PUBLIC_API_URL: /api
+    networks:
+      test-rest-internal:
+        aliases:
+          - test-rest-frontend
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:8081/"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+  reverse-proxy:
+    build:
+      context: ./nginx
+      dockerfile: Dockerfile
+    container_name: test-rest-reverse-proxy
+    restart: unless-stopped
+    environment:
+      PORT: 80
+      BACKEND_HOST: test-rest-backend
+      BACKEND_PORT: 8080
+      FRONTEND_HOST: test-rest-frontend
+      FRONTEND_PORT: 8081
+    volumes:
+      - test_rest_media_data:/usr/share/nginx/html/media:ro
+    networks:
+      - test-rest-internal
+      - dokploy-network
+    depends_on:
+      backend:
+        condition: service_healthy
+      frontend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://127.0.0.1/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
