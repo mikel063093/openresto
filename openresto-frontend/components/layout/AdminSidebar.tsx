@@ -4,7 +4,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ThemedView } from "@/components/themed-view";
 import { ThemedText } from "@/components/themed-text";
 import { useTheme } from "@/context/ThemeContext";
-import { logout } from "@/api/auth";
+import { checkSession, logout } from "@/api/auth";
 import { theme } from "@/theme/theme";
 import { useAppTheme } from "@/hooks/use-app-theme";
 import { hexToRgba } from "@/utils/colors";
@@ -56,6 +56,7 @@ export default function AdminSidebar() {
   const { toggle } = useTheme();
   const [locationCount, setLocationCount] = useState(0);
   const [unreadNotifCount, setUnreadNotifCount] = useState(0);
+  const [role, setRole] = useState<string | null>(null);
   const insets = useSafeAreaInsets();
 
   const [lookupQuery, setLookupQuery] = useState("");
@@ -69,6 +70,12 @@ export default function AdminSidebar() {
 
   useEffect(() => {
     fetchRestaurants().then((data) => setLocationCount(data.length));
+  }, []);
+
+  useEffect(() => {
+    checkSession().then((session) => {
+      if (session && session !== "rate-limited") setRole(session.role ?? null);
+    });
   }, []);
 
   useEffect(() => {
@@ -143,62 +150,64 @@ export default function AdminSidebar() {
       <View style={[styles.divider, { backgroundColor: colors.border }]} />
 
       <View style={styles.nav}>
-        {NAV_ITEMS.map(({ label, icon, href, match }) => {
-          const active = match(pathname);
-          return (
-            <Pressable
-              key={href}
-              onPress={() => router.push(href)}
-              style={(state) => [
-                styles.navItem,
-                active
-                  ? { backgroundColor: activeBg }
-                  : (state as { hovered?: boolean }).hovered && { backgroundColor: hoverBg },
-                { cursor: "pointer" } as const,
-              ]}
-            >
-              <View style={{ position: "relative", width: 20 }}>
-                <Ionicons name={icon} size={18} color={active ? PRIMARY : colors.muted} />
-                {label === "Notifications" && unreadNotifCount > 0 && (
-                  <View
-                    style={{
-                      position: "absolute",
-                      top: -4,
-                      right: -4,
-                      minWidth: 14,
-                      height: 14,
-                      borderRadius: 7,
-                      backgroundColor: PRIMARY,
-                      alignItems: "center",
-                      justifyContent: "center",
-                      paddingHorizontal: 2,
-                    }}
-                  >
-                    <ThemedText
-                      style={{ fontSize: 9, fontWeight: "700", color: theme.colors.white }}
-                    >
-                      {unreadNotifCount > 99 ? "99+" : String(unreadNotifCount)}
-                    </ThemedText>
-                  </View>
-                )}
-              </View>
-              <ThemedText
-                style={[
-                  styles.navLabel,
-                  active ? { color: PRIMARY, fontWeight: "700" } : { color: colors.muted },
+        {NAV_ITEMS.filter((item) => role !== "BookingViewer" || item.label === "Bookings")
+          .filter((item) => role !== "BookingEditor" || item.label === "Bookings")
+          .map(({ label, icon, href, match }) => {
+            const active = match(pathname);
+            return (
+              <Pressable
+                key={href}
+                onPress={() => router.push(href)}
+                style={(state) => [
+                  styles.navItem,
+                  active
+                    ? { backgroundColor: activeBg }
+                    : (state as { hovered?: boolean }).hovered && { backgroundColor: hoverBg },
+                  { cursor: "pointer" } as const,
                 ]}
               >
-                {label}
-              </ThemedText>
-              {active && (
-                <View
-                  style={[styles.activeBar, { backgroundColor: PRIMARY }]}
-                  pointerEvents="none"
-                />
-              )}
-            </Pressable>
-          );
-        })}
+                <View style={{ position: "relative", width: 20 }}>
+                  <Ionicons name={icon} size={18} color={active ? PRIMARY : colors.muted} />
+                  {label === "Notifications" && unreadNotifCount > 0 && (
+                    <View
+                      style={{
+                        position: "absolute",
+                        top: -4,
+                        right: -4,
+                        minWidth: 14,
+                        height: 14,
+                        borderRadius: 7,
+                        backgroundColor: PRIMARY,
+                        alignItems: "center",
+                        justifyContent: "center",
+                        paddingHorizontal: 2,
+                      }}
+                    >
+                      <ThemedText
+                        style={{ fontSize: 9, fontWeight: "700", color: theme.colors.white }}
+                      >
+                        {unreadNotifCount > 99 ? "99+" : String(unreadNotifCount)}
+                      </ThemedText>
+                    </View>
+                  )}
+                </View>
+                <ThemedText
+                  style={[
+                    styles.navLabel,
+                    active ? { color: PRIMARY, fontWeight: "700" } : { color: colors.muted },
+                  ]}
+                >
+                  {label}
+                </ThemedText>
+                {active && (
+                  <View
+                    style={[styles.activeBar, { backgroundColor: PRIMARY }]}
+                    pointerEvents="none"
+                  />
+                )}
+              </Pressable>
+            );
+          })}
       </View>
 
       <View style={styles.spacer} />

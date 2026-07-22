@@ -274,4 +274,11 @@ export const styles = StyleSheet.create({
     padding: theme.spacing.md,
     paddingTop: 0,
   },
+  roleRow: { flexDirection: "row", flexWrap: "wrap", gap: theme.spacing.sm },
+  roleChip: {
+    borderWidth: 1,
+    borderRadius: theme.borderRadius.md,
+    paddingHorizontal: theme.spacing.sm,
+    paddingVertical: theme.spacing.sm,
+  },
 });

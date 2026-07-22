@@ -425,6 +425,8 @@ public static partial class DatabaseExtensions
                             Email = email,
                             PasswordHash = hash,
                             PasswordSalt = salt,
+                            Role = OpenRestoApi.Core.Domain.AdminRole.SuperAdmin,
+                            IsActive = true,
                         });
                         db.SaveChanges();
                     }

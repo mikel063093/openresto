@@ -23,6 +23,7 @@ jest.mock("expo-router", () => {
 });
 
 jest.mock("@/api/auth", () => ({
+  checkSession: jest.fn().mockResolvedValue({ email: "admin@test.com", role: "SuperAdmin" }),
   logout: jest.fn().mockResolvedValue(true),
 }));
 

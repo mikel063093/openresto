@@ -1,3 +1,5 @@
+using OpenRestoApi.Core.Domain;
+
 namespace OpenRestoApi.Core.Application.DTOs;
 
 // ── Auth ─────────────────────────────────────────────────────────────────────
@@ -150,4 +152,27 @@ public class PvqStatusDto
 {
     public bool IsConfigured { get; set; }
     public string? Question { get; set; }
+}
+
+public class AdminUserDto
+{
+    public int Id { get; set; }
+    public string Email { get; set; } = null!;
+    public AdminRole Role { get; set; }
+    public bool IsActive { get; set; }
+}
+
+public class CreateAdminUserRequest
+{
+    public string Email { get; set; } = null!;
+    public string Password { get; set; } = null!;
+    public AdminRole Role { get; set; }
+}
+
+public class UpdateAdminUserRequest
+{
+    public string? Email { get; set; }
+    public string? Password { get; set; }
+    public AdminRole? Role { get; set; }
+    public bool? IsActive { get; set; }
 }

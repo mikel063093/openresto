@@ -8,10 +8,33 @@ using OpenRestoApi.Infrastructure.Persistence;
 
 namespace OpenRestoApi.Tests.Integration;
 
-public class AuthControllerTests(TestWebAppFactory factory) : IClassFixture<TestWebAppFactory>
+public class AuthControllerTests(TestWebAppFactory factory) : IClassFixture<TestWebAppFactory>, IAsyncLifetime
 {
     private readonly TestWebAppFactory _factory = factory;
     private readonly JsonSerializerOptions _jsonOpts = new() { PropertyNameCaseInsensitive = true };
+
+    // These tests mutate email/password/PVQ state. Reset the shared in-memory
+    // fixture before each case so authentication behavior is tested independently.
+    public async Task InitializeAsync()
+    {
+        using IServiceScope scope = _factory.Services.CreateScope();
+        AppDbContext db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        OpenRestoApi.Core.Application.Interfaces.IPasswordService passwords =
+            scope.ServiceProvider.GetRequiredService<OpenRestoApi.Core.Application.Interfaces.IPasswordService>();
+        await db.AdminCredentials.ExecuteDeleteAsync();
+        (string hash, string salt) = passwords.Hash(TestWebAppFactory.AdminPassword);
+        db.AdminCredentials.Add(new AdminCredential
+        {
+            Email = TestWebAppFactory.AdminEmail,
+            PasswordHash = hash,
+            PasswordSalt = salt,
+            Role = AdminRole.SuperAdmin,
+            IsActive = true
+        });
+        await db.SaveChangesAsync();
+    }
+
+    public Task DisposeAsync() => Task.CompletedTask;
 
     // ── Login ────────────────────────────────────────────────────────────────
 

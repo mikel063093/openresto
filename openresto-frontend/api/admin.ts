@@ -690,3 +690,52 @@ export async function adminDeleteSocialLink(id: number): Promise<boolean> {
     return false;
   }
 }
+
+export type AdminRole = "SuperAdmin" | "BookingViewer" | "BookingEditor";
+export interface AdminUser {
+  id: number;
+  email: string;
+  role: AdminRole;
+  isActive: boolean;
+}
+export interface CreateAdminUserRequest {
+  email: string;
+  password: string;
+  role: AdminRole;
+}
+export interface UpdateAdminUserRequest {
+  email?: string;
+  password?: string;
+  role?: AdminRole;
+  isActive?: boolean;
+}
+
+async function userError(res: Response): Promise<never> {
+  const body = await res.json().catch(() => ({}));
+  throw new Error(body.message ?? "Unable to update user.");
+}
+
+export async function getAdminUsers(): Promise<AdminUser[]> {
+  const res = await get("/admin/users");
+  return res.ok ? res.json() : [];
+}
+
+export async function createAdminUser(request: CreateAdminUserRequest): Promise<AdminUser> {
+  const res = await post("/admin/users", request);
+  if (!res.ok) return userError(res);
+  return res.json();
+}
+
+export async function updateAdminUser(
+  id: number,
+  request: UpdateAdminUserRequest
+): Promise<AdminUser> {
+  const res = await put(`/admin/users/${id}`, request);
+  if (!res.ok) return userError(res);
+  return res.json();
+}
+
+export async function deactivateAdminUser(id: number): Promise<void> {
+  const res = await post(`/admin/users/${id}/deactivate`);
+  if (!res.ok) return userError(res);
+}

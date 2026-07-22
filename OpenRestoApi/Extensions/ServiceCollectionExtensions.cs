@@ -186,6 +186,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IJwtTokenService, JwtTokenService>();
         services.AddScoped<ISecurityQuestionsService, SecurityQuestionsService>();
         services.AddScoped<IAuthService, AuthService>();
+        services.AddScoped<AdminUserService>();
         services.AddScoped<BookingService>();
         services.AddScoped<AdminService>();
         services.AddScoped<RestaurantManagementService>();

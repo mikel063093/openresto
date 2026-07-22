@@ -86,6 +86,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
         {
             a.HasKey(x => x.Id);
             a.HasIndex(x => x.Email).IsUnique();
+            a.Property(x => x.IsActive).HasDefaultValue(true);
         });
 
         modelBuilder.Entity<AdminNotification>(n =>

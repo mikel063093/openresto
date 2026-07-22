@@ -19,9 +19,13 @@ export async function logout(): Promise<void> {
   }
 }
 
+export type AdminRole = "SuperAdmin" | "BookingViewer" | "BookingEditor";
+
 // ---------- Session check ----------
 
-export async function checkSession(): Promise<{ email: string } | "rate-limited" | null> {
+export async function checkSession(): Promise<
+  { email: string; role?: AdminRole } | "rate-limited" | null
+> {
   try {
     const res = await get("/admin/auth/me");
     if (res.status === 429) return "rate-limited";

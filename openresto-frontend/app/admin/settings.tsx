@@ -1,4 +1,5 @@
 import { ScrollView, View, Platform } from "react-native";
+import { useEffect, useState } from "react";
 import { Stack } from "expo-router";
 import { ThemedText } from "@/components/themed-text";
 import { useAppTheme } from "@/hooks/use-app-theme";
@@ -10,10 +11,18 @@ import { EmailSettingsCard } from "@/components/admin/settings/EmailSettingsCard
 import { SecurityCard } from "@/components/admin/settings/SecurityCard";
 import { HighlightsCard } from "@/components/admin/settings/HighlightsCard";
 import { PushNotificationsCard } from "@/components/admin/settings/PushNotificationsCard";
+import { UsersRolesCard } from "@/components/admin/settings/UsersRolesCard";
+import { checkSession } from "@/api/auth";
 import { styles } from "@/components/admin/settings/settings.styles";
 
 export default function AdminSettingsScreen() {
   const { colors, isDark } = useAppTheme();
+  const [role, setRole] = useState<string | null>(null);
+  useEffect(() => {
+    checkSession().then((session) => {
+      if (session && session !== "rate-limited") setRole(session.role ?? null);
+    });
+  }, []);
 
   const borderColor = colors.border;
   const cardBg = colors.card;
@@ -57,6 +66,14 @@ export default function AdminSettingsScreen() {
         </ThemedText>
         <SecurityCard borderColor={borderColor} mutedColor={mutedColor} cardBg={cardBg} />
       </View>
+      {role === "SuperAdmin" && (
+        <View style={styles.section}>
+          <ThemedText style={[styles.sectionHeading, { color: mutedColor }]}>
+            ACCESS MANAGEMENT
+          </ThemedText>
+          <UsersRolesCard borderColor={borderColor} mutedColor={mutedColor} cardBg={cardBg} />
+        </View>
+      )}
     </ScrollView>
   );
 }

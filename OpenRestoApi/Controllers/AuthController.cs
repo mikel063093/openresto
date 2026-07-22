@@ -43,7 +43,8 @@ public class AuthController(
     public IActionResult Me()
     {
         string? email = User.FindFirst(ClaimTypes.Email)?.Value;
-        return Ok(new { email });
+        string? role = User.FindFirst(ClaimTypes.Role)?.Value;
+        return Ok(new { email, role });
     }
 
     [HttpPost("change-password")]
@@ -51,7 +52,9 @@ public class AuthController(
     public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordRequest req)
     {
         // ValidationException (short password) → 400 is mapped by GlobalExceptionHandler.
-        bool ok = await _authService.ChangePasswordAsync(req.CurrentPassword, req.NewPassword);
+        string? email = User.FindFirst(ClaimTypes.Email)?.Value;
+        if (email == null) return Unauthorized();
+        bool ok = await _authService.ChangePasswordAsync(email, req.CurrentPassword, req.NewPassword);
         if (!ok)
             return Unauthorized(new { message = "Current password is incorrect." });
         return Ok(new { message = "Password changed successfully." });
@@ -64,7 +67,9 @@ public class AuthController(
         // ValidationException (invalid email) and BusinessRuleException (same email)
         // → 400 are mapped by GlobalExceptionHandler; the BusinessRuleException's
         // message is "New email must be different from the current email.".
-        string? jwt = await _authService.ChangeEmailAsync(req.CurrentPassword, req.NewEmail ?? string.Empty);
+        string? email = User.FindFirst(ClaimTypes.Email)?.Value;
+        if (email == null) return Unauthorized();
+        string? jwt = await _authService.ChangeEmailAsync(email, req.CurrentPassword, req.NewEmail ?? string.Empty);
         if (jwt == null)
             return Unauthorized(new { message = "Current password is incorrect." });
         _cookies.SetCookie(Response, jwt);
