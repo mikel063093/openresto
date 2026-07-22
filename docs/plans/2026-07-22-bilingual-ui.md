@@ -10,9 +10,9 @@
 
 **Audit baseline (2026-07-22):**
 - No i18n or locale provider currently exists.
-- 23 public-facing files contain approximately 80 static copy candidates.
-- 41 admin files contain approximately 207 static copy candidates.
-- Backend has approximately 254 user-facing response/error copy sites and does not currently read `Accept-Language`.
+- 27 public-facing files contain approximately 180 customer-visible static English occurrences.
+- Admin routes, shared admin components, and support modules contain approximately 700–750 user-facing English fragments.
+- Backend has no localization infrastructure, does not read `Accept-Language`, and has hard-coded user-facing strings in domain services, controllers, the global exception handler, and email flows.
 - Tenant-authored values (restaurant name, descriptions, highlight text, custom brand subtitle/footer, tags, social labels, menu content) must remain as authored and must not be machine-translated by the product.
 
 ---

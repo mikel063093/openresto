@@ -15,6 +15,7 @@ import {
 import { Stack } from "expo-router";
 import RestaurantCard from "@/components/restaurant/RestaurantCard";
 import { useAppTheme } from "@/hooks/use-app-theme";
+import { useI18n } from "@/context/I18nContext";
 import { Ionicons } from "@expo/vector-icons";
 import ScrollToTopFab from "@/components/common/ScrollToTopFab";
 import Footer from "@/components/layout/Footer";
@@ -29,6 +30,7 @@ export function resetHomeCache() {
 }
 
 export default function HomeScreen() {
+  const { t } = useI18n();
   const [restaurants, setRestaurants] = useState<RestaurantDto[]>(_cachedRestaurants ?? []);
   const [highlights, setHighlights] = useState<HighlightDto[]>(_cachedHighlights ?? []);
   const [loading, setLoading] = useState(_cachedRestaurants === null);
@@ -68,11 +70,10 @@ export default function HomeScreen() {
   const accentSoft = `rgba(${accentR},${accentG},${accentB},0.18)`;
 
   // Home-page copy falls back to the pre-customization defaults when unset.
-  const DEFAULT_SUBTITLE =
-    "Scroll down to pick a location below, choose a time, enter your email address, and you're booked!";
+  const DEFAULT_SUBTITLE = t("home.defaultSubtitle");
   const heroSubtitle = brand.subtitle?.trim() || DEFAULT_SUBTITLE;
-  const highlightsHeading = brand.highlightsHeading?.trim() || "Restaurant highlights";
-  const highlightsSubheading = brand.highlightsSubheading?.trim() || "Curated by the owner";
+  const highlightsHeading = brand.highlightsHeading?.trim() || t("home.highlights");
+  const highlightsSubheading = brand.highlightsSubheading?.trim() || t("home.curatedByOwner");
 
   // "Contain" shows the whole image (avoids aggressive cropping on mobile); anything else
   // (null unset, or "Cover") keeps today's cover behaviour — no visual regression.
@@ -266,7 +267,7 @@ export default function HomeScreen() {
           {/* ── Main body ── */}
           <View style={[styles.body, isMobile && { paddingHorizontal: 16 }]}>
             <View style={styles.sectionHead}>
-              <ThemedText style={styles.sectionTitle}>Our locations</ThemedText>
+              <ThemedText style={styles.sectionTitle}>{t("home.ourLocations")}</ThemedText>
             </View>
 
             {loading ? (

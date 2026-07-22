@@ -1,0 +1,14 @@
+{
+  "public-ui": {
+    "file": "i18n/inventory/public-ui.json",
+    "entries": 79
+  },
+  "admin-ui": {
+    "file": "i18n/inventory/admin-ui.json",
+    "entries": 209
+  },
+  "backend-api": {
+    "file": "i18n/inventory/backend-api.json",
+    "entries": 93
+  }
+}

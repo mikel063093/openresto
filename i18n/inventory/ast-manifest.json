@@ -1,0 +1,10 @@
+{
+  "public-ui": {
+    "file": "i18n/inventory/public-ui-ast.json",
+    "entries": 1493
+  },
+  "admin-ui": {
+    "file": "i18n/inventory/admin-ui-ast.json",
+    "entries": 2268
+  }
+}
