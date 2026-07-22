@@ -84,7 +84,7 @@ public class TestWebAppFactory : WebApplicationFactory<Program>
     /// <summary>
     /// Generates a valid JWT token for the test admin user.
     /// </summary>
-    public static string GenerateTestJwt()
+    public static string GenerateTestJwt(AdminRole role = AdminRole.SuperAdmin)
     {
         byte[] keyBytes = Encoding.UTF8.GetBytes(JwtKey);
         var credentials = new SigningCredentials(
@@ -96,7 +96,7 @@ public class TestWebAppFactory : WebApplicationFactory<Program>
             claims: new[]
             {
                 new Claim(ClaimTypes.Email, AdminEmail),
-                new Claim(ClaimTypes.Role, "Admin")
+                new Claim(ClaimTypes.Role, role.ToString())
             },
             expires: DateTime.UtcNow.AddDays(1),
             signingCredentials: credentials);
@@ -107,11 +107,11 @@ public class TestWebAppFactory : WebApplicationFactory<Program>
     /// <summary>
     /// Creates an HttpClient with a valid JWT Authorization header.
     /// </summary>
-    public HttpClient CreateAuthenticatedClient()
+    public HttpClient CreateAuthenticatedClient(AdminRole role = AdminRole.SuperAdmin)
     {
         HttpClient client = CreateClient();
         client.DefaultRequestHeaders.Authorization =
-            new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", GenerateTestJwt());
+            new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", GenerateTestJwt(role));
         return client;
     }
 

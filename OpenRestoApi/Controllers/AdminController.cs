@@ -7,16 +7,18 @@ namespace OpenRestoApi.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize(Roles = "Admin")]
+[Authorize]
 public class AdminController(AdminService adminService) : ControllerBase
 {
     public enum bookingStatus { active, cancelled, all, past, upcoming }
     private readonly AdminService _adminService = adminService;
 
+    [Authorize(Policy = "SuperAdminOnly")]
     [HttpGet("overview")]
     public async Task<IActionResult> Overview()
         => Ok(await _adminService.GetOverviewAsync());
 
+    [Authorize(Policy = "BookingsRead")]
     [HttpGet("bookings")]
     public async Task<IActionResult> GetBookings(
         [FromQuery] int? restaurantId,
@@ -31,6 +33,7 @@ public class AdminController(AdminService adminService) : ControllerBase
         return Ok(await _adminService.GetBookingsAsync(restaurantId, date, effectiveStatus, email, bookingRef));
     }
 
+    [Authorize(Policy = "BookingsRead")]
     [HttpGet("bookings/{id}")]
     public async Task<IActionResult> GetBooking(int id)
     {
@@ -38,6 +41,7 @@ public class AdminController(AdminService adminService) : ControllerBase
         return result == null ? NotFound() : Ok(result);
     }
 
+    [Authorize(Policy = "BookingsWrite")]
     [HttpPost("bookings")]
     public async Task<IActionResult> CreateBooking([FromBody] AdminCreateBookingRequest req)
     {
@@ -47,6 +51,7 @@ public class AdminController(AdminService adminService) : ControllerBase
         return CreatedAtAction(nameof(GetBooking), new { id = result.Id }, result);
     }
 
+    [Authorize(Policy = "BookingsWrite")]
     [HttpPost("bookings/{id}/extend")]
     public async Task<IActionResult> ExtendBooking(int id, [FromBody] ExtendBookingRequest req)
     {
@@ -54,6 +59,7 @@ public class AdminController(AdminService adminService) : ControllerBase
         return endTime == null ? NotFound() : Ok(new { endTime });
     }
 
+    [Authorize(Policy = "BookingsWrite")]
     [HttpPost("bookings/{id}/cancel")]
     public async Task<IActionResult> CancelBooking(int id)
     {
@@ -61,10 +67,12 @@ public class AdminController(AdminService adminService) : ControllerBase
         return await _adminService.CancelBookingAsync(id) ? NoContent() : NotFound();
     }
 
+    [Authorize(Policy = "SuperAdminOnly")]
     [HttpDelete("bookings/{id}")]
     public async Task<IActionResult> PurgeBooking(int id)
         => await _adminService.PurgeBookingAsync(id) ? NoContent() : NotFound();
 
+    [Authorize(Policy = "SuperAdminOnly")]
     [HttpPost("restaurants")]
     public async Task<IActionResult> CreateRestaurant([FromBody] CreateRestaurantRequest req)
     {
@@ -77,6 +85,7 @@ public class AdminController(AdminService adminService) : ControllerBase
         return CreatedAtAction(nameof(Overview), new { }, result);
     }
 
+    [Authorize(Policy = "SuperAdminOnly")]
     [HttpPatch("restaurants/{id}")]
     public async Task<IActionResult> PatchRestaurant(int id, [FromBody] AdminRestaurantPatchRequest req)
     {
@@ -88,10 +97,12 @@ public class AdminController(AdminService adminService) : ControllerBase
         return NoContent();
     }
 
+    [Authorize(Policy = "SuperAdminOnly")]
     [HttpDelete("restaurants/{id}")]
     public async Task<IActionResult> DeleteRestaurant(int id)
         => await _adminService.DeleteRestaurantAsync(id) ? NoContent() : NotFound();
 
+    [Authorize(Policy = "SuperAdminOnly")]
     [HttpPost("restaurants/{id}/pause")]
     public async Task<IActionResult> PauseBookings(int id, [FromBody] PauseRestaurantRequest req)
     {
@@ -99,6 +110,7 @@ public class AdminController(AdminService adminService) : ControllerBase
         return success ? Ok(new MessageResponse { Message = "Bookings paused successfully." }) : NotFound();
     }
 
+    [Authorize(Policy = "SuperAdminOnly")]
     [HttpPost("restaurants/{id}/unpause")]
     public async Task<IActionResult> UnpauseBookings(int id)
     {
@@ -106,6 +118,7 @@ public class AdminController(AdminService adminService) : ControllerBase
         return success ? Ok(new MessageResponse { Message = "Bookings unpaused successfully." }) : NotFound();
     }
 
+    [Authorize(Policy = "SuperAdminOnly")]
     [HttpPost("restaurants/{id}/extend")]
     public async Task<IActionResult> ExtendBookings(int id, [FromBody] ExtendRestaurantRequest req)
     {
@@ -115,6 +128,7 @@ public class AdminController(AdminService adminService) : ControllerBase
             : NotFound();
     }
 
+    [Authorize(Policy = "BookingsRead")]
     [HttpGet("restaurants")]
     public async Task<IActionResult> GetRestaurants()
     {
@@ -122,6 +136,7 @@ public class AdminController(AdminService adminService) : ControllerBase
         return Ok(restaurants);
     }
 
+    [Authorize(Policy = "BookingsRead")]
     [HttpGet("restaurants/{restaurantId}/sections")]
     public async Task<IActionResult> GetSections(int restaurantId)
     {
@@ -129,6 +144,7 @@ public class AdminController(AdminService adminService) : ControllerBase
         return Ok(sections);
     }
 
+    [Authorize(Policy = "SuperAdminOnly")]
     [HttpPatch("restaurants/{id}/sections/reorder")]
     public async Task<IActionResult> ReorderSections(int id, [FromBody] ReorderSectionsRequest req)
     {
@@ -141,6 +157,7 @@ public class AdminController(AdminService adminService) : ControllerBase
         };
     }
 
+    [Authorize(Policy = "BookingsRead")]
     [HttpGet("restaurants/{restaurantId}/tables")]
     public async Task<IActionResult> GetTables(int restaurantId)
     {
@@ -150,6 +167,7 @@ public class AdminController(AdminService adminService) : ControllerBase
             : Ok(result);
     }
 
+    [Authorize(Policy = "SuperAdminOnly")]
     [HttpPost("bookings/{id}/email")]
     public async Task<IActionResult> SendEmail(int id, [FromBody] SendBookingEmailRequest req)
     {
@@ -175,6 +193,7 @@ public class AdminController(AdminService adminService) : ControllerBase
         }
     }
 
+    [Authorize(Policy = "BookingsWrite")]
     [HttpPost("bookings/{id}/restore")]
     public async Task<IActionResult> RestoreBooking(int id)
     {
@@ -183,6 +202,7 @@ public class AdminController(AdminService adminService) : ControllerBase
         return result == null ? NotFound() : Ok(new MessageResponse { Message = "Booking restored successfully." });
     }
 
+    [Authorize(Policy = "BookingsWrite")]
     [HttpPut("bookings/{id}")]
     public async Task<IActionResult> AdminUpdateBooking(int id, [FromBody] AdminUpdateBookingRequest req)
     {

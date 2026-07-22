@@ -25,7 +25,7 @@ public class RestaurantsController(RestaurantManagementService service) : Contro
     }
 
     [HttpPost]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = "SuperAdmin")]
     public async Task<IActionResult> Post(RestaurantDto dto)
     {
         RestaurantDto created = await _service.CreateAsync(dto);
@@ -33,7 +33,7 @@ public class RestaurantsController(RestaurantManagementService service) : Contro
     }
 
     [HttpPut("{id}")]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = "SuperAdmin")]
     public async Task<IActionResult> Put(int id, UpdateRestaurantRequest req)
     {
         // ValidationException (bad DefaultBookingDurationMinutes) → 400 is mapped
@@ -45,7 +45,7 @@ public class RestaurantsController(RestaurantManagementService service) : Contro
     // ── Sections ────────────────────────────────────────────────────────────
 
     [HttpPost("{id}/sections")]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = "SuperAdmin")]
     public async Task<IActionResult> AddSection(int id, CreateSectionRequest req)
     {
         SectionDto? result = await _service.AddSectionAsync(id, req.Name);
@@ -53,7 +53,7 @@ public class RestaurantsController(RestaurantManagementService service) : Contro
     }
 
     [HttpPut("{id}/sections/{sectionId}")]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = "SuperAdmin")]
     public async Task<IActionResult> UpdateSection(int id, int sectionId, UpdateSectionRequest req)
     {
         SectionDto? result = await _service.UpdateSectionAsync(id, sectionId, req.Name);
@@ -61,14 +61,14 @@ public class RestaurantsController(RestaurantManagementService service) : Contro
     }
 
     [HttpDelete("{id}/sections/{sectionId}")]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = "SuperAdmin")]
     public async Task<IActionResult> DeleteSection(int id, int sectionId)
         => await _service.DeleteSectionAsync(id, sectionId) ? NoContent() : NotFound();
 
     // ── Tables ──────────────────────────────────────────────────────────────
 
     [HttpPost("{id}/sections/{sectionId}/tables")]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = "SuperAdmin")]
     public async Task<IActionResult> AddTable(int id, int sectionId, CreateTableRequest req)
     {
         TableDto? result = await _service.AddTableAsync(id, sectionId, req.Name, req.Seats);
@@ -76,7 +76,7 @@ public class RestaurantsController(RestaurantManagementService service) : Contro
     }
 
     [HttpPut("{id}/sections/{sectionId}/tables/{tableId}")]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = "SuperAdmin")]
     public async Task<IActionResult> UpdateTable(int id, int sectionId, int tableId, UpdateTableRequest req)
     {
         TableDto? result = await _service.UpdateTableAsync(id, sectionId, tableId, req.Name, req.Seats);
@@ -84,7 +84,7 @@ public class RestaurantsController(RestaurantManagementService service) : Contro
     }
 
     [HttpDelete("{id}/sections/{sectionId}/tables/{tableId}")]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = "SuperAdmin")]
     public async Task<IActionResult> DeleteTable(int id, int sectionId, int tableId)
         => await _service.DeleteTableAsync(id, sectionId, tableId) ? NoContent() : NotFound();
 }

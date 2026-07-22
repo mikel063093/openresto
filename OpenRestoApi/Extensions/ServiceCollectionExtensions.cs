@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.IdentityModel.Tokens;
 using OpenRestoApi.Core.Application.Interfaces;
 using OpenRestoApi.Core.Application.Services;
+using OpenRestoApi.Core.Domain;
 using OpenRestoApi.Infrastructure.Holds;
 using OpenRestoApi.Infrastructure.Persistence.Repositories;
 using WebPush;
@@ -135,7 +136,14 @@ public static class ServiceCollectionExtensions
                 };
             });
 
-        services.AddAuthorization();
+        services.AddAuthorization(options =>
+        {
+            options.AddPolicy("SuperAdminOnly", policy => policy.RequireRole(nameof(AdminRole.SuperAdmin)));
+            options.AddPolicy("BookingsRead", policy => policy.RequireRole(
+                nameof(AdminRole.SuperAdmin), nameof(AdminRole.BookingViewer), nameof(AdminRole.BookingEditor)));
+            options.AddPolicy("BookingsWrite", policy => policy.RequireRole(
+                nameof(AdminRole.SuperAdmin), nameof(AdminRole.BookingEditor)));
+        });
 
         return services;
     }
