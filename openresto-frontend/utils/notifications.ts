@@ -1,5 +1,6 @@
 import { theme } from "@/theme/theme";
 import type { NotificationType } from "@/api/notifications";
+import { type Locale, toIntlLocale } from "@/i18n/locale";
 
 /** Decodes a VAPID public key (base64url) into a Uint8Array for PushManager.subscribe. */
 export function urlBase64ToUint8Array(base64String: string): Uint8Array<ArrayBuffer> {
@@ -28,8 +29,8 @@ export function relativeTime(iso: string): string {
 }
 
 /** Locale-aware booking date for notification meta lines. */
-export function formatBookingDate(iso: string): string {
-  return new Date(iso).toLocaleString(undefined, {
+export function formatBookingDate(iso: string, locale: Locale = "en"): string {
+  return new Date(iso).toLocaleString(toIntlLocale(locale), {
     weekday: "short",
     day: "numeric",
     month: "short",

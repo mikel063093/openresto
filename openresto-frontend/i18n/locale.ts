@@ -1,7 +1,16 @@
-export type Locale = "en" | "es";
+export type Locale = "en" | "es-CO";
+
+export const DEFAULT_LOCALE: Locale = "en";
+export const DEFAULT_SPANISH_LOCALE: Locale = "es-CO";
 
 export function normalizeLocale(value?: string | null): Locale {
-  return value?.trim().replace("_", "-").toLowerCase().startsWith("es") ? "es" : "en";
+  return value?.trim().replace("_", "-").toLowerCase().startsWith("es")
+    ? DEFAULT_SPANISH_LOCALE
+    : DEFAULT_LOCALE;
+}
+
+export function toIntlLocale(locale: Locale): string {
+  return locale;
 }
 
 export interface LocaleDetectionInput {
@@ -10,10 +19,17 @@ export interface LocaleDetectionInput {
 }
 
 export function detectLocale({ storedLocale, browserLanguages }: LocaleDetectionInput): Locale {
-  if (storedLocale === "en" || storedLocale === "es") return storedLocale;
+  if (storedLocale === DEFAULT_LOCALE || storedLocale === DEFAULT_SPANISH_LOCALE) {
+    return storedLocale;
+  }
+  if (storedLocale === "es") {
+    return DEFAULT_SPANISH_LOCALE;
+  }
 
-  const preferred = browserLanguages?.find((language) => normalizeLocale(language) === "es");
-  return preferred ? "es" : "en";
+  const preferred = browserLanguages?.find(
+    (language) => normalizeLocale(language) === DEFAULT_SPANISH_LOCALE
+  );
+  return preferred ? DEFAULT_SPANISH_LOCALE : DEFAULT_LOCALE;
 }
 
 export function getBrowserLanguages(): readonly string[] {

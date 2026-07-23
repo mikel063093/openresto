@@ -4,9 +4,13 @@ import { Modal, Pressable, StyleSheet, FlatList, TouchableOpacity } from "react-
 import { useState } from "react";
 import { theme } from "@/theme/theme";
 import { useAppTheme } from "@/hooks/use-app-theme";
+import { useI18n } from "@/context/I18nContext";
+import { type Locale } from "@/i18n/locale";
+import { fmtDate } from "@/utils/formatters";
 
 export function generateDateOptions(options?: {
   allowPast?: boolean;
+  locale?: Locale;
 }): { label: string; value: string }[] {
   const opts = [];
   const today = new Date();
@@ -16,11 +20,7 @@ export function generateDateOptions(options?: {
   for (let i = startOffset; i <= 29; i++) {
     const d = new Date(today);
     d.setDate(today.getDate() + i);
-    const label = d.toLocaleDateString(undefined, {
-      weekday: "short",
-      month: "short",
-      day: "numeric",
-    });
+    const label = fmtDate(d, options?.locale ?? "en");
     // Generate value in local YYYY-MM-DD format
     const year = d.getFullYear();
     const month = String(d.getMonth() + 1).padStart(2, "0");
@@ -48,12 +48,13 @@ export default function DatePicker({
   allowPast?: boolean;
 }) {
   const [modalVisible, setModalVisible] = useState(false);
+  const { locale } = useI18n();
   const { colors, primaryColor } = useAppTheme();
   const borderColor = colors.border;
   const placeholderColor = colors.muted;
   const backgroundColor = colors.input;
 
-  const allOptions = generateDateOptions({ allowPast });
+  const allOptions = generateDateOptions({ allowPast, locale });
   const options = openDays
     ? allOptions.filter((o) => {
         const jsDay = new Date(o.value + "T12:00:00").getDay();

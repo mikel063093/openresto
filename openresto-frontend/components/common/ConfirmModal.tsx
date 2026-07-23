@@ -3,6 +3,7 @@ import * as Haptics from "expo-haptics";
 import { ThemedText } from "@/components/themed-text";
 import { theme } from "@/theme/theme";
 import { useAppTheme } from "@/hooks/use-app-theme";
+import { useI18n } from "@/context/I18nContext";
 
 interface ConfirmModalProps {
   visible: boolean;
@@ -17,22 +18,26 @@ interface ConfirmModalProps {
 
 export default function ConfirmModal({
   visible,
-  title = "Confirm",
+  title,
   message,
-  confirmLabel = "Confirm",
-  cancelLabel = "Cancel",
+  confirmLabel,
+  cancelLabel,
   destructive = false,
   onConfirm,
   onCancel,
 }: ConfirmModalProps) {
+  const { t } = useI18n();
   const { colors, primaryColor } = useAppTheme();
+  const resolvedTitle = title ?? t("common.confirm");
+  const resolvedConfirmLabel = confirmLabel ?? t("common.confirm");
+  const resolvedCancelLabel = cancelLabel ?? t("common.cancel");
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onCancel}>
       <Pressable style={styles.backdrop} onPress={onCancel}>
         <TouchableWithoutFeedback>
           <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <ThemedText type="h3">{title}</ThemedText>
+            <ThemedText type="h3">{resolvedTitle}</ThemedText>
             <ThemedText style={[styles.message, { color: colors.muted }]}>{message}</ThemedText>
             <View style={[styles.actions, { borderTopColor: colors.border }]}>
               <Pressable
@@ -43,7 +48,7 @@ export default function ConfirmModal({
                 }}
               >
                 <ThemedText style={[styles.btnText, { color: colors.muted }]}>
-                  {cancelLabel}
+                  {resolvedCancelLabel}
                 </ThemedText>
               </Pressable>
               <Pressable
@@ -62,7 +67,7 @@ export default function ConfirmModal({
                   onConfirm();
                 }}
               >
-                <ThemedText style={styles.confirmBtnText}>{confirmLabel}</ThemedText>
+                <ThemedText style={styles.confirmBtnText}>{resolvedConfirmLabel}</ThemedText>
               </Pressable>
             </View>
           </View>

@@ -15,6 +15,7 @@ function Consumer() {
     <>
       <Text testID="locale">{locale}</Text>
       <Text testID="label">{t("navigation.locations")}</Text>
+      <TouchableOpacity testID="spanish" onPress={() => setLocale("es-CO")} />
       <TouchableOpacity testID="english" onPress={() => setLocale("en")} />
     </>
   );
@@ -33,12 +34,24 @@ describe("I18nContext", () => {
       </I18nProvider>
     );
 
-    expect(getByTestId("locale").props.children).toBe("es");
+    expect(getByTestId("locale").props.children).toBe("es-CO");
     expect(getByTestId("label").props.children).toBe("Ubicaciones");
 
     fireEvent.press(getByTestId("english"));
 
     expect(getByTestId("locale").props.children).toBe("en");
     expect(localStorage.getItem("openresto-language")).toBe("en");
+  });
+
+  it("upgrades a legacy stored Spanish override to es-CO", () => {
+    localStorage.setItem("openresto-language", "es");
+
+    const { getByTestId } = render(
+      <I18nProvider>
+        <Consumer />
+      </I18nProvider>
+    );
+
+    expect(getByTestId("locale").props.children).toBe("es-CO");
   });
 });

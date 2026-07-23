@@ -8,6 +8,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useAppTheme } from "@/hooks/use-app-theme";
 import { theme } from "@/theme/theme";
 import { fetchSocialLinks, SocialLinkDto } from "@/api/restaurants";
+import { useI18n } from "@/context/I18nContext";
 
 interface FooterProps {
   /** Override the footer's background so it matches a page that doesn't use the default themed page color. */
@@ -15,6 +16,7 @@ interface FooterProps {
 }
 
 export default function Footer({ backgroundColor }: FooterProps) {
+  const { t } = useI18n();
   const { brand, colors } = useAppTheme();
   const { width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
@@ -28,7 +30,8 @@ export default function Footer({ backgroundColor }: FooterProps) {
 
   const year = new Date().getFullYear();
   const copyright =
-    brand.copyrightText?.trim() || `© ${year} ${brand.appName}. All rights reserved.`;
+    brand.copyrightText?.trim() ||
+    t("footer.allRightsReserved", { year, appName: brand.appName });
 
   return (
     <ThemedView
@@ -69,12 +72,14 @@ export default function Footer({ backgroundColor }: FooterProps) {
           <Link href={"/admin/dashboard" as const} asChild>
             <Pressable
               accessibilityRole="link"
-              accessibilityLabel="Restaurant admin"
+              accessibilityLabel={t("footer.restaurantAdmin")}
               hitSlop={10}
               style={styles.adminBtn}
             >
               <Ionicons name="settings-outline" size={14} color={colors.muted} />
-              <ThemedText style={[styles.adminText, { color: colors.muted }]}>Admin</ThemedText>
+              <ThemedText style={[styles.adminText, { color: colors.muted }]}>
+                {t("footer.adminLabel")}
+              </ThemedText>
             </Pressable>
           </Link>
         </View>

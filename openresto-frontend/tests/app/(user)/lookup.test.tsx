@@ -286,7 +286,7 @@ describe("LookupScreen", () => {
 
     renderWithProviders(<LookupScreen />);
 
-    await waitFor(() => expect(screen.getByText("YOUR RECENT BOOKINGS")).toBeTruthy());
+    await waitFor(() => expect(screen.getByText("Your recent bookings")).toBeTruthy());
     expect(screen.getByText("CACHED1")).toBeTruthy();
     expect(screen.getByText(/Cached Resto/)).toBeTruthy();
 
@@ -318,6 +318,19 @@ describe("LookupScreen", () => {
     } finally {
       mockUseDimensions.mockRestore();
     }
+  });
+
+  it("renders localized es-CO labels and messages", async () => {
+    renderWithProviders(<LookupScreen />, { locale: "es-CO" });
+
+    expect(screen.getByText("Encontrar mi reserva")).toBeTruthy();
+    fireEvent.changeText(screen.getByPlaceholderText("p. ej. albahaca-crujiente-tomillo"), "REF");
+    fireEvent.changeText(screen.getByPlaceholderText("El correo usado al reservar"), "test@test.com");
+    fireEvent.press(screen.getByText("Buscar"));
+
+    await waitFor(() =>
+      expect(screen.getByText("No se encontró ninguna reserva con esa referencia y correo.")).toBeTruthy()
+    );
   });
 
   it("pressing recent booking in wide layout calls performLookup", async () => {
@@ -886,7 +899,7 @@ describe("LookupScreen", () => {
       );
       fireEvent.press(screen.getByText("Look Up"));
 
-      await waitFor(() => expect(screen.getByText("GET DIRECTIONS")).toBeTruthy());
+      await waitFor(() => expect(screen.getByText("Get Directions")).toBeTruthy());
       // "Google"/"Apple" also appear in the compact CalendarActions block above
       // this section, so there are multiple matches — just assert presence.
       expect(screen.getAllByText("Google").length).toBeGreaterThan(0);

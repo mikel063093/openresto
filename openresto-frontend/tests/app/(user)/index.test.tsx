@@ -159,11 +159,15 @@ describe("HomeScreen", () => {
   it("renders the default hero subtitle when brand.subtitle is unset", async () => {
     renderWithProviders(<HomeScreen />);
     await waitFor(() => expect(screen.queryByTestId("loading-screen")).toBeNull());
-    expect(
-      screen.getByText(
-        "Scroll down to pick a location below, choose a time, enter your email address, and you're booked!"
-      )
-    ).toBeTruthy();
+    expect(screen.getByText("Choose a location, select a time, enter your email address, and you are all set.")).toBeTruthy();
+  });
+
+  it("renders localized home copy for es-CO", async () => {
+    renderWithProviders(<HomeScreen />, { locale: "es-CO" });
+    await waitFor(() => expect(screen.queryByTestId("loading-screen")).toBeNull());
+    expect(screen.getByText("Nuestras ubicaciones")).toBeTruthy();
+    expect(screen.getByText("Lo mejor del restaurante")).toBeTruthy();
+    expect(screen.getByText("Selección del restaurante")).toBeTruthy();
   });
 
   it("renders a custom brand subtitle when set", async () => {

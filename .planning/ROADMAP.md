@@ -7,7 +7,7 @@ This roadmap completes OpenResto localization as a brownfield migration across t
 ## Phases
 
 - [x] **Phase 1: Baseline And Contracts** - Freeze scope, classify inventory gaps, and define the locale/content-preservation contract from current code.
-- [ ] **Phase 2: Public UI Localization** - Complete public-facing product copy and locale-aware formatting without touching tenant-authored content.
+- [x] **Phase 2: Public UI Localization** - Complete public-facing product copy and locale-aware formatting without touching tenant-authored content.
 - [ ] **Phase 3: Admin UI Localization** - Complete admin product copy, role-safe labels, and locale-aware admin formatting.
 - [ ] **Phase 4: API Locale Propagation And Messages** - Centralize `Accept-Language` propagation and localize backend API responses while preserving contracts.
 - [ ] **Phase 5: Emails And Notification Copy** - Localize outbound email and notification copy using request or booking language with safe fallback behavior.
@@ -43,9 +43,9 @@ Plans:
 **Plans**: 3 plans
 
 Plans:
-- [ ] 02-01: Normalize shared public formatting and page-title/accessibility helpers onto the active locale.
-- [ ] 02-02: Migrate guest routes and shared public components to catalog-driven product copy.
-- [ ] 02-03: Add or update focused public unit/E2E coverage in both locales.
+- [x] 02-01: Normalize shared public formatting and page-title/accessibility helpers onto the active locale.
+- [x] 02-02: Migrate guest routes and shared public components to catalog-driven product copy.
+- [x] 02-03: Add or update focused public unit/E2E coverage in both locales.
 
 **Test Gate**:
 - `openresto-frontend` Jest tests for public routes/components and i18n helpers pass.
@@ -131,7 +131,7 @@ Plans:
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Baseline And Contracts | 2/2 | Complete | 2026-07-23 |
-| 2. Public UI Localization | 0/3 | Not started | - |
+| 2. Public UI Localization | 3/3 | Complete | 2026-07-23 |
 | 3. Admin UI Localization | 0/3 | Not started | - |
 | 4. API Locale Propagation And Messages | 0/3 | Not started | - |
 | 5. Emails And Notification Copy | 0/2 | Not started | - |

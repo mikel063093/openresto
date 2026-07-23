@@ -14,6 +14,7 @@ import { useAppTheme } from "@/hooks/use-app-theme";
 import { useBrand } from "@/context/BrandContext";
 import { theme } from "@/theme/theme";
 import { fetchSocialLinks, SocialLinkDto } from "@/api/restaurants";
+import { useI18n } from "@/context/I18nContext";
 
 /**
  * Web-only overflow control that replaces the old standalone light/dark toggle
@@ -23,6 +24,7 @@ import { fetchSocialLinks, SocialLinkDto } from "@/api/restaurants";
  * KeyboardShortcutsHelp.
  */
 export default function OverflowMenu({ onOpenShortcuts }: { onOpenShortcuts: () => void }) {
+  const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
   const [socialLinks, setSocialLinks] = useState<SocialLinkDto[]>([]);
@@ -66,7 +68,7 @@ export default function OverflowMenu({ onOpenShortcuts }: { onOpenShortcuts: () 
         ref={triggerRef}
         onPress={openMenu}
         style={({ hovered }: any) => [styles.trigger, hovered && { opacity: 0.7 }]}
-        accessibilityLabel="Open menu"
+        accessibilityLabel={t("navigation.openMenu")}
         accessibilityRole="button"
       >
         <Ionicons name="ellipsis-vertical" size={19} color={colors.muted} />
@@ -91,10 +93,10 @@ export default function OverflowMenu({ onOpenShortcuts }: { onOpenShortcuts: () 
                   setOpen(false);
                   setShowHelp(true);
                 }}
-                accessibilityLabel="Help"
+                accessibilityLabel={t("navigation.help")}
               >
                 <Ionicons name="help-circle-outline" size={18} color={colors.muted} />
-                <ThemedText style={styles.rowText}>Help</ThemedText>
+                <ThemedText style={styles.rowText}>{t("navigation.help")}</ThemedText>
               </Pressable>
 
               <Pressable
@@ -106,7 +108,7 @@ export default function OverflowMenu({ onOpenShortcuts }: { onOpenShortcuts: () 
                   setOpen(false);
                   toggleTheme();
                 }}
-                accessibilityLabel={isDark ? "Switch to light mode" : "Switch to dark mode"}
+                accessibilityLabel={isDark ? t("navigation.lightMode") : t("navigation.darkMode")}
               >
                 <Ionicons
                   name={isDark ? "sunny-outline" : "moon-outline"}
@@ -114,7 +116,7 @@ export default function OverflowMenu({ onOpenShortcuts }: { onOpenShortcuts: () 
                   color={colors.muted}
                 />
                 <ThemedText style={styles.rowText}>
-                  {isDark ? "Switch to light mode" : "Switch to dark mode"}
+                  {isDark ? t("navigation.lightMode") : t("navigation.darkMode")}
                 </ThemedText>
               </Pressable>
 
@@ -127,10 +129,10 @@ export default function OverflowMenu({ onOpenShortcuts }: { onOpenShortcuts: () 
                   setOpen(false);
                   onOpenShortcuts();
                 }}
-                accessibilityLabel="View keyboard shortcuts"
+                accessibilityLabel={t("navigation.viewKeyboardShortcuts")}
               >
                 <Ionicons name="keypad-outline" size={18} color={colors.muted} />
-                <ThemedText style={styles.rowText}>Keyboard shortcuts</ThemedText>
+                <ThemedText style={styles.rowText}>{t("navigation.keyboardShortcuts")}</ThemedText>
               </Pressable>
 
               {socialLinks.length > 0 && (
@@ -186,11 +188,9 @@ export default function OverflowMenu({ onOpenShortcuts }: { onOpenShortcuts: () 
                 { backgroundColor: colors.card, borderColor: colors.border },
               ]}
             >
-              <ThemedText type="h3">Help</ThemedText>
+              <ThemedText type="h3">{t("navigation.help")}</ThemedText>
               <ThemedText style={[styles.helpText, { color: colors.muted }]}>
-                Open the Locations page to see hours, menus, and available times for each location.
-                Pick a time slot to open the booking form right there, or use "My Bookings" to look
-                up an existing reservation with your booking reference.
+                {t("overflow.helpText")}
               </ThemedText>
               {brand.websiteUrl && (
                 <Pressable
@@ -199,11 +199,11 @@ export default function OverflowMenu({ onOpenShortcuts }: { onOpenShortcuts: () 
                     setShowHelp(false);
                     Linking.openURL(brand.websiteUrl!);
                   }}
-                  accessibilityLabel="Visit our website"
+                  accessibilityLabel={t("overflow.website")}
                 >
                   <Ionicons name="globe-outline" size={16} color={colors.muted} />
                   <ThemedText style={[styles.helpLinkText, { color: colors.muted }]}>
-                    Visit our website
+                    {t("overflow.website")}
                   </ThemedText>
                 </Pressable>
               )}
@@ -213,7 +213,7 @@ export default function OverflowMenu({ onOpenShortcuts }: { onOpenShortcuts: () 
                 onPress={() => setShowHelp(false)}
               >
                 <ThemedText style={[styles.closeBtnText, { color: colors.muted }]}>
-                  Close
+                  {t("common.closeShort")}
                 </ThemedText>
               </Pressable>
             </View>

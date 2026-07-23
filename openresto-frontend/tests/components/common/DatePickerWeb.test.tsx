@@ -4,6 +4,7 @@
 import React from "react";
 import { render, fireEvent, screen } from "@testing-library/react-native";
 import DatePickerWeb from "@/components/common/DatePicker.web";
+import { I18nProvider } from "@/context/I18nContext";
 
 jest.mock("@/hooks/use-color-scheme", () => ({
   useColorScheme: () => "light",
@@ -25,23 +26,27 @@ function localDateValue(d: Date): string {
 describe("DatePicker (web)", () => {
   const onSelect = jest.fn();
 
+  function renderWithI18n(ui: React.ReactElement) {
+    return render(<I18nProvider>{ui}</I18nProvider>);
+  }
+
   beforeEach(() => {
     jest.clearAllMocks();
   });
 
   it("renders without crashing", () => {
-    render(<DatePickerWeb onSelect={onSelect} />);
+    renderWithI18n(<DatePickerWeb onSelect={onSelect} />);
     expect(screen.getByText("Select a date")).toBeTruthy();
   });
 
   it("renders with a selected date without crashing", () => {
-    render(<DatePickerWeb selectedDate="2026-10-01" onSelect={onSelect} />);
+    renderWithI18n(<DatePickerWeb selectedDate="2026-10-01" onSelect={onSelect} />);
     expect(screen.getByTestId("date-picker-trigger")).toBeTruthy();
   });
 
   it("shows closed day warning when selected date is a closed day", () => {
     // 2026-10-05 is a Monday (ISO day 1); openDays=[2,3,4,5,6] excludes Monday
-    render(
+    renderWithI18n(
       <DatePickerWeb selectedDate="2026-10-05" onSelect={onSelect} openDays={[2, 3, 4, 5, 6]} />
     );
     expect(screen.getByText(/normally closed on this day/)).toBeTruthy();
@@ -49,24 +54,24 @@ describe("DatePicker (web)", () => {
 
   it("does not show closed day warning when selected date is an open day", () => {
     // 2026-10-06 is a Tuesday (ISO day 2) — open
-    render(
+    renderWithI18n(
       <DatePickerWeb selectedDate="2026-10-06" onSelect={onSelect} openDays={[2, 3, 4, 5, 6]} />
     );
     expect(screen.queryByText(/normally closed on this day/)).toBeNull();
   });
 
   it("does not show closed day warning when openDays is not provided", () => {
-    render(<DatePickerWeb selectedDate="2026-10-05" onSelect={onSelect} />);
+    renderWithI18n(<DatePickerWeb selectedDate="2026-10-05" onSelect={onSelect} />);
     expect(screen.queryByText(/normally closed on this day/)).toBeNull();
   });
 
   it("does not show closed day warning when no date is selected", () => {
-    render(<DatePickerWeb onSelect={onSelect} openDays={[2, 3]} />);
+    renderWithI18n(<DatePickerWeb onSelect={onSelect} openDays={[2, 3]} />);
     expect(screen.queryByText(/normally closed on this day/)).toBeNull();
   });
 
   it("opens the calendar when the trigger is pressed", () => {
-    render(<DatePickerWeb onSelect={onSelect} />);
+    renderWithI18n(<DatePickerWeb onSelect={onSelect} />);
     expect(screen.queryByTestId("date-picker-calendar")).toBeNull();
     fireEvent.press(screen.getByTestId("date-picker-trigger"));
     expect(screen.getByTestId("date-picker-calendar")).toBeTruthy();
@@ -75,7 +80,7 @@ describe("DatePicker (web)", () => {
   it("selects an open day and closes the calendar", () => {
     const today = new Date();
     const todayStr = localDateValue(today);
-    render(<DatePickerWeb onSelect={onSelect} openDays={[1, 2, 3, 4, 5, 6, 7]} />);
+    renderWithI18n(<DatePickerWeb onSelect={onSelect} openDays={[1, 2, 3, 4, 5, 6, 7]} />);
     fireEvent.press(screen.getByTestId("date-picker-trigger"));
     fireEvent.press(screen.getByTestId(`date-picker-day-${todayStr}`));
     expect(onSelect).toHaveBeenCalledWith(todayStr);
@@ -87,7 +92,7 @@ describe("DatePicker (web)", () => {
     const todayStr = localDateValue(today);
     const todayIso = today.getDay() === 0 ? 7 : today.getDay();
     const openDays = [1, 2, 3, 4, 5, 6, 7].filter((d) => d !== todayIso);
-    render(<DatePickerWeb onSelect={onSelect} openDays={openDays} />);
+    renderWithI18n(<DatePickerWeb onSelect={onSelect} openDays={openDays} />);
     fireEvent.press(screen.getByTestId("date-picker-trigger"));
     fireEvent.press(screen.getByTestId(`date-picker-day-${todayStr}`));
     expect(onSelect).not.toHaveBeenCalled();
@@ -95,7 +100,7 @@ describe("DatePicker (web)", () => {
 
   it("does not call onSelect when pressing a cell outside the allowed range", () => {
     const today = new Date();
-    render(<DatePickerWeb onSelect={onSelect} />);
+    renderWithI18n(<DatePickerWeb onSelect={onSelect} />);
     fireEvent.press(screen.getByTestId("date-picker-trigger"));
     const yesterday = new Date(today);
     yesterday.setDate(yesterday.getDate() - 1);
@@ -112,7 +117,7 @@ describe("DatePicker (web)", () => {
     const next = new Date(today.getFullYear(), today.getMonth() + 1, 1);
     const nextLabel = next.toLocaleDateString(undefined, { month: "long", year: "numeric" });
 
-    render(<DatePickerWeb onSelect={onSelect} allowPast />);
+    renderWithI18n(<DatePickerWeb onSelect={onSelect} allowPast />);
     fireEvent.press(screen.getByTestId("date-picker-trigger"));
     expect(screen.getByText(currentLabel)).toBeTruthy();
     fireEvent.press(screen.getByTestId("date-picker-next-month"));
@@ -129,7 +134,9 @@ describe("DatePicker (web)", () => {
     const jan = new Date(lastDec.getFullYear() + 1, 0, 1);
     const janLabel = jan.toLocaleDateString(undefined, { month: "long", year: "numeric" });
 
-    render(<DatePickerWeb selectedDate={localDateValue(lastDec)} onSelect={onSelect} allowPast />);
+    renderWithI18n(
+      <DatePickerWeb selectedDate={localDateValue(lastDec)} onSelect={onSelect} allowPast />
+    );
     fireEvent.press(screen.getByTestId("date-picker-trigger"));
     expect(screen.getByText(decLabel)).toBeTruthy();
     fireEvent.press(screen.getByTestId("date-picker-next-month"));
@@ -139,7 +146,7 @@ describe("DatePicker (web)", () => {
   });
 
   it("does not navigate past the max date's month", () => {
-    render(<DatePickerWeb onSelect={onSelect} />);
+    renderWithI18n(<DatePickerWeb onSelect={onSelect} />);
     fireEvent.press(screen.getByTestId("date-picker-trigger"));
     // Click next repeatedly beyond the ~29 day window (at most 2 months out).
     fireEvent.press(screen.getByTestId("date-picker-next-month"));
@@ -150,7 +157,7 @@ describe("DatePicker (web)", () => {
   });
 
   it("closes the calendar when pressing the backdrop", () => {
-    render(<DatePickerWeb onSelect={onSelect} />);
+    renderWithI18n(<DatePickerWeb onSelect={onSelect} />);
     fireEvent.press(screen.getByTestId("date-picker-trigger"));
     expect(screen.getByTestId("date-picker-calendar")).toBeTruthy();
     fireEvent.press(screen.getByTestId("date-picker-backdrop"));

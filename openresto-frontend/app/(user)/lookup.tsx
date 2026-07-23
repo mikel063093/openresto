@@ -33,8 +33,11 @@ import ScrollToTopFab from "@/components/common/ScrollToTopFab";
 import Footer from "@/components/layout/Footer";
 import { isPast } from "@/components/admin/bookings/StatusBadge";
 import { useErrorHandler } from "@/hooks/useErrorHandler";
+import { useI18n } from "@/context/I18nContext";
+import { fmtDateTime } from "@/utils/formatters";
 
 export default function LookupScreen() {
+  const { locale, t } = useI18n();
   const [refInput, setRefInput] = useState("");
   const [emailInput, setEmailInput] = useState("");
   const [booking, setBooking] = useState<BookingDto | null | undefined>(undefined);
@@ -125,9 +128,9 @@ export default function LookupScreen() {
         <PageContainer>
           <View style={[styles.header, !isWide && { marginBottom: 12 }]}>
             <Ionicons name="search-outline" size={32} color={primaryColor} />
-            <ThemedText style={styles.title}>Find My Booking</ThemedText>
+            <ThemedText style={styles.title}>{t("booking.lookupTitle")}</ThemedText>
             <ThemedText style={[styles.subtitle, { color: colors.muted }]}>
-              Enter your booking reference and email to look up your reservation.
+              {t("booking.lookupSubtitle")}
             </ThemedText>
           </View>
 
@@ -139,17 +142,17 @@ export default function LookupScreen() {
                   { backgroundColor: colors.card, borderColor: colors.border },
                 ]}
               >
-                <ThemedText style={styles.label}>Booking Reference</ThemedText>
+                <ThemedText style={styles.label}>{t("booking.lookupReference")}</ThemedText>
                 <Input
                   ref={refInputRef}
-                  placeholder="e.g. crispy-basil-thyme"
+                  placeholder={t("booking.lookupReferencePlaceholder")}
                   value={refInput}
                   onChangeText={setRefInput}
                   autoCapitalize="none"
                 />
-                <ThemedText style={styles.label}>Email Address</ThemedText>
+                <ThemedText style={styles.label}>{t("booking.email")}</ThemedText>
                 <Input
-                  placeholder="The email used when booking"
+                  placeholder={t("booking.lookupEmailPlaceholder")}
                   value={emailInput}
                   onChangeText={setEmailInput}
                   autoCapitalize="none"
@@ -171,12 +174,12 @@ export default function LookupScreen() {
                   ) : (
                     <>
                       <Ionicons name="search" size={16} color={theme.colors.white} />
-                      <ThemedText style={styles.searchBtnText}>Look Up</ThemedText>
+                      <ThemedText style={styles.searchBtnText}>{t("booking.lookupButton")}</ThemedText>
                     </>
                   )}
                 </Pressable>
                 <ThemedText style={[styles.helpText, { color: colors.muted }]}>
-                  Can&apos;t find your booking? Contact the restaurant directly.
+                  {t("booking.lookupHelp")}
                 </ThemedText>
               </View>
 
@@ -204,7 +207,7 @@ export default function LookupScreen() {
                 >
                   <Ionicons name="alert-circle-outline" size={28} color={colors.muted} />
                   <ThemedText style={[styles.notFound, { color: colors.muted }]}>
-                    No booking found matching that reference and email.
+                    {t("booking.lookupNotFound")}
                   </ThemedText>
                 </View>
               )}
@@ -243,10 +246,10 @@ export default function LookupScreen() {
                     <Ionicons name="trash-outline" size={15} color={theme.colors.error} />
                     <ThemedText style={styles.cancelBtnText}>
                       {booking.isCancelled
-                        ? "Already Cancelled"
+                        ? t("booking.alreadyCancelled")
                         : bookingIsPast
-                          ? "Booking Has Passed"
-                          : "Cancel This Booking"}
+                          ? t("booking.past")
+                          : t("booking.cancelThis")}
                     </ThemedText>
                   </Pressable>
                 </View>
@@ -275,10 +278,10 @@ export default function LookupScreen() {
 
       <ConfirmModal
         visible={showCancelConfirm}
-        title="Cancel Reservation"
-        message="Are you sure you want to cancel this booking? This action cannot be undone."
-        confirmLabel={cancelling ? "Cancelling..." : "Cancel Booking"}
-        cancelLabel="Keep Booking"
+        title={t("booking.cancelReservation")}
+        message={t("booking.cancelConfirmMessage")}
+        confirmLabel={cancelling ? t("booking.cancelling") : t("booking.cancelBooking")}
+        cancelLabel={t("booking.keepBooking")}
         destructive
         onConfirm={handleCancelBooking}
         onCancel={() => !cancelling && setShowCancelConfirm(false)}
@@ -286,7 +289,7 @@ export default function LookupScreen() {
 
       <AlertModal
         visible={errorMessage !== null}
-        title="Error"
+        title={t("error.title")}
         message={errorMessage ?? ""}
         onClose={clearError}
       />
@@ -305,11 +308,12 @@ function RecentBookingsList({
   style?: StyleProp<ViewStyle>;
   onSelect: (c: CachedBooking) => void;
 }) {
+  const { locale, t } = useI18n();
   if (cached.length === 0) return null;
   return (
     <View style={[styles.recentSection, style]}>
       <ThemedText style={[styles.recentTitle, { color: colors.muted }]}>
-        YOUR RECENT BOOKINGS
+        {t("booking.recentBookings")}
       </ThemedText>
       {cached.map((c) => (
         <Pressable
@@ -321,10 +325,11 @@ function RecentBookingsList({
             <View style={{ flex: 1, gap: 3 }}>
               <ThemedText style={styles.recentRef}>{c.bookingRef}</ThemedText>
               <ThemedText style={[styles.recentMeta, { color: colors.muted }]}>
-                {c.restaurantName ? `${c.restaurantName} · ` : ""}
-                {new Date(c.date).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
-                {" · "}
-                {c.seats} guest{c.seats !== 1 ? "s" : ""}
+                {t("booking.recentSummary", {
+                  restaurantName: c.restaurantName ? `${c.restaurantName} · ` : "",
+                  date: fmtDateTime(new Date(c.date), locale, { month: "short", day: "numeric" }),
+                  seats: c.seats,
+                })}
               </ThemedText>
             </View>
             <Ionicons name="chevron-forward-outline" size={16} color={colors.muted} />
@@ -350,6 +355,7 @@ function BookingActions({
   isWide: boolean;
   primaryColor: string;
 }) {
+  const { t } = useI18n();
   if (!booking.bookingRef || Platform.OS !== "web") return null;
 
   const { googleUrl, outlookUrl, downloadIcs } = buildCalendarUrls({
@@ -392,7 +398,7 @@ function BookingActions({
           <>
             <View style={[styles.iconSep, { backgroundColor: colors.border }]} />
             <View style={styles.iconGroup}>
-              <ThemedText style={[styles.iconGroupLabel, { color: colors.muted }]}>MAPS</ThemedText>
+          <ThemedText style={[styles.iconGroupLabel, { color: colors.muted }]}>MAPS</ThemedText>
               <View style={styles.iconGroupRow}>
                 <Pressable
                   testID="maps-google-btn-narrow"
@@ -453,7 +459,7 @@ function BookingActions({
             ]}
           >
             <ThemedText style={[styles.mapsTitle, { color: colors.muted }]}>
-              GET DIRECTIONS
+              {t("booking.getDirections")}
             </ThemedText>
             <View style={styles.mapBtnsRow}>
               <Pressable
@@ -468,7 +474,9 @@ function BookingActions({
                 }
               >
                 <Ionicons name="navigate-outline" size={16} color={colors.muted} />
-                <ThemedText style={[styles.mapBtnText, { color: colors.muted }]}>Google</ThemedText>
+                <ThemedText style={[styles.mapBtnText, { color: colors.muted }]}>
+                  {t("common.google")}
+                </ThemedText>
               </Pressable>
               <Pressable
                 style={[
@@ -482,7 +490,9 @@ function BookingActions({
                 }
               >
                 <Ionicons name="navigate-outline" size={16} color={colors.muted} />
-                <ThemedText style={[styles.mapBtnText, { color: colors.muted }]}>Apple</ThemedText>
+                <ThemedText style={[styles.mapBtnText, { color: colors.muted }]}>
+                  {t("common.apple")}
+                </ThemedText>
               </Pressable>
             </View>
           </View>
@@ -507,6 +517,7 @@ function BookingResultCard({
   isDark: boolean;
   isWide: boolean;
 }) {
+  const { t } = useI18n();
   const [copied, setCopied] = useState(false);
 
   const handleCopy = () => {
@@ -533,7 +544,7 @@ function BookingResultCard({
             color={booking.isCancelled ? theme.colors.error : primaryColor}
           />
           <ThemedText style={styles.resultTitle}>
-            {booking.isCancelled ? "Booking Cancelled" : "Booking Found"}
+            {booking.isCancelled ? t("booking.cancelled") : t("booking.lookupFound")}
           </ThemedText>
         </View>
         <View style={styles.refBadgeRow}>
@@ -560,7 +571,7 @@ function BookingResultCard({
               <ThemedText
                 style={[styles.copyBtnText, { color: copied ? primaryColor : colors.muted }]}
               >
-                {copied ? "Copied" : "Copy"}
+                {copied ? t("common.copied") : t("common.copy")}
               </ThemedText>
             </Pressable>
           )}
