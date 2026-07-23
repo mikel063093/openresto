@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Diagnostics;
 using OpenRestoApi.Core.Application.DTOs;
 using OpenRestoApi.Core.Application.Exceptions;
+using OpenRestoApi.Infrastructure.Localization;
 
 namespace OpenRestoApi.Infrastructure.Exceptions;
 
@@ -48,7 +49,7 @@ public sealed class GlobalExceptionHandler(
 
         httpContext.Response.StatusCode = statusCode;
         await httpContext.Response.WriteAsJsonAsync(
-            new MessageResponse { Message = message },
+            new MessageResponse { Message = ApiLocalization.Localize(httpContext, message) },
             cancellationToken);
 
         return true; // marked handled — default ProblemDetails handler is skipped

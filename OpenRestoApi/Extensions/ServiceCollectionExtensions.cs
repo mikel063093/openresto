@@ -154,7 +154,7 @@ public static class ServiceCollectionExtensions
         {
             options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
             options.ForwardLimit = 1; // only process the immediate upstream hop; prevents X-Forwarded-For spoofing
-            options.KnownIPNetworks.Clear();
+            options.KnownNetworks.Clear();
             options.KnownProxies.Clear();
         });
 

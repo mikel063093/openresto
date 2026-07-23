@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using OpenRestoApi.Core.Application.DTOs;
 using OpenRestoApi.Core.Application.Services;
+using OpenRestoApi.Infrastructure.Localization;
 
 namespace OpenRestoApi.Controllers;
 
@@ -78,7 +79,7 @@ public class AdminController(AdminService adminService) : ControllerBase
     {
         if (string.IsNullOrWhiteSpace(req.Name))
         {
-            return BadRequest(new MessageResponse { Message = "Name is required." });
+            return BadRequest(new MessageResponse { Message = ApiLocalization.Localize(HttpContext, "Name is required.") });
         }
 
         RestaurantDto result = await _adminService.CreateRestaurantAsync(req.Name, req.Address);
@@ -107,7 +108,9 @@ public class AdminController(AdminService adminService) : ControllerBase
     public async Task<IActionResult> PauseBookings(int id, [FromBody] PauseRestaurantRequest req)
     {
         bool success = await _adminService.PauseRestaurantBookingsAsync(id, req.Minutes);
-        return success ? Ok(new MessageResponse { Message = "Bookings paused successfully." }) : NotFound();
+        return success
+            ? Ok(new MessageResponse { Message = ApiLocalization.Localize(HttpContext, "Bookings paused successfully.") })
+            : NotFound();
     }
 
     [Authorize(Policy = "SuperAdminOnly")]
@@ -115,7 +118,9 @@ public class AdminController(AdminService adminService) : ControllerBase
     public async Task<IActionResult> UnpauseBookings(int id)
     {
         bool success = await _adminService.UnpauseRestaurantBookingsAsync(id);
-        return success ? Ok(new MessageResponse { Message = "Bookings unpaused successfully." }) : NotFound();
+        return success
+            ? Ok(new MessageResponse { Message = ApiLocalization.Localize(HttpContext, "Bookings unpaused successfully.") })
+            : NotFound();
     }
 
     [Authorize(Policy = "SuperAdminOnly")]
@@ -124,7 +129,11 @@ public class AdminController(AdminService adminService) : ControllerBase
     {
         List<BookingDetailDto>? extendedBookings = await _adminService.ExtendAllActiveBookingsAsync(id, req.Minutes);
         return extendedBookings != null
-            ? Ok(new { Message = "Bookings extended successfully.", ExtendedBookings = extendedBookings })
+            ? Ok(new
+            {
+                Message = ApiLocalization.Localize(HttpContext, "Bookings extended successfully."),
+                ExtendedBookings = extendedBookings
+            })
             : NotFound();
     }
 
@@ -152,7 +161,10 @@ public class AdminController(AdminService adminService) : ControllerBase
         return result switch
         {
             null => NotFound(),
-            false => BadRequest(new MessageResponse { Message = "sectionIds must include exactly the restaurant's current sections, with no duplicates." }),
+            false => BadRequest(new MessageResponse
+            {
+                Message = ApiLocalization.Localize(HttpContext, "sectionIds must include exactly the restaurant's current sections, with no duplicates.")
+            }),
             true => NoContent(),
         };
     }
@@ -163,7 +175,7 @@ public class AdminController(AdminService adminService) : ControllerBase
     {
         List<SectionDto>? result = await _adminService.GetTablesAsync(restaurantId);
         return result == null
-            ? NotFound(new MessageResponse { Message = "Restaurant not found or has no sections." })
+            ? NotFound(new MessageResponse { Message = ApiLocalization.Localize(HttpContext, "Restaurant not found or has no sections.") })
             : Ok(result);
     }
 
@@ -182,14 +194,26 @@ public class AdminController(AdminService adminService) : ControllerBase
             return result.Status switch
             {
                 SendBookingEmailStatus.NotFound => NotFound(),
-                SendBookingEmailStatus.MissingFields => BadRequest(new MessageResponse { Message = "Subject and body are required." }),
-                SendBookingEmailStatus.NoCustomerEmail => BadRequest(new MessageResponse { Message = "Customer email is not available." }),
-                _ => Ok(new MessageResponse { Message = $"Email sent to {result.Recipient}." })
+                SendBookingEmailStatus.MissingFields => BadRequest(new MessageResponse
+                {
+                    Message = ApiLocalization.Localize(HttpContext, "Subject and body are required.")
+                }),
+                SendBookingEmailStatus.NoCustomerEmail => BadRequest(new MessageResponse
+                {
+                    Message = ApiLocalization.Localize(HttpContext, "Customer email is not available.")
+                }),
+                _ => Ok(new MessageResponse
+                {
+                    Message = ApiLocalization.Localize(HttpContext, $"Email sent to {result.Recipient}.")
+                })
             };
         }
         catch (Exception ex)
         {
-            return BadRequest(new MessageResponse { Message = $"Failed to send: {ex.Message}" });
+            return BadRequest(new MessageResponse
+            {
+                Message = ApiLocalization.Localize(HttpContext, $"Failed to send: {ex.Message}")
+            });
         }
     }
 
@@ -199,7 +223,9 @@ public class AdminController(AdminService adminService) : ControllerBase
     {
         // BusinessRuleException (booking already active) → 400 is mapped by GlobalExceptionHandler.
         BookingDetailDto? result = await _adminService.RestoreBookingAsync(id);
-        return result == null ? NotFound() : Ok(new MessageResponse { Message = "Booking restored successfully." });
+        return result == null
+            ? NotFound()
+            : Ok(new MessageResponse { Message = ApiLocalization.Localize(HttpContext, "Booking restored successfully.") });
     }
 
     [Authorize(Policy = "BookingsWrite")]

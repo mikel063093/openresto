@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.RateLimiting;
 using OpenRestoApi.Core.Application.DTOs;
 using OpenRestoApi.Core.Application.Interfaces;
 using OpenRestoApi.Core.Application.Services;
+using OpenRestoApi.Infrastructure.Localization;
 
 namespace OpenRestoApi.Controllers;
 
@@ -37,7 +38,7 @@ public class HoldsController(
         {
             return BadRequest(new MessageResponse
             {
-                Message = "Specify both TableId and SectionId, or omit both for auto-assign."
+                Message = ApiLocalization.Localize(HttpContext, "Specify both TableId and SectionId, or omit both for auto-assign.")
             });
         }
 
@@ -47,9 +48,9 @@ public class HoldsController(
 
         return policy.Status switch
         {
-            HoldPolicyStatus.NotFound => NotFound(new MessageResponse { Message = "Restaurant not found." }),
-            HoldPolicyStatus.Rejected => BadRequest(new MessageResponse { Message = policy.FailureMessage! }),
-            HoldPolicyStatus.Booked => Conflict(new MessageResponse { Message = policy.FailureMessage! }),
+            HoldPolicyStatus.NotFound => NotFound(new MessageResponse { Message = ApiLocalization.Localize(HttpContext, "Restaurant not found.") }),
+            HoldPolicyStatus.Rejected => BadRequest(new MessageResponse { Message = ApiLocalization.Localize(HttpContext, policy.FailureMessage!) }),
+            HoldPolicyStatus.Booked => Conflict(new MessageResponse { Message = ApiLocalization.Localize(HttpContext, policy.FailureMessage!) }),
             _ => autoAssign
                 ? await PlaceAutoAssignedHold(request, policy)
                 : PlaceEligibleHold(request, policy)
@@ -68,7 +69,7 @@ public class HoldsController(
 
         if (result == null)
         {
-            return Conflict(new MessageResponse { Message = "This table is already held by another user. Please select a different table or try again shortly." });
+            return Conflict(new MessageResponse { Message = ApiLocalization.Localize(HttpContext, "This table is already held by another user. Please select a different table or try again shortly.") });
         }
 
         return Ok(new HoldResponse
@@ -84,7 +85,7 @@ public class HoldsController(
         {
             return BadRequest(new MessageResponse
             {
-                Message = "Seats is required for auto-assign so the server can pick a table that fits your party."
+                Message = ApiLocalization.Localize(HttpContext, "Seats is required for auto-assign so the server can pick a table that fits your party.")
             });
         }
 
@@ -95,7 +96,7 @@ public class HoldsController(
         {
             return Conflict(new MessageResponse
             {
-                Message = "No tables are available for the requested time and party size."
+                Message = ApiLocalization.Localize(HttpContext, "No tables are available for the requested time and party size.")
             });
         }
 
@@ -110,7 +111,7 @@ public class HoldsController(
         {
             return Conflict(new MessageResponse
             {
-                Message = "All suitable tables are currently being held by other users. Please try again shortly."
+                Message = ApiLocalization.Localize(HttpContext, "All suitable tables are currently being held by other users. Please try again shortly.")
             });
         }
 
