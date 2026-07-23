@@ -157,6 +157,7 @@ Note: VSCode may not pick up on the Jest config, unless you use the command pale
 
 ### Developer experience
 
+- **OpenAPI + interactive API reference** — ASP.NET Core generates `/openapi/v1.json` from the live controllers and DTOs, and Scalar renders it at `/api-reference`. In deployed non-development environments both URLs require a SuperAdmin JWT/cookie; no token is embedded in the page. `test-rest` opts in explicitly, while production remains disabled by default.
 - **Single command dev** — `npm run dev` starts the .NET backend (hot reload) and Expo frontend concurrently.
 - **100% frontend coverage target** — Jest + React Native Testing Library; Playwright E2E tests against the live Docker stack.
 - **Mapperly source-gen mappers** — zero runtime reflection, compile-time DTO mappings.

@@ -19,6 +19,7 @@
     <PackageReference Include="Riok.Mapperly" Version="4.3.1" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.10" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.10" />
+    <PackageReference Include="Scalar.AspNetCore" Version="2.16.16" />
 <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.19.2" />
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.10" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.10" />

@@ -5,6 +5,8 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using OpenRestoApi.Infrastructure.OpenApi;
 using Microsoft.IdentityModel.Tokens;
 using ModelContextProtocol.Server;
 using OpenRestoApi.Core.Application.Interfaces;
@@ -202,7 +204,23 @@ public static class ServiceCollectionExtensions
         });
 
         services.AddControllers();
-        services.AddOpenApi();
+        services.Configure<ApiBehaviorOptions>(options =>
+        {
+            options.InvalidModelStateResponseFactory = context =>
+            {
+                Dictionary<string, string[]> errors = BuildValidationErrors(context);
+                var problemDetails = new ValidationProblemDetails(errors)
+                {
+                    Status = StatusCodes.Status400BadRequest,
+                    Title = "One or more validation errors occurred.",
+                    Type = "https://tools.ietf.org/html/rfc9110#section-15.5.1",
+                    Instance = context.HttpContext.Request.Path,
+                };
+                problemDetails.Extensions["traceId"] = context.HttpContext.TraceIdentifier;
+                return new BadRequestObjectResult(problemDetails);
+            };
+        });
+        services.AddOpenApi(options => options.AddDocumentTransformer<BearerSecuritySchemeTransformer>());
         services.AddDistributedMemoryCache();
         services.AddHttpContextAccessor();
         services.AddScoped<OperatorMcpTools>();
