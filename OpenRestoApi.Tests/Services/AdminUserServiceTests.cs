@@ -28,6 +28,28 @@ public class AdminUserServiceTests
         db.SaveChanges();
     }
 
+    [Theory]
+    [InlineData(AdminRole.SuperAdmin)]
+    [InlineData(AdminRole.BookingViewer)]
+    [InlineData(AdminRole.BookingEditor)]
+    public async Task CreateAsync_Persists_And_Maps_Each_Allowed_Role(AdminRole role)
+    {
+        using AppDbContext db = TestDbFactory.Create($"{nameof(CreateAsync_Persists_And_Maps_Each_Allowed_Role)}-{role}");
+        AdminUserService service = CreateService(db);
+
+        AdminUserDto user = await service.CreateAsync(new CreateAdminUserRequest
+        {
+            Email = $"  {role}@Example.com ", Password = "password", Role = role
+        });
+        AdminCredential credential = await db.AdminCredentials.SingleAsync();
+
+        Assert.Equal($"{role.ToString().ToLowerInvariant()}@example.com", user.Email);
+        Assert.True(user.IsActive);
+        Assert.Equal(role, user.Role);
+        Assert.Equal(role, credential.Role);
+        Assert.Equal(user.Email, credential.Email);
+    }
+
     [Fact]
     public async Task CreateAsync_Adds_Active_User_With_Normalized_Unique_Email()
     {
@@ -46,6 +68,38 @@ public class AdminUserServiceTests
         {
             Email = "VIEWER@example.com", Password = "password", Role = AdminRole.BookingViewer
         }));
+    }
+
+    [Fact]
+    public async Task GetAllAsync_Maps_Each_Role_And_Active_Flag()
+    {
+        using AppDbContext db = TestDbFactory.Create(nameof(GetAllAsync_Maps_Each_Role_And_Active_Flag));
+        Seed(db, "super@example.com", "password", AdminRole.SuperAdmin);
+        Seed(db, "viewer@example.com", "password", AdminRole.BookingViewer);
+        Seed(db, "editor@example.com", "password", AdminRole.BookingEditor, isActive: false);
+        AdminUserService service = CreateService(db);
+
+        List<AdminUserDto> users = await service.GetAllAsync();
+
+        Assert.Collection(users.OrderBy(user => user.Email),
+            user =>
+            {
+                Assert.Equal("editor@example.com", user.Email);
+                Assert.Equal(AdminRole.BookingEditor, user.Role);
+                Assert.False(user.IsActive);
+            },
+            user =>
+            {
+                Assert.Equal("super@example.com", user.Email);
+                Assert.Equal(AdminRole.SuperAdmin, user.Role);
+                Assert.True(user.IsActive);
+            },
+            user =>
+            {
+                Assert.Equal("viewer@example.com", user.Email);
+                Assert.Equal(AdminRole.BookingViewer, user.Role);
+                Assert.True(user.IsActive);
+            });
     }
 
     [Fact]

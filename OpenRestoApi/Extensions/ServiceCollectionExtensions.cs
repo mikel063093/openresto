@@ -4,11 +4,13 @@ using MailKit.Net.Smtp;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.IdentityModel.Tokens;
 using OpenRestoApi.Core.Application.Interfaces;
 using OpenRestoApi.Core.Application.Services;
 using OpenRestoApi.Core.Domain;
 using OpenRestoApi.Infrastructure.Holds;
+using OpenRestoApi.Infrastructure.Localization;
 using OpenRestoApi.Infrastructure.Persistence.Repositories;
 using WebPush;
 
@@ -159,6 +161,22 @@ public static class ServiceCollectionExtensions
         });
 
         services.AddControllers();
+        services.Configure<ApiBehaviorOptions>(options =>
+        {
+            options.InvalidModelStateResponseFactory = context =>
+            {
+                Dictionary<string, string[]> errors = BuildValidationErrors(context);
+                var problemDetails = new ValidationProblemDetails(errors)
+                {
+                    Status = StatusCodes.Status400BadRequest,
+                    Title = "One or more validation errors occurred.",
+                    Type = "https://tools.ietf.org/html/rfc9110#section-15.5.1",
+                    Instance = context.HttpContext.Request.Path,
+                };
+                problemDetails.Extensions["traceId"] = context.HttpContext.TraceIdentifier;
+                return new BadRequestObjectResult(problemDetails);
+            };
+        });
         services.AddOpenApi();
         services.AddDistributedMemoryCache();
 
@@ -229,5 +247,44 @@ public static class ServiceCollectionExtensions
         });
 
         return services;
+    }
+
+    private static Dictionary<string, string[]> BuildValidationErrors(ActionContext context)
+    {
+        Dictionary<string, string[]> errors = context.ModelState
+            .Where(entry => entry.Value?.Errors.Count > 0)
+            .ToDictionary(
+                entry => NormalizeModelStateKey(entry.Key),
+                entry => entry.Value!.Errors
+                    .Select(error => ApiLocalization.Localize(context.HttpContext, error.ErrorMessage))
+                    .Where(message => !string.IsNullOrWhiteSpace(message))
+                    .ToArray());
+
+        bool hasFieldErrors = errors.Keys.Any(key => !string.IsNullOrWhiteSpace(key));
+        if (!hasFieldErrors)
+            return errors;
+
+        foreach (string parameterName in context.ActionDescriptor.Parameters
+                     .Select(parameter => parameter.Name)
+                     .Where(name => !string.IsNullOrWhiteSpace(name))
+                     .Cast<string>()
+                     .ToArray())
+        {
+            if (errors.TryGetValue(parameterName, out string[]? messages) &&
+                messages.All(message => message.Contains("field is required", StringComparison.OrdinalIgnoreCase)))
+            {
+                errors.Remove(parameterName);
+            }
+        }
+
+        return errors;
+    }
+
+    private static string NormalizeModelStateKey(string key)
+    {
+        if (string.IsNullOrWhiteSpace(key) || key == "$")
+            return string.Empty;
+
+        return key.StartsWith("$.", StringComparison.Ordinal) ? key[2..] : key;
     }
 }

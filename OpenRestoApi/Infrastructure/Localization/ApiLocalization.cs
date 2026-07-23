@@ -94,6 +94,7 @@ public static partial class ApiLocalization
             ["A valid email address is required."] = "Se requiere un correo electronico valido.",
             ["New email must be different from the current email."] = "El nuevo correo debe ser diferente al correo actual.",
             ["An account with that email already exists."] = "Ya existe una cuenta con ese correo.",
+            ["Invalid role. Allowed values: SuperAdmin, BookingViewer, BookingEditor."] = "Rol no valido. Valores permitidos: SuperAdmin, BookingViewer, BookingEditor.",
             ["Email is required to look up a booking."] = "Se requiere un correo para consultar una reserva.",
             ["No booking found matching that reference and email."] = "No se encontro ninguna reserva con esa referencia y correo.",
             ["Email is required to cancel a booking."] = "Se requiere un correo para cancelar una reserva.",

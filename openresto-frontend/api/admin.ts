@@ -710,7 +710,10 @@ export interface UpdateAdminUserRequest {
 
 async function userError(res: Response): Promise<never> {
   const body = await res.json().catch(() => ({}));
-  throw new Error(body.message ?? "Unable to update user.");
+  const validationMessage = Object.values(body.errors ?? {})
+    .flat()
+    .find((value): value is string => typeof value === "string" && value.length > 0);
+  throw new Error(body.message ?? validationMessage ?? "Unable to update user.");
 }
 
 export async function getAdminUsers(): Promise<AdminUser[]> {

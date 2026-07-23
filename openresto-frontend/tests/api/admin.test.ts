@@ -36,6 +36,10 @@ import {
   adminCreateSocialLink,
   adminUpdateSocialLink,
   adminDeleteSocialLink,
+  createAdminUser,
+  deactivateAdminUser,
+  getAdminUsers,
+  updateAdminUser,
 } from "@/api/admin";
 
 // Admin API now uses credentials: "include" for cookie-based auth — no mock needed
@@ -1272,5 +1276,93 @@ describe("adminDeleteSocialLink", () => {
   it("returns false on network error", async () => {
     mockFetch.mockRejectedValueOnce(new Error("offline"));
     expect(await adminDeleteSocialLink(1)).toBe(false);
+  });
+});
+
+// ---------- Admin Users ----------
+
+describe("admin user management", () => {
+  it("sends string role values when creating a user", async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        id: 7,
+        email: "editor@example.com",
+        role: "BookingEditor",
+        isActive: true,
+      }),
+    });
+
+    const result = await createAdminUser({
+      email: "editor@example.com",
+      password: "password",
+      role: "BookingEditor",
+    });
+
+    expect(result.role).toBe("BookingEditor");
+    const [url, opts] = mockFetch.mock.calls[0];
+    expect(url).toContain("/api/admin/users");
+    expect(opts.method).toBe("POST");
+    expect(JSON.parse(opts.body)).toEqual({
+      email: "editor@example.com",
+      password: "password",
+      role: "BookingEditor",
+    });
+  });
+
+  it("surfaces validation problem detail text for invalid role names", async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: false,
+      json: async () => ({
+        errors: {
+          role: ["Invalid role. Allowed values: SuperAdmin, BookingViewer, BookingEditor."],
+        },
+      }),
+    });
+
+    await expect(
+      createAdminUser({
+        email: "bad@example.com",
+        password: "password",
+        role: "BookingEditor",
+      })
+    ).rejects.toThrow("Invalid role. Allowed values: SuperAdmin, BookingViewer, BookingEditor.");
+  });
+
+  it("lists users on success", async () => {
+    const users = [{ id: 1, email: "admin@example.com", role: "SuperAdmin", isActive: true }];
+    mockFetch.mockResolvedValueOnce({ ok: true, json: async () => users });
+
+    await expect(getAdminUsers()).resolves.toEqual(users);
+    expect(mockFetch.mock.calls[0][0]).toContain("/api/admin/users");
+  });
+
+  it("sends string role values on update", async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        id: 1,
+        email: "viewer@example.com",
+        role: "BookingEditor",
+        isActive: true,
+      }),
+    });
+
+    await updateAdminUser(1, { role: "BookingEditor" });
+
+    const [url, opts] = mockFetch.mock.calls[0];
+    expect(url).toContain("/api/admin/users/1");
+    expect(opts.method).toBe("PUT");
+    expect(JSON.parse(opts.body)).toEqual({ role: "BookingEditor" });
+  });
+
+  it("sends deactivate requests to the dedicated endpoint", async () => {
+    mockFetch.mockResolvedValueOnce({ ok: true });
+
+    await deactivateAdminUser(2);
+
+    const [url, opts] = mockFetch.mock.calls[0];
+    expect(url).toContain("/api/admin/users/2/deactivate");
+    expect(opts.method).toBe("POST");
   });
 });

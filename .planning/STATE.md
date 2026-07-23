@@ -89,6 +89,12 @@ Recent decisions affecting current work:
 |----------|------|--------|-------------|
 | Future locale expansion | Additional locales beyond `en` and `es-CO` | Deferred | 2026-07-23 |
 
+## Quick Tasks Completed
+
+| Date | Slug | Outcome |
+|------|------|---------|
+| 2026-07-23 | `resolve-the-openresto-super-admin-user-c` | Fixed admin-user role string serialization/validation handling without reopening closed localization phases; verification recorded under `.planning/quick/260723-nit-resolve-the-openresto-super-admin-user-c/`. |
+
 ## Session Continuity
 
 Last session: 2026-07-23 03:14 UTC

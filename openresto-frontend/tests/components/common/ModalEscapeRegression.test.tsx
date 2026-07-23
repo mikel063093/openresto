@@ -49,12 +49,7 @@ describe("Existing modals wire onRequestClose (precondition for web Escape-to-cl
     let tree!: TestRenderer.ReactTestRenderer;
     TestRenderer.act(() => {
       tree = TestRenderer.create(
-        <ConfirmModal
-          visible
-          message="Cancel booking?"
-          onConfirm={jest.fn()}
-          onCancel={onCancel}
-        />
+        <ConfirmModal visible message="Cancel booking?" onConfirm={jest.fn()} onCancel={onCancel} />
       );
     });
 
@@ -69,7 +64,9 @@ describe("Existing modals wire onRequestClose (precondition for web Escape-to-cl
     const onClose = jest.fn();
     let tree!: TestRenderer.ReactTestRenderer;
     TestRenderer.act(() => {
-      tree = TestRenderer.create(<AlertModal visible message="Something happened" onClose={onClose} />);
+      tree = TestRenderer.create(
+        <AlertModal visible message="Something happened" onClose={onClose} />
+      );
     });
 
     const modal = tree.root.findByType(Modal);
