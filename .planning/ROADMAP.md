@@ -8,7 +8,7 @@ This roadmap completes OpenResto localization as a brownfield migration across t
 
 - [x] **Phase 1: Baseline And Contracts** - Freeze scope, classify inventory gaps, and define the locale/content-preservation contract from current code.
 - [x] **Phase 2: Public UI Localization** - Complete public-facing product copy and locale-aware formatting without touching tenant-authored content.
-- [ ] **Phase 3: Admin UI Localization** - Complete admin product copy, role-safe labels, and locale-aware admin formatting.
+- [x] **Phase 3: Admin UI Localization** - Complete admin product copy, role-safe labels, and locale-aware admin formatting.
 - [ ] **Phase 4: API Locale Propagation And Messages** - Centralize `Accept-Language` propagation and localize backend API responses while preserving contracts.
 - [ ] **Phase 5: Emails And Notification Copy** - Localize outbound email and notification copy using request or booking language with safe fallback behavior.
 - [ ] **Phase 6: Regression Gates And Final Verification** - Add durable detection for untranslated copy and prove both locales through automated and manual gates.
@@ -132,7 +132,7 @@ Plans:
 |-------|----------------|--------|-----------|
 | 1. Baseline And Contracts | 2/2 | Complete | 2026-07-23 |
 | 2. Public UI Localization | 3/3 | Complete | 2026-07-23 |
-| 3. Admin UI Localization | 3/3 | Verification blocked | - |
+| 3. Admin UI Localization | 3/3 | Complete | 2026-07-23 |
 | 4. API Locale Propagation And Messages | 0/3 | Not started | - |
 | 5. Emails And Notification Copy | 0/2 | Not started | - |
 | 6. Regression Gates And Final Verification | 0/3 | Not started | - |

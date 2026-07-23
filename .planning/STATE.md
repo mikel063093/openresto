@@ -1,9 +1,9 @@
 ---
 gsd_state_version: '1.0'
-status: verifying
+status: executing
 progress:
   total_phases: 6
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 16
   completed_plans: 8
   percent: 50
@@ -16,14 +16,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-07-23)
 
 **Core value:** Users and restaurant staff should receive clear, correctly localized product behavior in English or Colombian Spanish without breaking booking flows, admin operations, or existing contracts.
-**Current focus:** Phase 3 - Admin UI Localization verification
+**Current focus:** Phase 4 - API Locale Propagation And Messages
 
 ## Current Position
 
-Phase: 3 of 6 (Admin UI Localization)
-Plan: 3 of 3 in current phase
-Status: Verification blocked on admin Playwright runtime
-Last activity: 2026-07-23 — Completed Phase 3 admin UI localization implementation and Jest verification; Playwright smoke blocked because no local app server is listening on `http://localhost:5062`.
+Phase: 4 of 6 (API Locale Propagation And Messages)
+Plan: 0 of 3 in current phase
+Status: Ready to plan
+Last activity: 2026-07-23 — Closed Phase 3 after the isolated full-stack Docker stack passed the required admin Playwright smoke.
 
 Progress: [█████░░░░░] 50%
 
@@ -64,13 +64,13 @@ Recent decisions affecting current work:
 
 ### Pending Todos
 
-- Admin Playwright smoke still needs a running local app on `http://localhost:5062` before Phase 3 can be formally closed.
+- Phase 4: Centralize frontend `Accept-Language` propagation and localize backend user-facing API messages without changing response shapes or status semantics.
 
 ### Blockers/Concerns
 
 - Partial frontend i18n is already present; later plans must treat it as migration work, not greenfield setup.
 - Backend message localization must preserve the current `message` body shape and status codes that tests already assert.
-- Phase 3 runtime gate is currently blocked by missing local frontend/backend server availability for Playwright global setup.
+- Phase 4 must preserve the existing `message` body shape and HTTP status semantics while making user-facing values locale-aware.
 
 ## Deferred Items
 
@@ -81,5 +81,5 @@ Recent decisions affecting current work:
 ## Session Continuity
 
 Last session: 2026-07-23 03:14 UTC
-Stopped at: Phase 3 plan execution complete; await runnable admin Playwright smoke to close the phase
+Stopped at: Phase 3 closed; next step is planning Phase 4
 Resume file: None
