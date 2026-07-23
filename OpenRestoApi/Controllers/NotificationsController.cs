@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using OpenRestoApi.Core.Application.DTOs;
 using OpenRestoApi.Core.Application.Interfaces;
+using OpenRestoApi.Infrastructure.Localization;
 
 namespace OpenRestoApi.Controllers;
 
@@ -66,7 +67,7 @@ public class NotificationsController(INotificationService notificationService) :
     public async Task<IActionResult> MarkAllRead([FromQuery] int restaurantId)
     {
         if (restaurantId <= 0)
-            return BadRequest(new { error = "restaurantId is required." });
+            return BadRequest(new { error = ApiLocalization.Localize(HttpContext, "restaurantId is required.") });
 
         await _notifications.MarkAllReadAsync(restaurantId);
         return NoContent();
@@ -96,7 +97,7 @@ public class NotificationsController(INotificationService notificationService) :
         [FromBody] PushSubscribeRequest request)
     {
         if (restaurantId <= 0)
-            return BadRequest(new { error = "restaurantId is required." });
+            return BadRequest(new { error = ApiLocalization.Localize(HttpContext, "restaurantId is required.") });
 
         await _notifications.SubscribeAsync(restaurantId, request);
         return Ok();
@@ -135,7 +136,7 @@ public class NotificationsController(INotificationService notificationService) :
     public async Task<IActionResult> DeleteNotifications([FromBody] List<int> ids)
     {
         if (ids == null || ids.Count == 0)
-            return BadRequest(new { error = "List of notification IDs is required." });
+            return BadRequest(new { error = ApiLocalization.Localize(HttpContext, "List of notification IDs is required.") });
 
         await _notifications.DeleteByIdsAsync(ids);
         return NoContent();

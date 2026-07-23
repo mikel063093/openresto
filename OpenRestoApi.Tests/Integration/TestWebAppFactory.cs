@@ -142,8 +142,8 @@ public class TestWebAppFactory : WebApplicationFactory<Program>
 
     private sealed class NoOpNotificationQueue : INotificationQueue
     {
-        public void EnqueueBookingCreated(Booking booking, string restaurantName) { }
-        public void EnqueueBookingCancelled(Booking booking, string restaurantName) { }
-        public void EnqueueCapacityCheck(int restaurantId, string restaurantName, DateTime bookingDate) { }
+        public void EnqueueBookingCreated(Booking booking, string restaurantName, string locale = "en") { }
+        public void EnqueueBookingCancelled(Booking booking, string restaurantName, string locale = "en") { }
+        public void EnqueueCapacityCheck(int restaurantId, string restaurantName, DateTime bookingDate, string locale = "en") { }
     }
 }

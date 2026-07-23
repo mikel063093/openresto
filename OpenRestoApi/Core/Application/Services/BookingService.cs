@@ -4,6 +4,7 @@ using OpenRestoApi.Core.Application.Interfaces;
 using OpenRestoApi.Core.Application.Mappings;
 using OpenRestoApi.Core.Application.Utilities;
 using OpenRestoApi.Core.Domain;
+using OpenRestoApi.Infrastructure.Localization;
 
 namespace OpenRestoApi.Core.Application.Services;
 
@@ -35,8 +36,9 @@ public class BookingService(
     /// If a holdId is provided and valid, it is released after the booking is persisted.
     /// </summary>
     /// <exception cref="InvalidOperationException">Thrown when the table is unavailable.</exception>
-    public virtual async Task<BookingDto> CreateBookingAsync(BookingDto bookingDto)
+    public virtual async Task<BookingDto> CreateBookingAsync(BookingDto bookingDto, string locale = ApiLocalization.English)
     {
+        locale = EmailNotificationLocalization.NormalizeLocale(locale);
         // 1. Validate restaurant-level pause first
         Restaurant? restaurant = await _restaurantRepository.GetByIdAsync(bookingDto.RestaurantId);
         if (restaurant == null)
@@ -141,8 +143,8 @@ public class BookingService(
         // 6. Admin push notification (fire-and-forget via background queue)
         if (_notificationQueue != null)
         {
-            _notificationQueue.EnqueueBookingCreated(newBooking, restaurant.Name);
-            _notificationQueue.EnqueueCapacityCheck(restaurant.Id, restaurant.Name, newBooking.Date);
+            _notificationQueue.EnqueueBookingCreated(newBooking, restaurant.Name, locale);
+            _notificationQueue.EnqueueCapacityCheck(restaurant.Id, restaurant.Name, newBooking.Date, locale);
         }
 
         // 7. Send booking confirmation email (best-effort, never fails the booking).
@@ -150,7 +152,7 @@ public class BookingService(
         // building or SMTP orchestration.
         if (_confirmationService != null)
         {
-            await _confirmationService.SendConfirmationAsync(newBooking, restaurant);
+            await _confirmationService.SendConfirmationAsync(newBooking, restaurant, locale);
         }
 
         return _mapper.ToDto(newBooking);
@@ -280,8 +282,9 @@ public class BookingService(
         return restaurant?.Name;
     }
 
-    public virtual async Task<bool> CancelBookingAsync(string bookingRef, string email)
+    public virtual async Task<bool> CancelBookingAsync(string bookingRef, string email, string locale = ApiLocalization.English)
     {
+        locale = EmailNotificationLocalization.NormalizeLocale(locale);
         Booking? booking = await _bookingRepository.GetByRefAsync(bookingRef);
         if (booking == null)
         {
@@ -312,7 +315,7 @@ public class BookingService(
         if (_notificationQueue != null)
         {
             Restaurant? restaurant = await _restaurantRepository.GetByIdAsync(booking.RestaurantId);
-            _notificationQueue.EnqueueBookingCancelled(booking, restaurant?.Name ?? "");
+            _notificationQueue.EnqueueBookingCancelled(booking, restaurant?.Name ?? "", locale);
         }
 
         return true;

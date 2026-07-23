@@ -21,9 +21,9 @@ internal sealed class NotificationWorker(
             {
                 await (item switch
                 {
-                    BookingCreatedWork w => svc.NotifyBookingCreatedAsync(w.Booking, w.RestaurantName),
-                    BookingCancelledWork w => svc.NotifyBookingCancelledAsync(w.Booking, w.RestaurantName),
-                    CapacityCheckWork w => svc.CheckAndNotifyCapacityAsync(w.RestaurantId, w.RestaurantName, w.BookingDate),
+                    BookingCreatedWork w => svc.NotifyBookingCreatedAsync(w.Booking, w.RestaurantName, w.Locale),
+                    BookingCancelledWork w => svc.NotifyBookingCancelledAsync(w.Booking, w.RestaurantName, w.Locale),
+                    CapacityCheckWork w => svc.CheckAndNotifyCapacityAsync(w.RestaurantId, w.RestaurantName, w.BookingDate, w.Locale),
                     _ => Task.CompletedTask,
                 });
             }

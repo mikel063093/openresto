@@ -63,7 +63,8 @@ namespace OpenRestoApi.Controllers
             // ConflictException (overlap, paused, walk-in, past, held, seats) → 409 is mapped
             // by GlobalExceptionHandler with a MessageResponse { Message } body, which
             // serializes identically to the prior anonymous { message } shape.
-            BookingDto newBooking = await _bookingService.CreateBookingAsync(bookingDto);
+            string locale = ApiLocalization.ResolveLocale(HttpContext?.Request.Headers.AcceptLanguage.ToString());
+            BookingDto newBooking = await _bookingService.CreateBookingAsync(bookingDto, locale);
 
             string? restaurantName = await _bookingService.GetRestaurantNameAsync(bookingDto.RestaurantId);
 
@@ -123,7 +124,8 @@ namespace OpenRestoApi.Controllers
 
             // ConflictException (past booking) → 409 is mapped by GlobalExceptionHandler;
             // body serializes identically to the prior anonymous { message } shape.
-            bool ok = await _bookingService.CancelBookingAsync(bookingRef, req.Email);
+            string locale = ApiLocalization.ResolveLocale(HttpContext?.Request.Headers.AcceptLanguage.ToString());
+            bool ok = await _bookingService.CancelBookingAsync(bookingRef, req.Email, locale);
             if (!ok)
             {
                 return NotFound(new { message = ApiLocalization.Localize(HttpContext, "No booking found matching that reference and email.") });

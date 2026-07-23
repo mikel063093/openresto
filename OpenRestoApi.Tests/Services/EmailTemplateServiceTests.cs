@@ -238,7 +238,7 @@ public class EmailTemplateServiceTests
 
         string html = _svc.BuildConfirmationEmail(MakeBooking(customerName: "Alice"), restaurant, _defaultBrand, DefaultWebsiteUrl);
 
-        Assert.Contains("You're all set, Alice!", html);
+        Assert.Contains("You&#39;re all set, Alice!", html);
     }
 
     [Fact]
@@ -248,7 +248,7 @@ public class EmailTemplateServiceTests
 
         string html = _svc.BuildConfirmationEmail(MakeBooking(customerName: null), restaurant, _defaultBrand, DefaultWebsiteUrl);
 
-        Assert.Contains("You're all set!", html);
+        Assert.Contains("You&#39;re all set!", html);
     }
 
     // ── Guest pluralisation ─────────────────────────────────────────────────────
@@ -290,5 +290,38 @@ public class EmailTemplateServiceTests
         string html = _svc.BuildConfirmationEmail(MakeBooking(), restaurant, brand, DefaultWebsiteUrl);
 
         Assert.Contains("Open Resto", html);
+    }
+
+    [Fact]
+    public void BuildConfirmationEmail_RendersSpanishCopy_WhenLocaleIsSpanish()
+    {
+        var restaurant = MakeRestaurant(address: "Calle 123");
+        var booking = MakeBooking(customerName: "Alicia", sectionName: "Patio", tableName: "Mesa 4", specialRequests: "Ventana");
+
+        string html = _svc.BuildConfirmationEmail(booking, restaurant, _defaultBrand, DefaultWebsiteUrl, "es-CO");
+
+        Assert.Contains("Reserva confirmada", html);
+        Assert.Contains("Tu reserva esta lista, Alicia.", html);
+        Assert.Contains("Te esperamos pronto.", html);
+        Assert.Contains("Gestionar tu reserva", html);
+        Assert.Contains("Como llegar", html);
+        Assert.Contains("Solicitudes especiales", html);
+        Assert.Contains("2 comensales", html);
+        Assert.Contains("sábado, 1 de agosto de 2026", html);
+        Assert.Contains("Calle 123", html);
+        Assert.Contains("Patio", html);
+        Assert.Contains("Mesa 4", html);
+        Assert.Contains("Ventana", html);
+    }
+
+    [Fact]
+    public void BuildConfirmationEmail_FallsBackToEnglishCopy_WhenLocaleUnsupported()
+    {
+        var restaurant = MakeRestaurant();
+
+        string html = _svc.BuildConfirmationEmail(MakeBooking(), restaurant, _defaultBrand, DefaultWebsiteUrl, "fr-FR");
+
+        Assert.Contains("Booking Confirmed", html);
+        Assert.Contains("Manage your booking", html);
     }
 }

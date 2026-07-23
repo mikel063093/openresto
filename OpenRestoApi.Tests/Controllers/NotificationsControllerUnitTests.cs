@@ -1,8 +1,10 @@
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Moq;
 using OpenRestoApi.Controllers;
 using OpenRestoApi.Core.Application.DTOs;
 using OpenRestoApi.Core.Application.Interfaces;
+using System.Text.Json;
 
 namespace OpenRestoApi.Tests.Controllers;
 
@@ -15,6 +17,13 @@ public class NotificationsControllerUnitTests
     {
         _mockService = new Mock<INotificationService>();
         _controller = new NotificationsController(_mockService.Object);
+    }
+
+    private void SetLocale(string locale)
+    {
+        var httpContext = new DefaultHttpContext();
+        httpContext.Request.Headers.AcceptLanguage = locale;
+        _controller.ControllerContext = new ControllerContext { HttpContext = httpContext };
     }
 
     // ── GetNotifications ──────────────────────────────────────────────────────
@@ -116,6 +125,18 @@ public class NotificationsControllerUnitTests
     }
 
     [Fact]
+    public async Task MarkAllRead_LocalizesBadRequestError_ForSpanishLocale()
+    {
+        SetLocale("es-CO");
+
+        IActionResult result = await _controller.MarkAllRead(0);
+
+        var badRequest = Assert.IsType<BadRequestObjectResult>(result);
+        string json = JsonSerializer.Serialize(badRequest.Value);
+        Assert.Contains("restaurantId es obligatorio.", json);
+    }
+
+    [Fact]
     public async Task MarkAllRead_ReturnsNoContent_WhenValidRestaurantId()
     {
         _mockService.Setup(s => s.MarkAllReadAsync(1)).Returns(Task.CompletedTask);
@@ -163,6 +184,18 @@ public class NotificationsControllerUnitTests
     {
         IActionResult result = await _controller.Subscribe(-5, new PushSubscribeRequest("ep", "p256", "auth"));
         Assert.IsType<BadRequestObjectResult>(result);
+    }
+
+    [Fact]
+    public async Task Subscribe_LocalizesBadRequestError_ForSpanishLocale()
+    {
+        SetLocale("es-CO");
+
+        IActionResult result = await _controller.Subscribe(0, new PushSubscribeRequest("ep", "p256", "auth"));
+
+        var badRequest = Assert.IsType<BadRequestObjectResult>(result);
+        string json = JsonSerializer.Serialize(badRequest.Value);
+        Assert.Contains("restaurantId es obligatorio.", json);
     }
 
     [Fact]
@@ -238,6 +271,18 @@ public class NotificationsControllerUnitTests
     {
         IActionResult result = await _controller.DeleteNotifications(null!);
         Assert.IsType<BadRequestObjectResult>(result);
+    }
+
+    [Fact]
+    public async Task DeleteNotifications_LocalizesBadRequestError_ForSpanishLocale()
+    {
+        SetLocale("es-CO");
+
+        IActionResult result = await _controller.DeleteNotifications(new List<int>());
+
+        var badRequest = Assert.IsType<BadRequestObjectResult>(result);
+        string json = JsonSerializer.Serialize(badRequest.Value);
+        Assert.Contains("La lista de IDs de notificaciones es obligatoria.", json);
     }
 
     [Fact]

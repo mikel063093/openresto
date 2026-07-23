@@ -129,6 +129,8 @@ public static partial class ApiLocalization
             ["Email is not configured."] = "El correo no esta configurado.",
             ["Admin:Password must be configured before first use. Set it via ADMIN_PASSWORD env var."] = "Admin:Password debe configurarse antes del primer uso. Definalo con la variable de entorno ADMIN_PASSWORD.",
             ["An unexpected error occurred."] = "Ocurrio un error inesperado.",
+            ["restaurantId is required."] = "restaurantId es obligatorio.",
+            ["List of notification IDs is required."] = "La lista de IDs de notificaciones es obligatoria.",
         };
 
     [GeneratedRegex("^This table only has (\\d+) seats, but (\\d+) guests were requested\\.$")]

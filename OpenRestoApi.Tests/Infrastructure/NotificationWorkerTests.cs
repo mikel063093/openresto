@@ -39,17 +39,17 @@ public class NotificationWorkerTests
         (NotificationWorker worker, NotificationQueue queue, Mock<IBookingNotificationService> notify) = CreateWorker();
         var booking = new Booking { BookingRef = "R1" };
         var tcs = new TaskCompletionSource();
-        notify.Setup(n => n.NotifyBookingCreatedAsync(booking, "Resto"))
+        notify.Setup(n => n.NotifyBookingCreatedAsync(booking, "Resto", "es-CO"))
             .Callback(() => tcs.TrySetResult())
             .Returns(Task.CompletedTask);
 
         await worker.StartAsync(CancellationToken.None);
         try
         {
-            queue.EnqueueBookingCreated(booking, "Resto");
+            queue.EnqueueBookingCreated(booking, "Resto", "es-CO");
             await Task.WhenAny(tcs.Task, Task.Delay(2000));
             Assert.True(tcs.Task.IsCompletedSuccessfully);
-            notify.Verify(n => n.NotifyBookingCreatedAsync(booking, "Resto"), Times.Once);
+            notify.Verify(n => n.NotifyBookingCreatedAsync(booking, "Resto", "es-CO"), Times.Once);
         }
         finally
         {
@@ -63,17 +63,17 @@ public class NotificationWorkerTests
         (NotificationWorker worker, NotificationQueue queue, Mock<IBookingNotificationService> notify) = CreateWorker();
         var booking = new Booking { BookingRef = "R2" };
         var tcs = new TaskCompletionSource();
-        notify.Setup(n => n.NotifyBookingCancelledAsync(booking, "Resto"))
+        notify.Setup(n => n.NotifyBookingCancelledAsync(booking, "Resto", "es-CO"))
             .Callback(() => tcs.TrySetResult())
             .Returns(Task.CompletedTask);
 
         await worker.StartAsync(CancellationToken.None);
         try
         {
-            queue.EnqueueBookingCancelled(booking, "Resto");
+            queue.EnqueueBookingCancelled(booking, "Resto", "es-CO");
             await Task.WhenAny(tcs.Task, Task.Delay(2000));
             Assert.True(tcs.Task.IsCompletedSuccessfully);
-            notify.Verify(n => n.NotifyBookingCancelledAsync(booking, "Resto"), Times.Once);
+            notify.Verify(n => n.NotifyBookingCancelledAsync(booking, "Resto", "es-CO"), Times.Once);
         }
         finally
         {
@@ -87,17 +87,17 @@ public class NotificationWorkerTests
         (NotificationWorker worker, NotificationQueue queue, Mock<IBookingNotificationService> notify) = CreateWorker();
         DateTime date = DateTime.UtcNow;
         var tcs = new TaskCompletionSource();
-        notify.Setup(n => n.CheckAndNotifyCapacityAsync(7, "Resto", date))
+        notify.Setup(n => n.CheckAndNotifyCapacityAsync(7, "Resto", date, "es-CO"))
             .Callback(() => tcs.TrySetResult())
             .Returns(Task.CompletedTask);
 
         await worker.StartAsync(CancellationToken.None);
         try
         {
-            queue.EnqueueCapacityCheck(7, "Resto", date);
+            queue.EnqueueCapacityCheck(7, "Resto", date, "es-CO");
             await Task.WhenAny(tcs.Task, Task.Delay(2000));
             Assert.True(tcs.Task.IsCompletedSuccessfully);
-            notify.Verify(n => n.CheckAndNotifyCapacityAsync(7, "Resto", date), Times.Once);
+            notify.Verify(n => n.CheckAndNotifyCapacityAsync(7, "Resto", date, "es-CO"), Times.Once);
         }
         finally
         {
@@ -130,9 +130,9 @@ public class NotificationWorkerTests
         var succeeding = new Booking { BookingRef = "OK" };
         var tcs = new TaskCompletionSource();
 
-        notify.Setup(n => n.NotifyBookingCreatedAsync(failing, "Resto"))
+        notify.Setup(n => n.NotifyBookingCreatedAsync(failing, "Resto", "en"))
             .ThrowsAsync(new InvalidOperationException("boom"));
-        notify.Setup(n => n.NotifyBookingCreatedAsync(succeeding, "Resto"))
+        notify.Setup(n => n.NotifyBookingCreatedAsync(succeeding, "Resto", "en"))
             .Callback(() => tcs.TrySetResult())
             .Returns(Task.CompletedTask);
 
@@ -144,7 +144,7 @@ public class NotificationWorkerTests
 
             await Task.WhenAny(tcs.Task, Task.Delay(2000));
             Assert.True(tcs.Task.IsCompletedSuccessfully);
-            notify.Verify(n => n.NotifyBookingCreatedAsync(succeeding, "Resto"), Times.Once);
+            notify.Verify(n => n.NotifyBookingCreatedAsync(succeeding, "Resto", "en"), Times.Once);
         }
         finally
         {
@@ -158,7 +158,7 @@ public class NotificationWorkerTests
         (NotificationWorker worker, NotificationQueue queue, Mock<IBookingNotificationService> notify) = CreateWorker();
         var afterUnknown = new Booking { BookingRef = "AFTER" };
         var tcs = new TaskCompletionSource();
-        notify.Setup(n => n.NotifyBookingCreatedAsync(afterUnknown, "Resto"))
+        notify.Setup(n => n.NotifyBookingCreatedAsync(afterUnknown, "Resto", "en"))
             .Callback(() => tcs.TrySetResult())
             .Returns(Task.CompletedTask);
 
@@ -170,10 +170,10 @@ public class NotificationWorkerTests
 
             await Task.WhenAny(tcs.Task, Task.Delay(2000));
             Assert.True(tcs.Task.IsCompletedSuccessfully);
-            notify.Verify(n => n.NotifyBookingCreatedAsync(afterUnknown, "Resto"), Times.Once);
-            notify.Verify(n => n.NotifyBookingCancelledAsync(It.IsAny<Booking>(), It.IsAny<string>()), Times.Never);
+            notify.Verify(n => n.NotifyBookingCreatedAsync(afterUnknown, "Resto", "en"), Times.Once);
+            notify.Verify(n => n.NotifyBookingCancelledAsync(It.IsAny<Booking>(), It.IsAny<string>(), It.IsAny<string>()), Times.Never);
             notify.Verify(
-                n => n.CheckAndNotifyCapacityAsync(It.IsAny<int>(), It.IsAny<string>(), It.IsAny<DateTime>()),
+                n => n.CheckAndNotifyCapacityAsync(It.IsAny<int>(), It.IsAny<string>(), It.IsAny<DateTime>(), It.IsAny<string>()),
                 Times.Never);
         }
         finally

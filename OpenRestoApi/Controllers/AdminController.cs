@@ -48,7 +48,8 @@ public class AdminController(AdminService adminService) : ControllerBase
     {
         // ValidationException (bad table/section) → 400, ConflictException (overlap/seats) → 409
         // are mapped by GlobalExceptionHandler; the controller just orchestrates.
-        BookingDetailDto result = await _adminService.CreateBookingAsync(req);
+        string locale = ApiLocalization.ResolveLocale(HttpContext?.Request.Headers.AcceptLanguage.ToString());
+        BookingDetailDto result = await _adminService.CreateBookingAsync(req, locale);
         return CreatedAtAction(nameof(GetBooking), new { id = result.Id }, result);
     }
 
@@ -65,7 +66,8 @@ public class AdminController(AdminService adminService) : ControllerBase
     public async Task<IActionResult> CancelBooking(int id)
     {
         // ConflictException (past booking) → 409 is mapped by GlobalExceptionHandler.
-        return await _adminService.CancelBookingAsync(id) ? NoContent() : NotFound();
+        string locale = ApiLocalization.ResolveLocale(HttpContext?.Request.Headers.AcceptLanguage.ToString());
+        return await _adminService.CancelBookingAsync(id, locale) ? NoContent() : NotFound();
     }
 
     [Authorize(Policy = "SuperAdminOnly")]

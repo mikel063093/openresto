@@ -27,6 +27,7 @@ public class NotificationQueueTests
         var work = Assert.IsType<BookingCreatedWork>(item);
         Assert.Same(booking, work.Booking);
         Assert.Equal("Test Resto", work.RestaurantName);
+        Assert.Equal("en", work.Locale);
     }
 
     [Fact]
@@ -35,12 +36,13 @@ public class NotificationQueueTests
         var queue = new NotificationQueue();
         Booking booking = CreateBooking();
 
-        queue.EnqueueBookingCancelled(booking, "Test Resto");
+        queue.EnqueueBookingCancelled(booking, "Test Resto", "es-CO");
 
         Assert.True(queue.TryReadForTests(out NotificationWorkItem? item));
         var work = Assert.IsType<BookingCancelledWork>(item);
         Assert.Same(booking, work.Booking);
         Assert.Equal("Test Resto", work.RestaurantName);
+        Assert.Equal("es-CO", work.Locale);
     }
 
     [Fact]
@@ -49,13 +51,14 @@ public class NotificationQueueTests
         var queue = new NotificationQueue();
         DateTime date = DateTime.UtcNow;
 
-        queue.EnqueueCapacityCheck(42, "Test Resto", date);
+        queue.EnqueueCapacityCheck(42, "Test Resto", date, "es-CO");
 
         Assert.True(queue.TryReadForTests(out NotificationWorkItem? item));
         var work = Assert.IsType<CapacityCheckWork>(item);
         Assert.Equal(42, work.RestaurantId);
         Assert.Equal("Test Resto", work.RestaurantName);
         Assert.Equal(date, work.BookingDate);
+        Assert.Equal("es-CO", work.Locale);
     }
 
     [Fact]

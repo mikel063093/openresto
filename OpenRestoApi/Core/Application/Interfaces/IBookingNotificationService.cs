@@ -1,4 +1,5 @@
 using OpenRestoApi.Core.Domain;
+using OpenRestoApi.Infrastructure.Localization;
 
 namespace OpenRestoApi.Core.Application.Interfaces;
 
@@ -10,7 +11,7 @@ namespace OpenRestoApi.Core.Application.Interfaces;
 /// </summary>
 public interface IBookingNotificationService
 {
-    Task NotifyBookingCreatedAsync(Booking booking, string restaurantName);
-    Task NotifyBookingCancelledAsync(Booking booking, string restaurantName);
-    Task CheckAndNotifyCapacityAsync(int restaurantId, string restaurantName, DateTime bookingDate);
+    Task NotifyBookingCreatedAsync(Booking booking, string restaurantName, string locale = ApiLocalization.English);
+    Task NotifyBookingCancelledAsync(Booking booking, string restaurantName, string locale = ApiLocalization.English);
+    Task CheckAndNotifyCapacityAsync(int restaurantId, string restaurantName, DateTime bookingDate, string locale = ApiLocalization.English);
 }

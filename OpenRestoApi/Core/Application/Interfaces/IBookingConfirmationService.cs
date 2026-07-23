@@ -1,4 +1,5 @@
 using OpenRestoApi.Core.Domain;
+using OpenRestoApi.Infrastructure.Localization;
 
 namespace OpenRestoApi.Core.Application.Interfaces;
 
@@ -15,5 +16,5 @@ public interface IBookingConfirmationService
     /// when the recipient has no email, SMTP is unconfigured, or the admin disabled
     /// confirmations. All exceptions are swallowed and recorded as <c>EmailFailure</c>.
     /// </summary>
-    Task SendConfirmationAsync(Booking booking, Restaurant restaurant);
+    Task SendConfirmationAsync(Booking booking, Restaurant restaurant, string locale = ApiLocalization.English);
 }
