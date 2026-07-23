@@ -1,3 +1,8 @@
+import { detectLocale, getBrowserLanguages } from "@/i18n/locale";
+import { StorageService } from "@/services/storage";
+
+const LANGUAGE_STORAGE_KEY = "openresto-language";
+
 export function buildUrl(path: string): string {
   const API_URL = process.env.EXPO_PUBLIC_API_URL;
   const base = API_URL?.replace(/\/$/, "") ?? "";
@@ -25,12 +30,33 @@ interface RequestOptions {
   credentials?: RequestCredentials;
 }
 
+export function getRequestLanguage(): string {
+  return detectLocale({
+    storedLocale: StorageService.getItem(LANGUAGE_STORAGE_KEY),
+    browserLanguages: getBrowserLanguages(),
+  });
+}
+
+export function withApiHeaders(headers: Record<string, string> = {}): Record<string, string> {
+  return headers["Accept-Language"]
+    ? { ...headers }
+    : { ...headers, "Accept-Language": getRequestLanguage() };
+}
+
+export async function apiFetch(path: string, init: RequestInit = {}): Promise<Response> {
+  return fetch(buildUrl(path), {
+    ...init,
+    headers: withApiHeaders((init.headers as Record<string, string> | undefined) ?? {}),
+    credentials: init.credentials ?? "include",
+  });
+}
+
 export async function api(
   method: Method,
   path: string,
   opts: RequestOptions = {}
 ): Promise<Response> {
-  const headers: Record<string, string> = { ...opts.headers };
+  const headers = withApiHeaders({ ...opts.headers });
 
   let rawBody: string | undefined;
   if (opts.body !== undefined) {

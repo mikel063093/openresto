@@ -40,6 +40,7 @@ describe("createBooking", () => {
     const [url, opts] = mockFetch.mock.calls[0];
     expect(url).toContain("/api/bookings");
     expect(opts.method).toBe("POST");
+    expect(opts.headers["Accept-Language"]).toBe("en");
     expect(JSON.parse(opts.body)).toEqual(validBooking);
     expect(result).toEqual(created);
   });
@@ -180,6 +181,7 @@ describe("cancelBookingByRef", () => {
     const [url, opts] = mockFetch.mock.calls[0];
     expect(url).toContain("/api/bookings/ref/ref-abc/cancel");
     expect(opts.method).toBe("POST");
+    expect(opts.headers["Accept-Language"]).toBe("en");
     expect(JSON.parse(opts.body)).toEqual({ email: "user@test.com" });
   });
 

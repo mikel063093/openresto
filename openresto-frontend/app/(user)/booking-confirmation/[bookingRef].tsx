@@ -82,8 +82,7 @@ export default function BookingConfirmationScreen() {
   useEffect(() => {
     if (!restaurant?.address) return;
     fetch(
-      `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(restaurant.address)}&format=json&limit=1`,
-      { headers: { "Accept-Language": "en" } }
+      `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(restaurant.address)}&format=json&limit=1`
     )
       .then((r) => r.json())
       .then((data) => {
