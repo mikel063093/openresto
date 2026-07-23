@@ -31,17 +31,16 @@ import TestRenderer from "react-test-renderer";
 import { Modal } from "react-native";
 import ConfirmModal from "@/components/common/ConfirmModal";
 import AlertModal from "@/components/common/AlertModal";
-import { BrandProvider } from "@/context/BrandContext";
 
-global.fetch = jest.fn(() =>
-  Promise.resolve({
-    ok: true,
-    json: () => Promise.resolve({ appName: "Open Resto", primaryColor: "#0a7ea4" }),
-  })
-) as jest.Mock;
+jest.mock("@/context/I18nContext", () => ({
+  useI18n: () => ({ t: (key: string) => key }),
+}));
 
-jest.mock("@/hooks/use-color-scheme", () => ({
-  useColorScheme: () => "light",
+jest.mock("@/hooks/use-app-theme", () => ({
+  useAppTheme: () => ({
+    colors: { card: "#fff", border: "#ddd", muted: "#666" },
+    primaryColor: "#0a7ea4",
+  }),
 }));
 
 describe("Existing modals wire onRequestClose (precondition for web Escape-to-close)", () => {
@@ -50,14 +49,12 @@ describe("Existing modals wire onRequestClose (precondition for web Escape-to-cl
     let tree!: TestRenderer.ReactTestRenderer;
     TestRenderer.act(() => {
       tree = TestRenderer.create(
-        <BrandProvider>
-          <ConfirmModal
-            visible
-            message="Cancel booking?"
-            onConfirm={jest.fn()}
-            onCancel={onCancel}
-          />
-        </BrandProvider>
+        <ConfirmModal
+          visible
+          message="Cancel booking?"
+          onConfirm={jest.fn()}
+          onCancel={onCancel}
+        />
       );
     });
 
@@ -72,11 +69,7 @@ describe("Existing modals wire onRequestClose (precondition for web Escape-to-cl
     const onClose = jest.fn();
     let tree!: TestRenderer.ReactTestRenderer;
     TestRenderer.act(() => {
-      tree = TestRenderer.create(
-        <BrandProvider>
-          <AlertModal visible message="Something happened" onClose={onClose} />
-        </BrandProvider>
-      );
+      tree = TestRenderer.create(<AlertModal visible message="Something happened" onClose={onClose} />);
     });
 
     const modal = tree.root.findByType(Modal);
