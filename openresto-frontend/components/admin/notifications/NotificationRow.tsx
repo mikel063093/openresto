@@ -7,6 +7,7 @@ import { theme } from "@/theme/theme";
 import type { AdminNotificationDto } from "@/api/notifications";
 import { TYPE_ICONS, TYPE_LABELS, formatBookingDate, relativeTime } from "@/utils/notifications";
 import { styles } from "@/components/admin/notifications/notifications.styles";
+import { useI18n } from "@/context/I18nContext";
 
 export interface NotificationRowProps {
   notification: AdminNotificationDto;
@@ -50,12 +51,13 @@ export function NotificationRow({
   onRequestDelete,
   onSwipeDelete,
 }: NotificationRowProps) {
+  const { locale, t } = useI18n();
   const typeIcon = TYPE_ICONS[n.type];
   const meta = [
     n.restaurantName,
-    n.seats > 0 ? `${n.seats} guest${n.seats !== 1 ? "s" : ""}` : null,
-    n.bookingDate ? formatBookingDate(n.bookingDate) : null,
-    relativeTime(n.createdAt),
+    n.seats > 0 ? t("admin.notificationGuestCount", { count: n.seats }) : null,
+    n.bookingDate ? formatBookingDate(n.bookingDate, locale) : null,
+    relativeTime(n.createdAt, locale, t as never),
   ]
     .filter(Boolean)
     .join(" · ");
@@ -101,7 +103,7 @@ export function NotificationRow({
         {/* Text content */}
         <View style={styles.notifBody}>
           <View style={styles.notifTitleRow}>
-            <ThemedText style={styles.notifType}>{TYPE_LABELS[n.type]}</ThemedText>
+            <ThemedText style={styles.notifType}>{t(TYPE_LABELS[n.type] as never)}</ThemedText>
             {n.bookingRef ? (
               <ThemedText style={[styles.notifRef, { color: mutedColor }]}>
                 #{n.bookingRef}
@@ -134,7 +136,7 @@ export function NotificationRow({
             ]}
           >
             <ThemedText style={[styles.actionText, { color: isPinned ? "#fff" : mutedColor }]}>
-              {isPinned ? "Unpin" : "Pin"}
+              {isPinned ? t("admin.unpin") : t("admin.pin")}
             </ThemedText>
           </Pressable>
           {n.isRead ? (
@@ -149,7 +151,7 @@ export function NotificationRow({
               ]}
             >
               <ThemedText style={[styles.actionText, { color: mutedColor }]}>
-                Mark Unread
+                {t("admin.markUnread")}
               </ThemedText>
             </Pressable>
           ) : (
@@ -163,7 +165,9 @@ export function NotificationRow({
                 },
               ]}
             >
-              <ThemedText style={[styles.actionText, { color: mutedColor }]}>Mark Read</ThemedText>
+              <ThemedText style={[styles.actionText, { color: mutedColor }]}>
+                {t("admin.markRead")}
+              </ThemedText>
             </Pressable>
           )}
           <Pressable

@@ -21,11 +21,44 @@ jest.mock("@/context/BrandContext", () => ({
   useBrand: () => ({ primaryColor: "#0a7ea4", appName: "Open Resto" }),
 }));
 
+jest.mock("@/context/I18nContext", () => ({
+  useI18n: () => ({
+    t: (key: string, values?: Record<string, string | number>) => {
+      const map: Record<string, string> = {
+        "admin.overview": "Overview",
+        "admin.bookings": "Bookings",
+        "admin.locations": "Locations",
+        "admin.notifications": "Notifications",
+        "admin.settings": "Settings",
+        "admin.panel": "Admin Panel",
+        "admin.lookupBooking": "Lookup Booking",
+        "admin.emailOrReference": "Email or reference…",
+        "common.search": "Search",
+        "admin.noBookingFound": "No booking found.",
+        "admin.searchMatches": "Showing all matches…",
+        "admin.partialSearchHelp": "Partial matching search is supported",
+        "admin.lightMode": "Light mode",
+        "admin.darkMode": "Dark mode",
+        "admin.logOut": "Log out",
+      };
+      if (key === "admin.managingLocations") {
+        const count = Number(values?.count ?? 0);
+        return `Managing ${count} location${count === 1 ? "" : "s"}`;
+      }
+      if (key === "admin.backToSite") return `Back to ${values?.appName ?? ""}`;
+      return map[key] ?? key;
+    },
+  }),
+}));
+
 jest.mock("@/context/ThemeContext", () => ({
   useTheme: () => ({ toggle: jest.fn() }),
 }));
 
-jest.mock("@/api/auth", () => ({ logout: jest.fn().mockResolvedValue(undefined) }));
+jest.mock("@/api/auth", () => ({
+  logout: jest.fn().mockResolvedValue(undefined),
+  checkSession: jest.fn().mockResolvedValue({ role: "SuperAdmin" }),
+}));
 
 jest.mock("@/api/restaurants", () => ({
   fetchRestaurants: jest.fn().mockResolvedValue([{ id: 1 }, { id: 2 }]),
@@ -92,8 +125,8 @@ describe("AdminSidebar", () => {
 
   it("navigates to site root when Back to site is pressed", async () => {
     render(<AdminSidebar />);
-    await waitFor(() => expect(screen.getByText("Back to site")).toBeTruthy());
-    fireEvent.press(screen.getByText("Back to site"));
+    await waitFor(() => expect(screen.getByText("Back to Open Resto")).toBeTruthy());
+    fireEvent.press(screen.getByText("Back to Open Resto"));
     expect(mockPush).toHaveBeenCalledWith("/");
   });
 

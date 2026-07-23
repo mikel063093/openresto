@@ -3,11 +3,12 @@ import { Ionicons } from "@expo/vector-icons";
 import { ThemedText } from "@/components/themed-text";
 import { BookingDetailDto } from "@/api/admin";
 import { theme } from "@/theme/theme";
-import { initials } from "@/utils/formatters";
+import { fmtDateTime, initials } from "@/utils/formatters";
 import { isPast, StatusBadge } from "@/components/admin/bookings/StatusBadge";
 import { styles } from "@/components/admin/bookings/bookings.styles";
 import { focusedRowHighlight, rowA11yProps } from "@/components/admin/bookings/bookingRowProps";
 import type { SortKey, SortState } from "@/components/admin/bookings/sorting";
+import { useI18n } from "@/context/I18nContext";
 
 export interface BookingsWideTableProps {
   bookings: BookingDetailDto[];
@@ -46,6 +47,7 @@ export function BookingsWideTable({
   isDark,
   primaryColor,
 }: BookingsWideTableProps) {
+  const { locale, t } = useI18n();
   const headerBg = isDark ? "#28292b" : "#f8f8f9";
   // Subtle alternating row tint for scannability. Translucent so the focused-
   // row highlight (`primaryColor` tint) still reads on top of it.
@@ -53,7 +55,11 @@ export function BookingsWideTable({
 
   const renderSortHeader = (key: SortKey, label: string, columnStyle: ViewStyle) => {
     const isActive = sort.key === key;
-    const dirLabel = isActive ? (sort.dir === "asc" ? "ascending" : "descending") : "not sorted";
+    const dirLabel = isActive
+      ? sort.dir === "asc"
+        ? t("admin.sortDirection.ascending")
+        : t("admin.sortDirection.descending")
+      : t("admin.sortDirection.notSorted");
     const icon = !isActive
       ? "swap-vertical-outline"
       : sort.dir === "asc"
@@ -63,7 +69,7 @@ export function BookingsWideTable({
       <Pressable
         testID={`sort-header-${key}`}
         accessibilityRole="button"
-        accessibilityLabel={`Sort by ${label}, ${dirLabel}`}
+        accessibilityLabel={t("admin.sortBy", { label, direction: dirLabel })}
         style={[styles.thSortBtn, columnStyle, { alignItems: "center" }]}
         onPress={() => onSortChange(key)}
       >
@@ -89,11 +95,11 @@ export function BookingsWideTable({
           { backgroundColor: headerBg, borderBottomWidth: 1, borderBottomColor: borderColor },
         ]}
       >
-        {renderSortHeader("date", "TIME", styles.colTime)}
-        {renderSortHeader("guest", "GUEST", styles.colGuest)}
-        {renderSortHeader("seats", "PARTY", styles.colParty)}
-        {renderSortHeader("table", "TABLE", styles.colTable)}
-        {renderSortHeader("status", "STATUS", styles.colStatus)}
+        {renderSortHeader("date", t("booking.time"), styles.colTime)}
+        {renderSortHeader("guest", t("booking.guestLabel"), styles.colGuest)}
+        {renderSortHeader("seats", t("booking.party"), styles.colParty)}
+        {renderSortHeader("table", t("booking.table"), styles.colTable)}
+        {renderSortHeader("status", t("booking.status"), styles.colStatus)}
         <View style={styles.colAction} />
       </View>
 
@@ -131,13 +137,13 @@ export function BookingsWideTable({
             </View>
             <View>
               <ThemedText style={styles.tdTime}>
-                {new Date(b.date).toLocaleTimeString(undefined, {
+                {fmtDateTime(new Date(b.date), locale, {
                   hour: "2-digit",
                   minute: "2-digit",
                 })}
               </ThemedText>
               <ThemedText style={[styles.tdDate, { color: mutedColor }]}>
-                {new Date(b.date).toLocaleDateString(undefined, {
+                {fmtDateTime(new Date(b.date), locale, {
                   month: "short",
                   day: "numeric",
                 })}
@@ -181,7 +187,7 @@ export function BookingsWideTable({
                 ]}
               >
                 <ThemedText style={[styles.badgeText, { color: theme.status.cancelled.text }]}>
-                  Cancelled
+                  {t("admin.cancelled")}
                 </ThemedText>
               </View>
             ) : (
@@ -192,7 +198,7 @@ export function BookingsWideTable({
           <View style={styles.colAction}>
             {!b.isCancelled && !isPast(b.date) && (
               <Pressable
-                accessibilityLabel="Cancel booking"
+                accessibilityLabel={t("booking.cancelBooking")}
                 style={[
                   styles.rowActionBtn,
                   { backgroundColor: theme.status.cancelled.bg[isDark ? "dark" : "light"] },

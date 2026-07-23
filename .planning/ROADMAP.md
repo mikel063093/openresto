@@ -62,9 +62,9 @@ Plans:
 **Plans**: 3 plans
 
 Plans:
-- [ ] 03-01: Migrate admin routes and navigation/browser-title surfaces to catalog-driven copy.
-- [ ] 03-02: Migrate admin shared components, validation states, and keyboard/help surfaces.
-- [ ] 03-03: Expand admin Jest and Playwright coverage for both locales.
+- [x] 03-01: Migrate admin routes and navigation/browser-title surfaces to catalog-driven copy.
+- [x] 03-02: Migrate admin shared components, validation states, and keyboard/help surfaces.
+- [x] 03-03: Expand admin Jest and Playwright coverage for both locales.
 
 **Test Gate**:
 - Admin Jest suites pass for translated routes and components.
@@ -132,7 +132,7 @@ Plans:
 |-------|----------------|--------|-----------|
 | 1. Baseline And Contracts | 2/2 | Complete | 2026-07-23 |
 | 2. Public UI Localization | 3/3 | Complete | 2026-07-23 |
-| 3. Admin UI Localization | 0/3 | Not started | - |
+| 3. Admin UI Localization | 3/3 | Verification blocked | - |
 | 4. API Locale Propagation And Messages | 0/3 | Not started | - |
 | 5. Emails And Notification Copy | 0/2 | Not started | - |
 | 6. Regression Gates And Final Verification | 0/3 | Not started | - |

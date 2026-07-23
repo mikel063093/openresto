@@ -3,6 +3,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { ThemedText } from "@/components/themed-text";
 import { theme } from "@/theme/theme";
 import { styles } from "@/components/admin/bookings/bookings.styles";
+import { useI18n } from "@/context/I18nContext";
 
 export type LookupStatus = "idle" | "not_found" | "multiple";
 
@@ -37,6 +38,7 @@ export function BookingLookupBar({
   placeholderColor,
   primaryColor,
 }: BookingLookupBarProps) {
+  const { t } = useI18n();
   return (
     <>
       <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
@@ -54,7 +56,7 @@ export function BookingLookupBar({
               minWidth: 180,
             },
           ]}
-          placeholder="Email or reference…"
+          placeholder={t("admin.emailOrReference")}
           placeholderTextColor={placeholderColor}
           value={query}
           onChangeText={onQueryChange}
@@ -76,7 +78,7 @@ export function BookingLookupBar({
           ) : (
             <>
               <Ionicons name="search-outline" size={15} color="#fff" />
-              <ThemedText style={styles.newBookingBtnText}>Find</ThemedText>
+              <ThemedText style={styles.newBookingBtnText}>{t("admin.find")}</ThemedText>
             </>
           )}
         </Pressable>
@@ -84,12 +86,12 @@ export function BookingLookupBar({
 
       {status === "not_found" && (
         <ThemedText style={{ fontSize: 12, color: theme.colors.error, marginTop: -4 }}>
-          No booking found.
+          {t("admin.noBookingFound")}
         </ThemedText>
       )}
       {status === "multiple" && (
         <ThemedText style={{ fontSize: 12, color: primaryColor, marginTop: -4 }}>
-          Showing all matches…
+          {t("admin.searchMatches")}
         </ThemedText>
       )}
     </>

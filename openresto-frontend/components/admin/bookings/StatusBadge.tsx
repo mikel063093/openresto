@@ -3,6 +3,7 @@ import { ThemedText } from "@/components/themed-text";
 import { theme } from "@/theme/theme";
 import { styles } from "./bookings.styles";
 import { BookingDetailDto } from "@/api/admin";
+import { useI18n } from "@/context/I18nContext";
 
 export type BadgeVariant = "arrived" | "seated" | "upcoming" | "scheduled" | "completed";
 
@@ -18,15 +19,15 @@ export function isPast(date: string): boolean {
   return new Date(date).getTime() < Date.now() - 5 * 60 * 1000;
 }
 
-export function getStatus(date: string): { label: string; variant: BadgeVariant } {
+export function getStatus(date: string): { labelKey: string; variant: BadgeVariant } {
   const d = new Date(date);
   const now = new Date();
   const diffMins = (d.getTime() - now.getTime()) / 60000;
-  if (diffMins < -90) return { label: "Completed", variant: "completed" };
-  if (diffMins < -15) return { label: "Seated", variant: "seated" };
-  if (diffMins < 5) return { label: "Arrived", variant: "arrived" };
-  if (diffMins < 60) return { label: "Upcoming", variant: "upcoming" };
-  return { label: "Scheduled", variant: "scheduled" };
+  if (diffMins < -90) return { labelKey: "booking.statusCompleted", variant: "completed" };
+  if (diffMins < -15) return { labelKey: "booking.statusSeated", variant: "seated" };
+  if (diffMins < 5) return { labelKey: "booking.statusArrived", variant: "arrived" };
+  if (diffMins < 60) return { labelKey: "booking.statusUpcoming", variant: "upcoming" };
+  return { labelKey: "booking.statusScheduled", variant: "scheduled" };
 }
 
 // Lifecycle rank for status-based sorting (issue #208). Higher rank surfaces
@@ -75,7 +76,8 @@ const BADGE_STYLES: Record<
 };
 
 export function StatusBadge({ date, isDark }: { date: string; isDark: boolean }) {
-  const { label, variant } = getStatus(date);
+  const { t } = useI18n();
+  const { labelKey, variant } = getStatus(date);
   const s = BADGE_STYLES[variant];
 
   const bg = isDark && s.bg.dark ? s.bg.dark : s.bg.light;
@@ -91,7 +93,9 @@ export function StatusBadge({ date, isDark }: { date: string; isDark: boolean })
 
   return (
     <View style={[styles.badge, { backgroundColor: bg }]}>
-      <ThemedText style={[styles.badgeText, { color: text as string }]}>{label}</ThemedText>
+      <ThemedText style={[styles.badgeText, { color: text as string }]}>
+        {t(labelKey as never)}
+      </ThemedText>
     </View>
   );
 }

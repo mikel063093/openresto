@@ -3,6 +3,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { ThemedText } from "@/components/themed-text";
 import { styles } from "@/components/admin/bookings/bookings.styles";
 import type { SortKey, SortState } from "@/components/admin/bookings/sorting";
+import { useI18n } from "@/context/I18nContext";
 
 export interface BookingsSortControlProps {
   sort: SortState;
@@ -14,12 +15,12 @@ export interface BookingsSortControlProps {
   primaryColor: string;
 }
 
-const COLUMNS: { key: SortKey; label: string }[] = [
-  { key: "date", label: "Time" },
-  { key: "guest", label: "Guest" },
-  { key: "seats", label: "Party" },
-  { key: "table", label: "Table" },
-  { key: "status", label: "Status" },
+const COLUMNS: { key: SortKey; labelKey: string }[] = [
+  { key: "date", labelKey: "booking.time" },
+  { key: "guest", labelKey: "booking.guestLabel" },
+  { key: "seats", labelKey: "booking.party" },
+  { key: "table", labelKey: "booking.table" },
+  { key: "status", labelKey: "booking.status" },
 ];
 
 /**
@@ -36,23 +37,27 @@ export function BookingsSortControl({
   mutedColor,
   primaryColor,
 }: BookingsSortControlProps) {
+  const { t } = useI18n();
   return (
     <View style={[styles.sortControl, { borderColor, backgroundColor: cardBg }]}>
-      <ThemedText style={[styles.sortControlLabel, { color: mutedColor }]}>Sort</ThemedText>
+      <ThemedText style={[styles.sortControlLabel, { color: mutedColor }]}>
+        {t("admin.sort")}
+      </ThemedText>
       <View style={styles.sortControlChips}>
-        {COLUMNS.map(({ key, label }) => {
+        {COLUMNS.map(({ key, labelKey }) => {
+          const label = t(labelKey as never);
           const isActive = sort.key === key;
           const dirLabel = isActive
             ? sort.dir === "asc"
-              ? "ascending"
-              : "descending"
-            : "not sorted";
+              ? t("admin.sortDirection.ascending")
+              : t("admin.sortDirection.descending")
+            : t("admin.sortDirection.notSorted");
           return (
             <Pressable
               key={key}
               testID={`sort-chip-${key}`}
               accessibilityRole="button"
-              accessibilityLabel={`Sort by ${label}, ${dirLabel}`}
+              accessibilityLabel={t("admin.sortBy", { label, direction: dirLabel })}
               style={[
                 styles.sortChip,
                 { borderColor: isActive ? primaryColor : borderColor },

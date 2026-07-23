@@ -1,6 +1,7 @@
 import { theme } from "@/theme/theme";
 import type { NotificationType } from "@/api/notifications";
 import { type Locale, toIntlLocale } from "@/i18n/locale";
+import type { MessageKey } from "@/i18n/messages";
 
 /** Decodes a VAPID public key (base64url) into a Uint8Array for PushManager.subscribe. */
 export function urlBase64ToUint8Array(base64String: string): Uint8Array<ArrayBuffer> {
@@ -18,14 +19,19 @@ export function arrayBufferToBase64(buffer: ArrayBuffer): string {
 }
 
 /** Compact relative timestamp: "just now", "5m ago", "3h ago", "2d ago". */
-export function relativeTime(iso: string): string {
+export function relativeTime(
+  iso: string,
+  locale: Locale = "en",
+  t?: (key: MessageKey, values?: Record<string, string | number>) => string
+): string {
   const diff = Date.now() - new Date(iso).getTime();
   const mins = Math.floor(diff / 60000);
-  if (mins < 1) return "just now";
-  if (mins < 60) return `${mins}m ago`;
+  if (mins < 1) return t ? t("admin.relativeTime.justNow") : "just now";
+  if (mins < 60) return t ? t("admin.relativeTime.minutesAgo", { count: mins }) : `${mins}m ago`;
   const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `${hrs}h ago`;
-  return `${Math.floor(hrs / 24)}d ago`;
+  if (hrs < 24) return t ? t("admin.relativeTime.hoursAgo", { count: hrs }) : `${hrs}h ago`;
+  const days = Math.floor(hrs / 24);
+  return t ? t("admin.relativeTime.daysAgo", { count: days }) : `${days}d ago`;
 }
 
 /** Locale-aware booking date for notification meta lines. */
@@ -42,10 +48,10 @@ export function formatBookingDate(iso: string, locale: Locale = "en"): string {
 export const PAGE_SIZE = 20;
 export const PIN_STORAGE_KEY = "openresto_pinned_notifs";
 
-export const TYPE_LABELS: Record<NotificationType, string> = {
-  BookingCreated: "New Booking",
-  BookingCancelled: "Booking Cancelled",
-  RestaurantNearlyFull: "Nearly Full",
+export const TYPE_LABELS: Record<NotificationType, MessageKey> = {
+  BookingCreated: "admin.notificationType.bookingCreated",
+  BookingCancelled: "admin.notificationType.bookingCancelled",
+  RestaurantNearlyFull: "admin.notificationType.restaurantNearlyFull",
 };
 
 type TypeIcon = {
@@ -60,8 +66,8 @@ export const TYPE_ICONS: Record<NotificationType, TypeIcon> = {
 };
 
 export const TYPE_FILTERS = [
-  { label: "All Types", value: "" },
-  { label: "New Bookings", value: "BookingCreated" },
-  { label: "Cancelled", value: "BookingCancelled" },
-  { label: "Nearly Full", value: "RestaurantNearlyFull" },
+  { labelKey: "admin.notificationFilter.allTypes", value: "" },
+  { labelKey: "admin.notificationFilter.newBookings", value: "BookingCreated" },
+  { labelKey: "admin.notificationFilter.cancelled", value: "BookingCancelled" },
+  { labelKey: "admin.notificationFilter.nearlyFull", value: "RestaurantNearlyFull" },
 ];

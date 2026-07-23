@@ -43,6 +43,7 @@ import { styles } from "@/components/admin/bookings/bookings.styles";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { useErrorHandler } from "@/hooks/useErrorHandler";
 import { fmtDate } from "@/utils/formatters";
+import { useI18n } from "@/context/I18nContext";
 
 type ViewMode = "timetable" | "list";
 
@@ -100,6 +101,7 @@ export default function AdminBookingsScreen() {
   }, [create]);
 
   const { colors, isDark, primaryColor: PRIMARY } = useAppTheme();
+  const { locale, t } = useI18n();
   const { width } = useWindowDimensions();
 
   const {
@@ -299,12 +301,12 @@ export default function AdminBookingsScreen() {
           options={{
             title:
               viewMode === "timetable"
-                ? fmtDate(gridDate)
+                ? fmtDate(gridDate, locale)
                 : statusFilter === "past"
-                  ? "Past Bookings"
+                  ? t("admin.pastBookings")
                   : statusFilter === "cancelled"
-                    ? "Cancelled Bookings"
-                    : "Live Bookings",
+                    ? t("admin.cancelledBookings")
+                    : t("admin.liveBookings"),
           }}
         />
       )}
@@ -313,14 +315,14 @@ export default function AdminBookingsScreen() {
       <View style={styles.pageHeader}>
         <View style={{ flex: 1 }}>
           <ThemedText style={styles.pageTitle}>
-            {searchQuery ? "Search Results" : "Bookings"}
+            {searchQuery ? t("admin.searchResults") : t("admin.bookings")}
           </ThemedText>
           <ThemedText style={[styles.pageSub, { color: mutedColor }]}>
             {searchQuery
-              ? `${bookings.length} result${bookings.length !== 1 ? "s" : ""} for "${searchQuery}"`
+              ? t("admin.searchResultsSummary", { count: bookings.length, query: String(searchQuery) })
               : viewMode === "timetable"
-                ? fmtDate(gridDate)
-                : `${bookings.length} total · ${todayCount} today`}
+                ? fmtDate(gridDate, locale)
+                : t("admin.bookingsSummary", { count: bookings.length, today: todayCount })}
           </ThemedText>
         </View>
 
@@ -348,7 +350,7 @@ export default function AdminBookingsScreen() {
               onPress={() => router.replace("/admin/bookings")}
             >
               <Ionicons name="close-outline" size={16} color="#fff" />
-              <ThemedText style={styles.newBookingBtnText}>Clear</ThemedText>
+              <ThemedText style={styles.newBookingBtnText}>{t("admin.clear")}</ThemedText>
             </Pressable>
           ) : (
             <Pressable
@@ -356,7 +358,7 @@ export default function AdminBookingsScreen() {
               onPress={() => setShowNewModal(true)}
             >
               <Ionicons name="add-outline" size={16} color="#fff" />
-              <ThemedText style={styles.newBookingBtnText}>New Booking</ThemedText>
+              <ThemedText style={styles.newBookingBtnText}>{t("admin.quickAction.newBooking")}</ThemedText>
             </Pressable>
           )}
         </View>
@@ -403,9 +405,9 @@ export default function AdminBookingsScreen() {
           <View style={[styles.modeToggle, { borderColor, backgroundColor: cardBg }]}>
             {(
               [
-                { key: "active", label: "Active", color: PRIMARY },
-                { key: "past", label: "Past", color: "#7c3aed" },
-                { key: "cancelled", label: "Cancelled", color: theme.status.cancelled.text },
+                { key: "active", label: t("admin.filter.active"), color: PRIMARY },
+                { key: "past", label: t("admin.filter.past"), color: "#7c3aed" },
+                { key: "cancelled", label: t("admin.filter.cancelled"), color: theme.status.cancelled.text },
               ] as const
             ).map(({ key, label, color }) => (
               <Pressable
@@ -463,7 +465,7 @@ export default function AdminBookingsScreen() {
               <ThemedText
                 style={[styles.modeBtnText, { color: viewMode === "list" ? "#fff" : mutedColor }]}
               >
-                List
+                {t("admin.view.list")}
               </ThemedText>
             )}
           </Pressable>
@@ -485,10 +487,10 @@ export default function AdminBookingsScreen() {
               <Ionicons name="chevron-back" size={18} color={PRIMARY} />
             </Pressable>
             <Pressable onPress={resetToToday} style={styles.gridDateLabel}>
-              <ThemedText style={styles.gridDateText}>{fmtDate(gridDate)}</ThemedText>
+              <ThemedText style={styles.gridDateText}>{fmtDate(gridDate, locale)}</ThemedText>
               {gridDate.toDateString() !== new Date().toDateString() && (
                 <ThemedText style={[styles.gridTodayHint, { color: PRIMARY }]}>
-                  tap for today
+                  {t("admin.tapForToday")}
                 </ThemedText>
               )}
             </Pressable>
@@ -514,7 +516,9 @@ export default function AdminBookingsScreen() {
               ]}
             >
               <View style={[styles.legendDot, { backgroundColor: PRIMARY }]} />
-              <ThemedText style={[styles.legendText, { color: mutedColor }]}>Booked</ThemedText>
+              <ThemedText style={[styles.legendText, { color: mutedColor }]}>
+                {t("admin.booked")}
+              </ThemedText>
             </View>
             <View
               style={[

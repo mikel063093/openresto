@@ -12,18 +12,17 @@ import PageLoader from "@/components/common/PageLoader";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { focusTarget } from "@/utils/focusRegistry";
 import KeyboardShortcutsHelp from "@/components/common/KeyboardShortcutsHelp";
+import { useI18n } from "@/context/I18nContext";
 
 const MIN_WIDTH = 600;
 
 function DesktopOnlyWall() {
+  const { t } = useI18n();
   return (
     <ThemedView style={styles.wall}>
       <Ionicons name="desktop-outline" size={48} color={theme.colors.primary} />
-      <ThemedText style={styles.wallTitle}>Screen too small</ThemedText>
-      <ThemedText style={styles.wallBody}>
-        The admin dashboard requires a wider screen.{"\n"}
-        Try rotating your device or using a larger screen.
-      </ThemedText>
+      <ThemedText style={styles.wallTitle}>{t("admin.desktopOnlyTitle")}</ThemedText>
+      <ThemedText style={styles.wallBody}>{t("admin.desktopOnlyBody")}</ThemedText>
     </ThemedView>
   );
 }
@@ -59,6 +58,7 @@ function AdminLayoutInner() {
   // sibling stack screens on navigation).
   const isAdminRouteActive = segments[0] === "admin";
   const brand = useBrand();
+  const { t } = useI18n();
   const [authState, setAuthState] = useState<"loading" | "authenticated" | "unauthenticated">(
     "loading"
   );
@@ -69,20 +69,20 @@ function AdminLayoutInner() {
 
     /* istanbul ignore next */
     const PAGE_TITLES: Record<string, string> = {
-      "/admin/dashboard": "Dashboard",
-      "/admin/settings": "Settings",
-      "/admin/bookings": "Bookings",
-      "/admin/bookings/new": "New Walk-in",
-      "/admin/locations": "Locations",
-      "/admin/login": "Admin Login",
+      "/admin/dashboard": t("admin.dashboardTitle"),
+      "/admin/settings": t("admin.settings"),
+      "/admin/bookings": t("admin.bookings"),
+      "/admin/bookings/new": t("admin.newWalkInTitle"),
+      "/admin/locations": t("admin.locations"),
+      "/admin/login": t("admin.loginTitle"),
     };
     /* istanbul ignore next */
     const title =
       PAGE_TITLES[pathname] ??
-      (/^\/admin\/bookings\/\d+$/.test(pathname) ? "Booking Detail" : undefined);
+      (/^\/admin\/bookings\/\d+$/.test(pathname) ? t("admin.bookingDetailTitle") : undefined);
     /* istanbul ignore next */
     if (title) document.title = `${title} | ${brand.appName}`;
-  }, [pathname, brand.appName]);
+  }, [pathname, brand.appName, t]);
 
   useEffect(() => {
     const onLoginScreen = pathname === "/admin/login";
@@ -168,12 +168,21 @@ function AdminLayoutInner() {
 
   return (
     <Stack>
-      <Stack.Screen name="login" options={{ title: "Admin Login", headerBackVisible: false }} />
-      <Stack.Screen name="dashboard" options={{ title: "Dashboard", headerBackVisible: false }} />
-      <Stack.Screen name="bookings/index" options={{ title: "Bookings" }} />
-      <Stack.Screen name="bookings/[id]" options={{ title: "Booking Detail" }} />
-      <Stack.Screen name="locations" options={{ title: "Locations" }} />
-      <Stack.Screen name="settings" options={{ title: "Settings" }} />
+      <Stack.Screen
+        name="login"
+        options={{ title: t("admin.loginTitle"), headerBackVisible: false }}
+      />
+      <Stack.Screen
+        name="dashboard"
+        options={{ title: t("admin.dashboardTitle"), headerBackVisible: false }}
+      />
+      <Stack.Screen name="bookings/index" options={{ title: t("admin.bookings") }} />
+      <Stack.Screen
+        name="bookings/[id]"
+        options={{ title: t("admin.bookingDetailTitle") }}
+      />
+      <Stack.Screen name="locations" options={{ title: t("admin.locations") }} />
+      <Stack.Screen name="settings" options={{ title: t("admin.settings") }} />
     </Stack>
   );
 }

@@ -19,6 +19,11 @@ jest.mock("expo-router", () => ({
   },
 }));
 
+jest.mock("@/context/BrandContext", () => ({
+  BrandProvider: ({ children }: { children: React.ReactNode }) => children,
+  useBrand: () => ({ appName: "Open Resto", primaryColor: "#0a7ea4" }),
+}));
+
 jest.mock("@/components/common/Button", () => {
   const { Pressable, Text } = require("react-native");
   return {
@@ -30,6 +35,49 @@ jest.mock("@/components/common/Button", () => {
     ),
   };
 });
+
+jest.mock("@/context/I18nContext", () => ({
+  useI18n: () => ({
+    t: (key: string, values?: Record<string, string>) => {
+      const map: Record<string, string> = {
+        "admin.signIn": "Sign in",
+        "admin.loginSubtitle": "Manage your restaurant bookings.",
+        "admin.emailLabel": "Email",
+        "admin.passwordLabel": "Password",
+        "admin.emailPlaceholder": "admin@restaurant.com",
+        "admin.passwordPlaceholder": "••••••••",
+        "admin.signInButton": "Sign In",
+        "admin.invalidCredentials": "Invalid email or password. Please try again.",
+        "admin.forgotPassword": "Forgot password?",
+        "admin.resetPassword": "Reset password",
+        "admin.resetPasswordSubtitle": "We'll verify your identity using your security question.",
+        "admin.adminEmailLabel": "Admin email",
+        "admin.continue": "Continue",
+        "admin.noSecurityQuestion": "No security question has been configured for this account.",
+        "admin.securityQuestionTitle": "Security question",
+        "admin.answerLabel": "Your answer",
+        "admin.answerPlaceholder": "Answer (not case sensitive)",
+        "admin.verifyAnswer": "Verify Answer",
+        "admin.incorrectSecurityAnswer": "Incorrect answer. Please try again.",
+        "admin.setNewPassword": "Set new password",
+        "admin.resetExpiry": "This link expires in 15 minutes.",
+        "admin.newPasswordLabel": "New password",
+        "admin.newPasswordPlaceholder": "At least 6 characters",
+        "admin.confirmPasswordLabel": "Confirm password",
+        "admin.confirmPasswordPlaceholder": "Repeat password",
+        "admin.resetPasswordButton": "Reset Password",
+        "admin.passwordResetTitle": "Password reset!",
+        "admin.passwordResetSubtitle":
+          "Your password has been updated. Sign in with your new credentials.",
+        "admin.backToSignIn": "Back to Sign In",
+        "admin.back": "Back",
+        "footer.adminLabel": "Admin",
+      };
+      if (key === "admin.backToSite") return `Back to ${values?.appName ?? ""}`;
+      return map[key] ?? key;
+    },
+  }),
+}));
 
 describe("AdminLoginScreen", () => {
   const mockRouter = {
