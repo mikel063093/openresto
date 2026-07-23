@@ -25,12 +25,7 @@ interface ErrorScreenProps {
  * are optional so the same component can serve boundaries that have no
  * navigation context.
  */
-export default function ErrorScreen({
-  title,
-  message,
-  retry,
-  onGoHome,
-}: ErrorScreenProps) {
+export default function ErrorScreen({ title, message, retry, onGoHome }: ErrorScreenProps) {
   const { t } = useI18n();
   const { colors, primaryColor, isDark } = useAppTheme();
   const mutedColor = isDark ? colors.muted : "#666";

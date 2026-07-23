@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using OpenRestoApi.Core.Application.Services;
 using OpenRestoApi.Core.Domain;
+using OpenRestoApi.Infrastructure.Localization;
 
 namespace OpenRestoApi.Controllers;
 
@@ -41,7 +42,7 @@ public class EmailSettingsController(EmailSettingsService emailSettings) : Contr
         await _emailSettings.SaveAsync(
             req.Host, req.Port, req.Username, req.Password,
             req.EnableSsl, req.FromName, req.FromEmail, req.SendBookingConfirmations);
-        return Ok(new { message = "Email settings saved." });
+        return Ok(new { message = ApiLocalization.Localize(HttpContext, "Email settings saved.") });
     }
 
     [HttpGet("failures")]
@@ -66,12 +67,12 @@ public class EmailSettingsController(EmailSettingsService emailSettings) : Contr
         {
             bool ok = await _emailSettings.TestConnectionAsync();
             return ok
-                ? Ok(new { message = "Connection successful." })
-                : BadRequest(new { message = "Email is not configured." });
+                ? Ok(new { message = ApiLocalization.Localize(HttpContext, "Connection successful.") })
+                : BadRequest(new { message = ApiLocalization.Localize(HttpContext, "Email is not configured.") });
         }
         catch (Exception ex)
         {
-            return BadRequest(new { message = $"Connection failed: {ex.Message}" });
+            return BadRequest(new { message = ApiLocalization.Localize(HttpContext, $"Connection failed: {ex.Message}") });
         }
     }
 }

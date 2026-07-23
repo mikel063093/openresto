@@ -262,7 +262,9 @@ describe("BookingConfirmationScreen", () => {
     await waitFor(() => expect(screen.getByText("Reserva confirmada")).toBeTruthy());
 
     expect(screen.getByText("Referencia de reserva")).toBeTruthy();
-    expect(screen.getByText("Usa esta referencia y tu correo para consultar tu reserva")).toBeTruthy();
+    expect(
+      screen.getByText("Usa esta referencia y tu correo para consultar tu reserva")
+    ).toBeTruthy();
   });
 
   it("shows customer name in subtitle when booking has customerName", async () => {

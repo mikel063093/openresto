@@ -30,8 +30,7 @@ export default function Footer({ backgroundColor }: FooterProps) {
 
   const year = new Date().getFullYear();
   const copyright =
-    brand.copyrightText?.trim() ||
-    t("footer.allRightsReserved", { year, appName: brand.appName });
+    brand.copyrightText?.trim() || t("footer.allRightsReserved", { year, appName: brand.appName });
 
   return (
     <ThemedView

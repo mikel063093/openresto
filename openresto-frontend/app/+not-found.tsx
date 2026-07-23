@@ -1,5 +1,6 @@
 import { Link, usePathname } from "expo-router";
 import { StyleSheet, View } from "react-native";
+import { useI18n } from "@/context/I18nContext";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { useAppTheme } from "@/hooks/use-app-theme";
@@ -7,15 +8,16 @@ import { useAppTheme } from "@/hooks/use-app-theme";
 export default function NotFoundScreen() {
   const pathname = usePathname();
   const { colors, primaryColor } = useAppTheme();
+  const { t } = useI18n();
 
   return (
     <ThemedView style={styles.root}>
       <View style={styles.content}>
         <ThemedText style={styles.code}>404</ThemedText>
-        <ThemedText style={styles.title}>Page not found</ThemedText>
+        <ThemedText style={styles.title}>{t("notFound.title")}</ThemedText>
         <ThemedText style={[styles.path, { color: colors.muted }]}>{pathname}</ThemedText>
         <Link href="/" style={[styles.link, { color: primaryColor }]}>
-          Go to home
+          {t("notFound.goHome")}
         </Link>
       </View>
     </ThemedView>

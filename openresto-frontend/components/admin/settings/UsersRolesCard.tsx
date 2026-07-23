@@ -34,7 +34,9 @@ export function UsersRolesCard({
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const load = () => getAdminUsers().then(setUsers);
-  useEffect(load, []);
+  useEffect(() => {
+    void load();
+  }, []);
   const create = async () => {
     setSaving(true);
     setMessage(null);

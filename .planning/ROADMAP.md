@@ -11,7 +11,7 @@ This roadmap completes OpenResto localization as a brownfield migration across t
 - [x] **Phase 3: Admin UI Localization** - Complete admin product copy, role-safe labels, and locale-aware admin formatting.
 - [x] **Phase 4: API Locale Propagation And Messages** - Centralize `Accept-Language` propagation and localize backend API responses while preserving contracts.
 - [ ] **Phase 5: Emails And Notification Copy** - Localize outbound email and notification copy using request or booking language with safe fallback behavior.
-- [ ] **Phase 6: Regression Gates And Final Verification** - Add durable detection for untranslated copy and prove both locales through automated and manual gates.
+- [x] **Phase 6: Regression Gates And Final Verification** - Add durable detection for untranslated copy and prove both locales through automated and manual gates.
 
 ## Phase Details
 
@@ -118,9 +118,9 @@ Plans:
 **Plans**: 3 plans
 
 Plans:
-- [ ] 06-01: Add narrow regression detection for untranslated strings and backend message gaps.
-- [ ] 06-02: Run/record full automated verification coverage across frontend and backend localization surfaces.
-- [ ] 06-03: Complete manual/UAT checks for the highest-risk bilingual guest/admin flows and preservation constraints.
+- [x] 06-01: Add narrow regression detection for untranslated strings and backend message gaps.
+- [x] 06-02: Run/record full automated verification coverage across frontend and backend localization surfaces.
+- [x] 06-03: Complete manual/UAT checks for the highest-risk bilingual guest/admin flows and preservation constraints.
 
 **Test Gate**:
 - Frontend Jest, frontend Playwright, backend unit, backend integration, and localization-specific checks all pass.
@@ -135,4 +135,4 @@ Plans:
 | 3. Admin UI Localization | 3/3 | Complete | 2026-07-23 |
 | 4. API Locale Propagation And Messages | 3/3 | Complete | 2026-07-23 |
 | 5. Emails And Notification Copy | 2/2 | Complete | 2026-07-23 |
-| 6. Regression Gates And Final Verification | 0/3 | Not started | - |
+| 6. Regression Gates And Final Verification | 3/3 | Complete | 2026-07-23 |

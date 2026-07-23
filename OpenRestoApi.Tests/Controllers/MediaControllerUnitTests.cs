@@ -20,6 +20,13 @@ public class MediaControllerUnitTests
         _controller = new MediaController(_mockService.Object);
     }
 
+    private void SetLocale(string locale)
+    {
+        var httpContext = new DefaultHttpContext();
+        httpContext.Request.Headers.AcceptLanguage = locale;
+        _controller.ControllerContext = new ControllerContext { HttpContext = httpContext };
+    }
+
     private static IFormFile CreateFile(string contentType, long length)
     {
         var mock = new Mock<IFormFile>();
@@ -184,5 +191,33 @@ public class MediaControllerUnitTests
         IActionResult result = await _controller.DeleteMenu(1);
 
         Assert.IsType<NoContentResult>(result);
+    }
+
+    [Fact]
+    public async Task UploadHero_ReturnsLocalizedSpanishValidationMessage()
+    {
+        SetLocale("es-CO");
+
+        IActionResult result = await _controller.UploadHero(CreateFile("image/gif", 100));
+
+        var badRequest = Assert.IsType<BadRequestObjectResult>(result);
+        Assert.Equal(
+            "Solo se aceptan imagenes JPEG, PNG y WebP.",
+            badRequest.Value!.GetType().GetProperty("message")!.GetValue(badRequest.Value)
+        );
+    }
+
+    [Fact]
+    public async Task UploadMenu_ReturnsLocalizedSpanishSizeMessage()
+    {
+        SetLocale("es-CO");
+
+        IActionResult result = await _controller.UploadMenu(1, CreateFile("application/pdf", 11 * 1024 * 1024));
+
+        var badRequest = Assert.IsType<BadRequestObjectResult>(result);
+        Assert.Equal(
+            "El archivo del menu debe pesar menos de 10 MB.",
+            badRequest.Value!.GetType().GetProperty("message")!.GetValue(badRequest.Value)
+        );
     }
 }

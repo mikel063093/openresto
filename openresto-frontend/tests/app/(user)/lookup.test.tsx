@@ -325,11 +325,16 @@ describe("LookupScreen", () => {
 
     expect(screen.getByText("Encontrar mi reserva")).toBeTruthy();
     fireEvent.changeText(screen.getByPlaceholderText("p. ej. albahaca-crujiente-tomillo"), "REF");
-    fireEvent.changeText(screen.getByPlaceholderText("El correo usado al reservar"), "test@test.com");
+    fireEvent.changeText(
+      screen.getByPlaceholderText("El correo usado al reservar"),
+      "test@test.com"
+    );
     fireEvent.press(screen.getByText("Buscar"));
 
     await waitFor(() =>
-      expect(screen.getByText("No se encontró ninguna reserva con esa referencia y correo.")).toBeTruthy()
+      expect(
+        screen.getByText("No se encontró ninguna reserva con esa referencia y correo.")
+      ).toBeTruthy()
     );
   });
 

@@ -37,7 +37,7 @@ import { useI18n } from "@/context/I18nContext";
 import { fmtDateTime } from "@/utils/formatters";
 
 export default function LookupScreen() {
-  const { locale, t } = useI18n();
+  const { t } = useI18n();
   const [refInput, setRefInput] = useState("");
   const [emailInput, setEmailInput] = useState("");
   const [booking, setBooking] = useState<BookingDto | null | undefined>(undefined);
@@ -174,7 +174,9 @@ export default function LookupScreen() {
                   ) : (
                     <>
                       <Ionicons name="search" size={16} color={theme.colors.white} />
-                      <ThemedText style={styles.searchBtnText}>{t("booking.lookupButton")}</ThemedText>
+                      <ThemedText style={styles.searchBtnText}>
+                        {t("booking.lookupButton")}
+                      </ThemedText>
                     </>
                   )}
                 </Pressable>
@@ -398,7 +400,7 @@ function BookingActions({
           <>
             <View style={[styles.iconSep, { backgroundColor: colors.border }]} />
             <View style={styles.iconGroup}>
-          <ThemedText style={[styles.iconGroupLabel, { color: colors.muted }]}>MAPS</ThemedText>
+              <ThemedText style={[styles.iconGroupLabel, { color: colors.muted }]}>MAPS</ThemedText>
               <View style={styles.iconGroupRow}>
                 <Pressable
                   testID="maps-google-btn-narrow"

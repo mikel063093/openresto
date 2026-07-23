@@ -319,7 +319,10 @@ export default function AdminBookingsScreen() {
           </ThemedText>
           <ThemedText style={[styles.pageSub, { color: mutedColor }]}>
             {searchQuery
-              ? t("admin.searchResultsSummary", { count: bookings.length, query: String(searchQuery) })
+              ? t("admin.searchResultsSummary", {
+                  count: bookings.length,
+                  query: String(searchQuery),
+                })
               : viewMode === "timetable"
                 ? fmtDate(gridDate, locale)
                 : t("admin.bookingsSummary", { count: bookings.length, today: todayCount })}
@@ -358,7 +361,9 @@ export default function AdminBookingsScreen() {
               onPress={() => setShowNewModal(true)}
             >
               <Ionicons name="add-outline" size={16} color="#fff" />
-              <ThemedText style={styles.newBookingBtnText}>{t("admin.quickAction.newBooking")}</ThemedText>
+              <ThemedText style={styles.newBookingBtnText}>
+                {t("admin.quickAction.newBooking")}
+              </ThemedText>
             </Pressable>
           )}
         </View>
@@ -407,7 +412,11 @@ export default function AdminBookingsScreen() {
               [
                 { key: "active", label: t("admin.filter.active"), color: PRIMARY },
                 { key: "past", label: t("admin.filter.past"), color: "#7c3aed" },
-                { key: "cancelled", label: t("admin.filter.cancelled"), color: theme.status.cancelled.text },
+                {
+                  key: "cancelled",
+                  label: t("admin.filter.cancelled"),
+                  color: theme.status.cancelled.text,
+                },
               ] as const
             ).map(({ key, label, color }) => (
               <Pressable

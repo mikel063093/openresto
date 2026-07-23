@@ -34,10 +34,13 @@ const en = {
   "common.apple": "Apple",
   "common.outlook": "Outlook",
   "common.closeShort": "Close",
-  "home.defaultSubtitle": "Choose a location, select a time, enter your email address, and you are all set.",
+  "home.defaultSubtitle":
+    "Choose a location, select a time, enter your email address, and you are all set.",
   "home.highlights": "Restaurant highlights",
   "home.curatedByOwner": "Curated by the owner",
   "home.ourLocations": "Our locations",
+  "notFound.title": "Page not found",
+  "notFound.goHome": "Go to home",
   "error.title": "Something went wrong",
   "error.message": "An unexpected error occurred. Try again.",
   "error.tryAgain": "Try again",
@@ -46,7 +49,7 @@ const en = {
   "shortcuts.title": "Keyboard shortcuts",
   "overflow.website": "Visit our website",
   "overflow.helpText":
-    "Open the Locations page to see hours, menus, and available times for each location. Pick a time slot to open the booking form right there, or use \"My Bookings\" to look up an existing reservation with your booking reference.",
+    'Open the Locations page to see hours, menus, and available times for each location. Pick a time slot to open the booking form right there, or use "My Bookings" to look up an existing reservation with your booking reference.',
   "calendar.addToCalendar": "ADD TO CALENDAR",
   "calendar.googleCalendar": "Google Calendar",
   "calendar.outlookCalendar": "Outlook Calendar",
@@ -68,7 +71,13 @@ const en = {
   "booking.specialRequestsPlaceholder": "e.g. nut allergy, high chair needed… (optional)",
   "booking.confirming": "Confirming…",
   "booking.confirm": "Confirm Booking",
+  "booking.bookTable": "Book a table",
   "booking.holdRequired": "A table hold is required before confirming.",
+  "booking.holdChecking": "Checking availability…",
+  "booking.holdHeld": "Table held - expires in {time}",
+  "booking.holdUnavailableGeneric": "Table not available for this date. Please choose another.",
+  "booking.holdExpired": "Your table hold expired. Availability may have changed.",
+  "booking.refreshPage": "Refresh page",
   "booking.closedDay": "The restaurant is closed on this day. Please select a different date.",
   "booking.autoAssign": "We'll seat you at the best available table",
   "booking.autoAssignAllSections": " across all sections",
@@ -92,16 +101,14 @@ const en = {
   "booking.recentSummary":
     "{restaurantName}{date} · {seats} {seats, plural, one {guest} other {guests}}",
   "booking.lookupTitle": "Find My Booking",
-  "booking.lookupSubtitle":
-    "Enter your booking reference and email to look up your reservation.",
+  "booking.lookupSubtitle": "Enter your booking reference and email to look up your reservation.",
   "booking.lookupReference": "Booking Reference",
   "booking.lookupReferencePlaceholder": "e.g. crispy-basil-thyme",
   "booking.lookupEmailPlaceholder": "The email used when booking",
   "booking.lookupButton": "Look Up",
   "booking.lookupHelp": "Can't find your booking? Contact the restaurant directly.",
   "booking.lookupNotFound": "No booking found matching that reference and email.",
-  "booking.lookupUseReference":
-    "Use this reference and your email to look up your booking",
+  "booking.lookupUseReference": "Use this reference and your email to look up your booking",
   "booking.lookupFound": "Booking Found",
   "booking.cancelReservation": "Cancel Reservation",
   "booking.cancelConfirmMessage":
@@ -112,8 +119,7 @@ const en = {
   "booking.alreadyCancelled": "Already Cancelled",
   "booking.past": "Booking Has Passed",
   "booking.cancelThis": "Cancel This Booking",
-  "booking.pastHint":
-    "This booking has already passed and can no longer be cancelled.",
+  "booking.pastHint": "This booking has already passed and can no longer be cancelled.",
   "booking.modifyHint":
     "This booking cannot be modified. However, feel free to cancel and rebook if need be.",
   "booking.confirmed": "Booking Confirmed",
@@ -123,6 +129,10 @@ const en = {
   "booking.getDirections": "Get Directions",
   "booking.openGoogleMaps": "Open in Google Maps",
   "booking.openAppleMaps": "Open in Apple Maps",
+  "restaurant.openingHours": "Opening hours",
+  "restaurant.seatingTables": "Seating & tables",
+  "restaurant.tableFallback": "Table {id}",
+  "restaurant.tableSeats": "{count} seats",
   "booking.atRestaurant": "{seats} {seats, plural, one {guest} other {guests}} at {restaurant}",
   "footer.adminLabel": "Admin",
   "admin.overview": "Overview",
@@ -207,8 +217,7 @@ const en = {
   "admin.lastSevenDays": "Last 7 days",
   "admin.todayShort": "Today",
   "admin.noBookingsLastSevenDays": "No bookings in the last 7 days",
-  "admin.occupancySummary":
-    "{total} bookings · {average}/day · peak {peak}",
+  "admin.occupancySummary": "{total} bookings · {average}/day · peak {peak}",
   "admin.toggle.relative": "T-x",
   "admin.toggle.dates": "Dates",
   "admin.recentBookingsToday": "Today's Bookings",
@@ -216,13 +225,12 @@ const en = {
   "admin.noUpcomingBookingsToday": "No upcoming bookings for today.",
   "admin.success": "Success",
   "admin.cancelled": "Cancelled",
-  "admin.guestsAtRestaurant":
-    "{seats} {seats, plural, one {guest} other {guests}} · {restaurant}",
+  "admin.guestsAtRestaurant": "{seats} {seats, plural, one {guest} other {guests}} · {restaurant}",
   "admin.find": "Find",
   "admin.clear": "Clear",
   "admin.searchResults": "Search Results",
   "admin.searchResultsSummary":
-    "{count} {count, plural, one {result} other {results}} for \"{query}\"",
+    '{count} {count, plural, one {result} other {results}} for "{query}"',
   "admin.bookingsSummary": "{count} total · {today} today",
   "admin.liveBookings": "Live Bookings",
   "admin.pastBookings": "Past Bookings",
@@ -234,8 +242,7 @@ const en = {
   "admin.view.list": "List",
   "admin.tapForToday": "tap for today",
   "admin.booked": "Booked",
-  "admin.notificationsSummary":
-    "{count} total notification{count, plural, one {} other {s}}",
+  "admin.notificationsSummary": "{count} total notification{count, plural, one {} other {s}}",
   "admin.deleteAll": "Delete all",
   "admin.deleting": "Deleting…",
   "admin.clearRead": "Clear read",
@@ -287,14 +294,12 @@ const en = {
   "admin.loadMoreNotifications": "Show {count} more",
   "admin.notificationDeleted": "Notification deleted",
   "admin.allVisibleNotificationsPinned": "All visible notifications are pinned",
-  "admin.notificationsDeleted":
-    "Deleted {count} notification{count, plural, one {} other {s}}",
+  "admin.notificationsDeleted": "Deleted {count} notification{count, plural, one {} other {s}}",
   "admin.pin": "Pin",
   "admin.unpin": "Unpin",
   "admin.markRead": "Mark Read",
   "admin.markUnread": "Mark Unread",
-  "admin.notificationGuestCount":
-    "{count} {count, plural, one {guest} other {guests}}",
+  "admin.notificationGuestCount": "{count} {count, plural, one {guest} other {guests}}",
   "admin.deleteAllNotificationsTitle": "Delete all notifications?",
   "admin.deleteAllNotificationsBody":
     "This will permanently delete all visible unpinned notifications. Pinned notifications will be kept.",
@@ -310,11 +315,9 @@ const en = {
   "admin.resumeNewBookingsNow": "Resume New Bookings now (Paused until {time})",
   "admin.pauseNewBookingsFor": "Pause New Bookings for {minutes}m",
   "admin.extending": "Extending…",
-  "admin.extendedActiveBookings":
-    "Extended {count} active bookings +{minutes}m",
+  "admin.extendedActiveBookings": "Extended {count} active bookings +{minutes}m",
   "admin.noActiveBookingsToExtend": "No active bookings to extend",
-  "admin.extendActiveBookingsBy":
-    "Extend {count} active bookings by {minutes}m",
+  "admin.extendActiveBookingsBy": "Extend {count} active bookings by {minutes}m",
   "admin.noActiveBookings": "No active bookings",
   "admin.firstLocationBody": "Add your first location to start accepting bookings.",
 } as const;
@@ -353,10 +356,13 @@ const esCO: Record<keyof typeof en, string> = {
   "common.apple": "Apple",
   "common.outlook": "Outlook",
   "common.closeShort": "Cerrar",
-  "home.defaultSubtitle": "Elige una ubicación, selecciona una hora, ingresa tu correo electrónico y listo.",
+  "home.defaultSubtitle":
+    "Elige una ubicación, selecciona una hora, ingresa tu correo electrónico y listo.",
   "home.highlights": "Lo mejor del restaurante",
   "home.curatedByOwner": "Selección del restaurante",
   "home.ourLocations": "Nuestras ubicaciones",
+  "notFound.title": "Página no encontrada",
+  "notFound.goHome": "Ir al inicio",
   "error.title": "Algo salió mal",
   "error.message": "Ocurrió un error inesperado. Inténtalo de nuevo.",
   "error.tryAgain": "Intentar de nuevo",
@@ -365,7 +371,7 @@ const esCO: Record<keyof typeof en, string> = {
   "shortcuts.title": "Atajos de teclado",
   "overflow.website": "Visita nuestro sitio web",
   "overflow.helpText":
-    "Abre la página de ubicaciones para ver horarios, menús y horas disponibles en cada sede. Elige una franja para abrir el formulario de reserva allí mismo, o usa \"Mis reservas\" para consultar una reserva existente con tu referencia.",
+    'Abre la página de ubicaciones para ver horarios, menús y horas disponibles en cada sede. Elige una franja para abrir el formulario de reserva allí mismo, o usa "Mis reservas" para consultar una reserva existente con tu referencia.',
   "calendar.addToCalendar": "AGREGAR AL CALENDARIO",
   "calendar.googleCalendar": "Google Calendar",
   "calendar.outlookCalendar": "Calendario de Outlook",
@@ -387,7 +393,14 @@ const esCO: Record<keyof typeof en, string> = {
   "booking.specialRequestsPlaceholder": "p. ej. alergia a nueces, silla alta… (opcional)",
   "booking.confirming": "Confirmando…",
   "booking.confirm": "Confirmar reserva",
+  "booking.bookTable": "Reservar una mesa",
   "booking.holdRequired": "Se requiere una retención de mesa antes de confirmar.",
+  "booking.holdChecking": "Estamos revisando la disponibilidad…",
+  "booking.holdHeld": "Mesa retenida - vence en {time}",
+  "booking.holdUnavailableGeneric":
+    "No hay una mesa disponible para esta fecha. Elige otra opción.",
+  "booking.holdExpired": "La retención de tu mesa venció. La disponibilidad pudo haber cambiado.",
+  "booking.refreshPage": "Actualizar página",
   "booking.closedDay": "El restaurante está cerrado ese día. Selecciona otra fecha.",
   "booking.autoAssign": "Te ubicaremos en la mejor mesa disponible",
   "booking.autoAssignAllSections": " en todas las secciones",
@@ -419,8 +432,7 @@ const esCO: Record<keyof typeof en, string> = {
   "booking.lookupButton": "Buscar",
   "booking.lookupHelp": "¿No encuentras tu reserva? Contacta directamente al restaurante.",
   "booking.lookupNotFound": "No se encontró ninguna reserva con esa referencia y correo.",
-  "booking.lookupUseReference":
-    "Usa esta referencia y tu correo para consultar tu reserva",
+  "booking.lookupUseReference": "Usa esta referencia y tu correo para consultar tu reserva",
   "booking.lookupFound": "Reserva encontrada",
   "booking.cancelReservation": "Cancelar reserva",
   "booking.cancelConfirmMessage":
@@ -441,6 +453,10 @@ const esCO: Record<keyof typeof en, string> = {
   "booking.getDirections": "Cómo llegar",
   "booking.openGoogleMaps": "Abrir en Google Maps",
   "booking.openAppleMaps": "Abrir en Apple Maps",
+  "restaurant.openingHours": "Horario",
+  "restaurant.seatingTables": "Mesas y secciones",
+  "restaurant.tableFallback": "Mesa {id}",
+  "restaurant.tableSeats": "{count} puestos",
   "booking.atRestaurant": "{seats} {seats, plural, one {persona} other {personas}} en {restaurant}",
   "footer.adminLabel": "Admin",
   "admin.overview": "Resumen",
@@ -449,7 +465,8 @@ const esCO: Record<keyof typeof en, string> = {
   "admin.notifications": "Notificaciones",
   "admin.settings": "Configuración",
   "admin.panel": "Panel de administración",
-  "admin.managingLocations": "Administras {count} {count, plural, one {ubicación} other {ubicaciones}}",
+  "admin.managingLocations":
+    "Administras {count} {count, plural, one {ubicación} other {ubicaciones}}",
   "admin.lookupBooking": "Buscar una reserva",
   "admin.emailOrReference": "Correo o referencia…",
   "admin.noBookingFound": "No se encontró ninguna reserva.",
@@ -473,8 +490,7 @@ const esCO: Record<keyof typeof en, string> = {
   "admin.invalidCredentials": "Correo o contraseña inválidos. Inténtalo de nuevo.",
   "admin.forgotPassword": "¿Olvidaste tu contraseña?",
   "admin.resetPassword": "Restablecer contraseña",
-  "admin.resetPasswordSubtitle":
-    "Verificaremos tu identidad usando tu pregunta de seguridad.",
+  "admin.resetPasswordSubtitle": "Verificaremos tu identidad usando tu pregunta de seguridad.",
   "admin.adminEmailLabel": "Correo del administrador",
   "admin.checking": "Verificando…",
   "admin.continue": "Continuar",
@@ -496,8 +512,7 @@ const esCO: Record<keyof typeof en, string> = {
     "Tu contraseña se actualizó. Inicia sesión con tus nuevas credenciales.",
   "admin.backToSignIn": "Volver a iniciar sesión",
   "admin.backToSite": "Volver a {appName}",
-  "admin.noSecurityQuestion":
-    "No se ha configurado una pregunta de seguridad para esta cuenta.",
+  "admin.noSecurityQuestion": "No se ha configurado una pregunta de seguridad para esta cuenta.",
   "admin.incorrectSecurityAnswer": "Respuesta incorrecta. Inténtalo de nuevo.",
   "admin.back": "Volver",
   "admin.switchToLightMode": "Cambiar al modo claro",
@@ -527,8 +542,7 @@ const esCO: Record<keyof typeof en, string> = {
   "admin.lastSevenDays": "Últimos 7 días",
   "admin.todayShort": "Hoy",
   "admin.noBookingsLastSevenDays": "No hubo reservas en los últimos 7 días",
-  "admin.occupancySummary":
-    "{total} reservas · {average}/día · pico {peak}",
+  "admin.occupancySummary": "{total} reservas · {average}/día · pico {peak}",
   "admin.toggle.relative": "T-x",
   "admin.toggle.dates": "Fechas",
   "admin.recentBookingsToday": "Reservas de hoy",
@@ -542,7 +556,7 @@ const esCO: Record<keyof typeof en, string> = {
   "admin.clear": "Limpiar",
   "admin.searchResults": "Resultados de búsqueda",
   "admin.searchResultsSummary":
-    "{count} {count, plural, one {resultado} other {resultados}} para \"{query}\"",
+    '{count} {count, plural, one {resultado} other {resultados}} para "{query}"',
   "admin.bookingsSummary": "{count} en total · {today} hoy",
   "admin.liveBookings": "Reservas activas",
   "admin.pastBookings": "Reservas pasadas",
@@ -554,8 +568,7 @@ const esCO: Record<keyof typeof en, string> = {
   "admin.view.list": "Lista",
   "admin.tapForToday": "toca para volver a hoy",
   "admin.booked": "Reservada",
-  "admin.notificationsSummary":
-    "{count} notificacion{count, plural, one {} other {es}} en total",
+  "admin.notificationsSummary": "{count} notificacion{count, plural, one {} other {es}} en total",
   "admin.deleteAll": "Eliminar todo",
   "admin.deleting": "Eliminando…",
   "admin.clearRead": "Limpiar leídas",
@@ -600,8 +613,7 @@ const esCO: Record<keyof typeof en, string> = {
   "admin.notificationsErrorBody":
     "No se pudieron cargar las notificaciones. Revisa tu conexión e inténtalo de nuevo.",
   "admin.notificationsEmptyReadTitle": "Todo al día",
-  "admin.notificationsEmptyReadBody":
-    "Ya leíste todo. Las nuevas alertas aparecerán aquí.",
+  "admin.notificationsEmptyReadBody": "Ya leíste todo. Las nuevas alertas aparecerán aquí.",
   "admin.notificationsEmptyBody":
     "Los eventos de reservas y las alertas de capacidad aparecerán aquí.",
   "admin.pinned": "Fijadas",
@@ -615,8 +627,7 @@ const esCO: Record<keyof typeof en, string> = {
   "admin.unpin": "Desfijar",
   "admin.markRead": "Marcar como leída",
   "admin.markUnread": "Marcar como no leída",
-  "admin.notificationGuestCount":
-    "{count} {count, plural, one {persona} other {personas}}",
+  "admin.notificationGuestCount": "{count} {count, plural, one {persona} other {personas}}",
   "admin.deleteAllNotificationsTitle": "¿Eliminar todas las notificaciones?",
   "admin.deleteAllNotificationsBody":
     "Esto eliminará permanentemente todas las notificaciones visibles no fijadas. Las fijadas se conservarán.",
@@ -635,11 +646,9 @@ const esCO: Record<keyof typeof en, string> = {
   "admin.resumeNewBookingsNow": "Reanudar nuevas reservas ahora (Pausado hasta {time})",
   "admin.pauseNewBookingsFor": "Pausar nuevas reservas por {minutes}m",
   "admin.extending": "Extendiendo…",
-  "admin.extendedActiveBookings":
-    "Se extendieron {count} reservas activas +{minutes}m",
+  "admin.extendedActiveBookings": "Se extendieron {count} reservas activas +{minutes}m",
   "admin.noActiveBookingsToExtend": "No hay reservas activas para extender",
-  "admin.extendActiveBookingsBy":
-    "Extender {count} reservas activas por {minutes}m",
+  "admin.extendActiveBookingsBy": "Extender {count} reservas activas por {minutes}m",
   "admin.noActiveBookings": "No hay reservas activas",
   "admin.firstLocationBody": "Agrega tu primera ubicación para empezar a aceptar reservas.",
 };
@@ -658,5 +667,7 @@ function pluralize(template: string, values: MessageValues): string {
 
 export function translate(locale: Locale, key: MessageKey, values: MessageValues = {}): string {
   const template = catalogs[locale][key] ?? catalogs.en[key];
-  return pluralize(template, values).replace(/\{(\w+)\}/g, (_match, name: string) => String(values[name] ?? `{${name}}`));
+  return pluralize(template, values).replace(/\{(\w+)\}/g, (_match, name: string) =>
+    String(values[name] ?? `{${name}}`)
+  );
 }

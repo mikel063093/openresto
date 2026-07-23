@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.RateLimiting;
 using OpenRestoApi.Core.Application;
 using OpenRestoApi.Core.Application.Services;
 using OpenRestoApi.Core.Domain;
+using OpenRestoApi.Infrastructure.Localization;
 
 namespace OpenRestoApi.Controllers;
 
@@ -106,7 +107,7 @@ public class BrandController(BrandService brandService) : ControllerBase
             req.HighlightsHeading,
             req.HighlightsSubheading,
             req.HeaderImageFit);
-        return Ok(new { message = "Brand settings saved." });
+        return Ok(new { message = ApiLocalization.Localize(HttpContext, "Brand settings saved.") });
     }
 }
 

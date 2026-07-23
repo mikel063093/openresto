@@ -46,6 +46,7 @@ describe("adminUpdateBookingFull", () => {
       method: "PUT",
       credentials: "include",
       headers: {
+        "Accept-Language": "en",
         "Content-Type": "application/json",
       },
       body: JSON.stringify(updateReq),

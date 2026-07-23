@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Moq;
 using OpenRestoApi.Controllers;
@@ -15,6 +16,13 @@ public class EmailSettingsControllerUnitTests
     {
         _mockService = new Mock<EmailSettingsService>(null!, null!, null!, null!);
         _controller = new EmailSettingsController(_mockService.Object);
+    }
+
+    private void SetLocale(string locale)
+    {
+        var httpContext = new DefaultHttpContext();
+        httpContext.Request.Headers.AcceptLanguage = locale;
+        _controller.ControllerContext = new ControllerContext { HttpContext = httpContext };
     }
 
     [Fact]
@@ -102,5 +110,34 @@ public class EmailSettingsControllerUnitTests
         Assert.Equal("a@a.com", mapped[0].RecipientEmail);
         Assert.Equal("err", mapped[0].ErrorMessage);
         Assert.Equal(attemptedAt, mapped[0].AttemptedAt);
+    }
+
+    [Fact]
+    public async Task Save_ReturnsLocalizedSpanishSuccessMessage()
+    {
+        SetLocale("es-CO");
+
+        var result = await _controller.Save(new EmailSettingsRequest());
+
+        var okResult = Assert.IsType<OkObjectResult>(result);
+        Assert.Equal(
+            "La configuracion de correo se guardo correctamente.",
+            okResult.Value!.GetType().GetProperty("message")!.GetValue(okResult.Value)
+        );
+    }
+
+    [Fact]
+    public async Task Test_ReturnsLocalizedSpanishFailureMessage()
+    {
+        SetLocale("es-CO");
+        _mockService.Setup(s => s.TestConnectionAsync()).ThrowsAsync(new InvalidOperationException("SMTP rejected"));
+
+        var result = await _controller.Test();
+
+        var badRequest = Assert.IsType<BadRequestObjectResult>(result);
+        Assert.Equal(
+            "No se pudo conectar: SMTP rejected",
+            badRequest.Value!.GetType().GetProperty("message")!.GetValue(badRequest.Value)
+        );
     }
 }

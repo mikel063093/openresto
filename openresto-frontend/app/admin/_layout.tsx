@@ -177,10 +177,7 @@ function AdminLayoutInner() {
         options={{ title: t("admin.dashboardTitle"), headerBackVisible: false }}
       />
       <Stack.Screen name="bookings/index" options={{ title: t("admin.bookings") }} />
-      <Stack.Screen
-        name="bookings/[id]"
-        options={{ title: t("admin.bookingDetailTitle") }}
-      />
+      <Stack.Screen name="bookings/[id]" options={{ title: t("admin.bookingDetailTitle") }} />
       <Stack.Screen name="locations" options={{ title: t("admin.locations") }} />
       <Stack.Screen name="settings" options={{ title: t("admin.settings") }} />
     </Stack>

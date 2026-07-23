@@ -428,9 +428,7 @@ export default function NotificationsScreen() {
           </View>
 
           <ThemedText style={[styles.pageSub, { color: mutedColor }]}>
-            {loading
-              ? t("common.loading")
-              : t("admin.notificationsSummary", { count: totalCount })}
+            {loading ? t("common.loading") : t("admin.notificationsSummary", { count: totalCount })}
           </ThemedText>
         </View>
 

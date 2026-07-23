@@ -1,4 +1,4 @@
-import { get, post, patch, del, put, buildUrl, apiFetch } from "./client";
+import { get, post, patch, del, put, apiFetch } from "./client";
 
 // ---------- Types ----------
 

@@ -3,6 +3,7 @@ import { ThemedText } from "../themed-text";
 import { ThemedView } from "../themed-view";
 import { HoldStatus } from "./useTableHold";
 import { useAppTheme } from "@/hooks/use-app-theme";
+import { useI18n } from "@/context/I18nContext";
 
 interface HoldStatusBannerProps {
   holdStatus: HoldStatus;
@@ -21,6 +22,7 @@ export default function HoldStatusBanner({
   onRefresh,
 }: HoldStatusBannerProps) {
   const { colors, isDark } = useAppTheme();
+  const { t } = useI18n();
 
   if (!hasSelection) {
     return null;
@@ -31,7 +33,7 @@ export default function HoldStatusBanner({
       return (
         <ThemedView style={styles.holdRow}>
           <ActivityIndicator size="small" />
-          <ThemedText style={styles.holdPending}>Checking availability…</ThemedText>
+          <ThemedText style={styles.holdPending}>{t("booking.holdChecking")}</ThemedText>
         </ThemedView>
       );
     case "held": {
@@ -40,7 +42,7 @@ export default function HoldStatusBanner({
       return (
         <ThemedView style={styles.holdRow}>
           <ThemedText style={[styles.holdHeld, { color: colors.success }]}>
-            ✓ Table held - expires in {mins}:{secs.toString().padStart(2, "0")}
+            ✓ {t("booking.holdHeld", { time: `${mins}:${secs.toString().padStart(2, "0")}` })}
           </ThemedText>
         </ThemedView>
       );
@@ -49,7 +51,7 @@ export default function HoldStatusBanner({
       return (
         <ThemedView style={styles.holdRow}>
           <ThemedText style={[styles.holdUnavailable, { color: colors.error }]}>
-            ✗ {holdMessage ?? "Table not available for this date. Please choose another."}
+            ✗ {holdMessage ?? t("booking.holdUnavailableGeneric")}
           </ThemedText>
         </ThemedView>
       );
@@ -57,7 +59,7 @@ export default function HoldStatusBanner({
       return (
         <ThemedView style={styles.expiredBox}>
           <ThemedText style={[styles.holdUnavailable, { color: colors.error }]}>
-            Your table hold expired. Availability may have changed.
+            {t("booking.holdExpired")}
           </ThemedText>
           {onRefresh && (
             <Pressable
@@ -68,7 +70,7 @@ export default function HoldStatusBanner({
               ]}
             >
               <ThemedText style={[styles.refreshBtnText, { color: colors.error }]}>
-                Refresh page
+                {t("booking.refreshPage")}
               </ThemedText>
             </Pressable>
           )}

@@ -10,10 +10,7 @@ interface LoadingScreenProps {
   message?: string;
 }
 
-export default function LoadingScreen({
-  brand,
-  message,
-}: LoadingScreenProps) {
+export default function LoadingScreen({ brand, message }: LoadingScreenProps) {
   const { t } = useI18n();
   const { colors } = useAppTheme();
   const resolvedMessage = message ?? t("loading.preparingTable");

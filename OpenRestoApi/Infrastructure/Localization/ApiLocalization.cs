@@ -54,6 +54,12 @@ public static partial class ApiLocalization
             return $"No se pudo enviar: {failedSendMatch.Groups[1].Value}";
         }
 
+        Match connectionFailedMatch = ConnectionFailedPattern().Match(message);
+        if (connectionFailedMatch.Success)
+        {
+            return $"No se pudo conectar: {connectionFailedMatch.Groups[1].Value}";
+        }
+
         Match oversizedTableMatch = OversizedTablePattern().Match(message);
         if (oversizedTableMatch.Success)
         {
@@ -131,6 +137,14 @@ public static partial class ApiLocalization
             ["An unexpected error occurred."] = "Ocurrio un error inesperado.",
             ["restaurantId is required."] = "restaurantId es obligatorio.",
             ["List of notification IDs is required."] = "La lista de IDs de notificaciones es obligatoria.",
+            ["Brand settings saved."] = "La configuracion de marca se guardo correctamente.",
+            ["Email settings saved."] = "La configuracion de correo se guardo correctamente.",
+            ["Connection successful."] = "Conexion exitosa.",
+            ["Only JPEG, PNG, and WebP images are accepted."] = "Solo se aceptan imagenes JPEG, PNG y WebP.",
+            ["Hero image must be under 5 MB."] = "La imagen principal debe pesar menos de 5 MB.",
+            ["Location image must be under 2 MB."] = "La imagen de la ubicacion debe pesar menos de 2 MB.",
+            ["Only PDF menu files are accepted."] = "Solo se aceptan archivos PDF para el menu.",
+            ["Menu file must be under 10 MB."] = "El archivo del menu debe pesar menos de 10 MB.",
         };
 
     [GeneratedRegex("^This table only has (\\d+) seats, but (\\d+) guests were requested\\.$")]
@@ -144,6 +158,9 @@ public static partial class ApiLocalization
 
     [GeneratedRegex("^Failed to send: (.+)$")]
     private static partial Regex FailedToSendPattern();
+
+    [GeneratedRegex("^Connection failed: (.+)$")]
+    private static partial Regex ConnectionFailedPattern();
 
     [GeneratedRegex("^An unexpected error occurred: (.+)$")]
     private static partial Regex UnexpectedDetailedPattern();

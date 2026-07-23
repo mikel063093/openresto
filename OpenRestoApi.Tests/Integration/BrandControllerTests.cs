@@ -60,6 +60,21 @@ public class BrandControllerTests(TestWebAppFactory factory) : IClassFixture<Tes
     }
 
     [Fact]
+    public async Task SaveBrand_WithSpanishLocale_ReturnsLocalizedMessage()
+    {
+        HttpClient client = _factory.CreateAuthenticatedClient(locale: "es-CO");
+
+        HttpResponseMessage response = await client.PatchAsJsonAsync("/api/brand", new
+        {
+            appName = "Custom Resto",
+        });
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        JsonElement body = await response.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal("La configuracion de marca se guardo correctamente.", body.GetProperty("message").GetString());
+    }
+
+    [Fact]
     public async Task SaveBrand_OversizedAppName_Returns400()
     {
         HttpClient client = _factory.CreateAuthenticatedClient();

@@ -31,9 +31,17 @@ function buildRows(
   const rows: RowData[] = [];
 
   if (restaurant) {
-    rows.push({ icon: "restaurant-outline", label: t("booking.restaurant"), value: restaurant.name });
+    rows.push({
+      icon: "restaurant-outline",
+      label: t("booking.restaurant"),
+      value: restaurant.name,
+    });
     if (restaurant.address) {
-      rows.push({ icon: "location-outline", label: t("booking.address"), value: restaurant.address });
+      rows.push({
+        icon: "location-outline",
+        label: t("booking.address"),
+        value: restaurant.address,
+      });
     }
   }
 

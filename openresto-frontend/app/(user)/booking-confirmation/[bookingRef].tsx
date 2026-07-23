@@ -149,7 +149,9 @@ export default function BookingConfirmationScreen() {
       >
         {Platform.OS !== "web" && (
           <Stack.Screen
-            options={{ title: booking.isCancelled ? t("booking.cancelled") : t("booking.confirmed") }}
+            options={{
+              title: booking.isCancelled ? t("booking.cancelled") : t("booking.confirmed"),
+            }}
           />
         )}
         <PageContainer>
@@ -331,8 +333,8 @@ export default function BookingConfirmationScreen() {
                     styles.actionCard,
                     styles.directionsCard,
                     { backgroundColor: colors.card, borderColor: colors.border },
-                ]}
-              >
+                  ]}
+                >
                   <ThemedText style={[styles.refLabel, { color: colors.muted }]}>
                     {t("booking.getDirections")}
                   </ThemedText>

@@ -8,7 +8,11 @@ export default function LanguageSelector() {
   const { colors, primaryColor } = useAppTheme();
 
   return (
-    <View accessibilityRole="radiogroup" accessibilityLabel={t("language.label")} style={styles.container}>
+    <View
+      accessibilityRole="radiogroup"
+      accessibilityLabel={t("language.label")}
+      style={styles.container}
+    >
       {(["en", "es-CO"] as const).map((option) => {
         const selected = locale === option;
         const label = option === "en" ? t("language.english") : t("language.spanish");

@@ -30,9 +30,10 @@ export function I18nProvider({
   children: ReactNode;
   initialLocale?: Locale;
 }) {
-  const [locale, setLocaleState] = useState<Locale>(() =>
-    initialLocale ??
-    detectLocale({ storedLocale: readStoredLocale(), browserLanguages: getBrowserLanguages() })
+  const [locale, setLocaleState] = useState<Locale>(
+    () =>
+      initialLocale ??
+      detectLocale({ storedLocale: readStoredLocale(), browserLanguages: getBrowserLanguages() })
   );
 
   const value = useMemo<I18nContextValue>(

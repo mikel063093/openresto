@@ -6,10 +6,12 @@ import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { focusTarget } from "@/utils/focusRegistry";
 import KeyboardShortcutsHelp from "@/components/common/KeyboardShortcutsHelp";
 import { useBrand } from "@/context/BrandContext";
+import { useI18n } from "@/context/I18nContext";
 
 export default function UserLayout() {
   const router = useRouter();
   const brand = useBrand();
+  const { t } = useI18n();
   const segments = useSegments();
   // useSegments() reflects the true current URL rather than a focus-event
   // lifecycle. useIsFocused() never fires on a cold web load (page.goto()
@@ -51,15 +53,15 @@ export default function UserLayout() {
   return (
     <Stack>
       <Stack.Screen name="index" options={{ title: brand.appName, headerShown: false }} />
-      <Stack.Screen name="locations/index" options={{ title: "Locations" }} />
-      <Stack.Screen name="locations/[id]" options={{ title: "Locations" }} />
-      <Stack.Screen name="restaurant/[id]" options={{ title: "Restaurant" }} />
-      <Stack.Screen name="book" options={{ title: "Book a Table" }} />
+      <Stack.Screen name="locations/index" options={{ title: t("navigation.locations") }} />
+      <Stack.Screen name="locations/[id]" options={{ title: t("navigation.locations") }} />
+      <Stack.Screen name="restaurant/[id]" options={{ title: t("navigation.locations") }} />
+      <Stack.Screen name="book" options={{ title: t("booking.bookTable") }} />
       <Stack.Screen
         name="booking-confirmation/[bookingId]"
-        options={{ title: "Booking Confirmed", headerBackVisible: false }}
+        options={{ title: t("booking.confirmed"), headerBackVisible: false }}
       />
-      <Stack.Screen name="lookup" options={{ title: "Find My Booking" }} />
+      <Stack.Screen name="lookup" options={{ title: t("booking.lookupTitle") }} />
     </Stack>
   );
 }
