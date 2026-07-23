@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Mvc;
+using OpenRestoApi.Infrastructure.OpenApi;
 using Microsoft.IdentityModel.Tokens;
 using OpenRestoApi.Core.Application.Interfaces;
 using OpenRestoApi.Core.Application.Services;
@@ -177,7 +178,7 @@ public static class ServiceCollectionExtensions
                 return new BadRequestObjectResult(problemDetails);
             };
         });
-        services.AddOpenApi();
+        services.AddOpenApi(options => options.AddDocumentTransformer<BearerSecuritySchemeTransformer>());
         services.AddDistributedMemoryCache();
 
         // HoldService must be Singleton — the in-memory dictionary must survive across requests

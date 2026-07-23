@@ -28,6 +28,9 @@ services:
       ADMIN_PASSWORD: ${ADMIN_PASSWORD}
       CONNECTION_STRING: Data Source=/data/openresto.db
       DATA_PROTECTION_KEYS_PATH: /data/dp-keys
+      # Test is intentionally the only deployed environment that opts in to docs.
+      # The backend still requires a SuperAdmin JWT or auth cookie for both docs URLs.
+      OpenApi__ExposeDocs: "true"
     volumes:
       - test_rest_db_data:/data
       - test_rest_media_data:/app/wwwroot/media

@@ -1,5 +1,6 @@
 using OpenRestoApi.Extensions;
 using OpenRestoApi.Infrastructure.Exceptions;
+using Scalar.AspNetCore;
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
@@ -40,9 +41,22 @@ app.UseStatusCodePages();
 
 app.UseForwardedHeaders();
 
-if (app.Environment.IsDevelopment() || app.Environment.IsEnvironment("Testing"))
+bool exposeApiReference = app.Environment.IsDevelopment()
+    || app.Environment.IsEnvironment("Testing")
+    || builder.Configuration.GetValue<bool>("OpenApi:ExposeDocs");
+
+if (exposeApiReference)
 {
-    app.MapOpenApi();
+    var openApi = app.MapOpenApi();
+    var apiReference = app.MapScalarApiReference("/api-reference");
+
+    // Development and isolated test-host runs intentionally keep docs open for local tooling.
+    // Any deployed non-development environment must opt in and is restricted to SuperAdmin.
+    if (!app.Environment.IsDevelopment() && !app.Environment.IsEnvironment("Testing"))
+    {
+        openApi.RequireAuthorization("SuperAdminOnly");
+        apiReference.RequireAuthorization("SuperAdminOnly");
+    }
 }
 
 app.UseCors("AllowFrontend");
