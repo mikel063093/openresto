@@ -107,11 +107,20 @@ public class TestWebAppFactory : WebApplicationFactory<Program>
     /// <summary>
     /// Creates an HttpClient with a valid JWT Authorization header.
     /// </summary>
-    public HttpClient CreateAuthenticatedClient(AdminRole role = AdminRole.SuperAdmin)
+    public HttpClient CreateAuthenticatedClient(AdminRole role = AdminRole.SuperAdmin, string? locale = null)
     {
         HttpClient client = CreateClient();
         client.DefaultRequestHeaders.Authorization =
             new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", GenerateTestJwt(role));
+        if (!string.IsNullOrWhiteSpace(locale))
+            client.DefaultRequestHeaders.AcceptLanguage.ParseAdd(locale);
+        return client;
+    }
+
+    public HttpClient CreateLocalizedClient(string locale)
+    {
+        HttpClient client = CreateClient();
+        client.DefaultRequestHeaders.AcceptLanguage.ParseAdd(locale);
         return client;
     }
 

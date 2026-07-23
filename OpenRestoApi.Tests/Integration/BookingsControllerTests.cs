@@ -99,6 +99,49 @@ public class BookingsControllerTests(TestWebAppFactory factory) : IClassFixture<
     }
 
     [Fact]
+    public async Task CreateBooking_DuplicateTable_WithSpanishLocale_ReturnsLocalizedConflictMessage()
+    {
+        HttpClient client = _factory.CreateLocalizedClient("es-CO");
+        (int restaurantId, int sectionId, int tableId) = GetSeededIds();
+        string bookingDate = DateTime.UtcNow.AddDays(21).ToString("yyyy-MM-ddT12:00:00");
+
+        HttpResponseMessage holdResponse = await client.PostAsJsonAsync("/api/holds", new
+        {
+            restaurantId,
+            sectionId,
+            tableId,
+            date = bookingDate
+        });
+        string? holdId = (await holdResponse.Content.ReadFromJsonAsync<JsonElement>())
+            .GetProperty("holdId").GetString();
+
+        await client.PostAsJsonAsync("/api/bookings", new
+        {
+            restaurantId,
+            sectionId,
+            tableId,
+            date = bookingDate,
+            customerEmail = "first-es@test.com",
+            seats = 2,
+            holdId
+        });
+
+        HttpResponseMessage response = await client.PostAsJsonAsync("/api/bookings", new
+        {
+            restaurantId,
+            sectionId,
+            tableId,
+            date = bookingDate,
+            customerEmail = "second-es@test.com",
+            seats = 2
+        });
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        JsonElement body = await response.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal("Esta mesa ya esta reservada para ese horario.", body.GetProperty("message").GetString());
+    }
+
+    [Fact]
     public async Task GetBookingByRef_WithCorrectEmail_ReturnsBooking()
     {
         HttpClient client = _factory.CreateClient();
@@ -236,6 +279,46 @@ public class BookingsControllerTests(TestWebAppFactory factory) : IClassFixture<
         HttpResponseMessage response = await client.GetAsync("/api/bookings/ref/SOME-REF"); // No email query param
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task GetBookingByRef_WithWrongEmail_AndSpanishLocale_ReturnsLocalizedMessage()
+    {
+        HttpClient client = _factory.CreateLocalizedClient("es-CO");
+        (int restaurantId, int sectionId, int tableId) = GetSeededIds();
+        string bookingDate = DateTime.UtcNow.AddDays(32).ToString("yyyy-MM-ddT12:00:00");
+
+        HttpResponseMessage holdResp = await client.PostAsJsonAsync("/api/holds", new
+        {
+            restaurantId,
+            sectionId,
+            tableId,
+            date = bookingDate
+        });
+        string? holdId = (await holdResp.Content.ReadFromJsonAsync<JsonElement>())
+            .GetProperty("holdId").GetString();
+
+        HttpResponseMessage createResp = await client.PostAsJsonAsync("/api/bookings", new
+        {
+            restaurantId,
+            sectionId,
+            tableId,
+            date = bookingDate,
+            customerEmail = "real-es@test.com",
+            seats = 2,
+            holdId
+        });
+        string? bookingRef = (await createResp.Content.ReadFromJsonAsync<JsonElement>())
+            .GetProperty("bookingRef").GetString();
+
+        HttpResponseMessage response = await client.GetAsync(
+            $"/api/bookings/ref/{bookingRef}?email=wrong-es@test.com");
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        JsonElement body = await response.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal(
+            "No se encontro ninguna reserva con esa referencia y correo.",
+            body.GetProperty("message").GetString());
     }
 
     [Fact]

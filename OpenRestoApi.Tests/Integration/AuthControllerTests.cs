@@ -56,6 +56,23 @@ public class AuthControllerTests(TestWebAppFactory factory) : IClassFixture<Test
     }
 
     [Fact]
+    public async Task Login_WithSpanishLocale_ReturnsLocalizedMessage()
+    {
+        HttpClient client = _factory.CreateClient();
+        client.DefaultRequestHeaders.AcceptLanguage.ParseAdd("es-CO");
+
+        HttpResponseMessage response = await client.PostAsJsonAsync("/api/admin/auth/login", new
+        {
+            email = TestWebAppFactory.AdminEmail,
+            password = TestWebAppFactory.AdminPassword
+        });
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        JsonElement body = await response.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal("Inicio de sesion exitoso.", body.GetProperty("message").GetString());
+    }
+
+    [Fact]
     public async Task Login_WithWrongEmail_Returns401()
     {
         HttpClient client = _factory.CreateClient();
@@ -164,6 +181,23 @@ public class AuthControllerTests(TestWebAppFactory factory) : IClassFixture<Test
         });
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task ChangePassword_WithSpanishLocale_LocalizesValidationMessage()
+    {
+        HttpClient client = _factory.CreateAuthenticatedClient();
+        client.DefaultRequestHeaders.AcceptLanguage.ParseAdd("es-CO");
+
+        HttpResponseMessage response = await client.PostAsJsonAsync("/api/admin/auth/change-password", new
+        {
+            currentPassword = TestWebAppFactory.AdminPassword,
+            newPassword = "ab"
+        });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        JsonElement body = await response.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal("La contrasena debe tener al menos 6 caracteres.", body.GetProperty("message").GetString());
     }
 
     // ── ChangeEmail ──────────────────────────────────────────────────────────

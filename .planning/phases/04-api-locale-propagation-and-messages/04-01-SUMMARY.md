@@ -1,26 +1,21 @@
-# 04-01 Summary
+# Plan 04-01 Summary
 
-## Outcome
+## Completed Work
 
-- Centralized frontend `Accept-Language` propagation in `openresto-frontend/api/client.ts` using the existing persisted locale contract plus browser-language fallback.
-- Removed the known ad hoc route-level locale header from `openresto-frontend/app/(user)/booking-confirmation/[bookingRef].tsx`.
-- Extended focused frontend API Jest coverage to prove the shared client sends `en` and `es-CO` correctly for auth, booking, and hold requests.
+- Added shared frontend request-language helpers in `openresto-frontend/api/client.ts` so the active locale is resolved from persisted/browser state and sent as `Accept-Language` automatically.
+- Added a shared `apiFetch()` path for internal API callers that use multipart upload/delete requests instead of the JSON helper.
+- Routed targeted admin and restaurant media upload/delete calls through the shared locale-aware transport path.
+- Expanded frontend API tests to prove centralized locale propagation for JSON and direct-upload/delete callers.
 
 ## Evidence
 
-- `npm test -- --runInBand tests/api/client.test.ts tests/api/auth.test.ts tests/api/bookings.test.ts tests/api/holds.test.ts`
-  - Passed on 2026-07-23.
-
-## Notes
-
-- The client continues preserving existing request bodies, credentials defaults, and custom headers while adding centralized locale propagation.
-- `es` persisted from older frontend state is normalized to `es-CO` before transport.
-
-## Files
-
 - `openresto-frontend/api/client.ts`
-- `openresto-frontend/app/(user)/booking-confirmation/[bookingRef].tsx`
+- `openresto-frontend/api/admin.ts`
+- `openresto-frontend/api/restaurants.ts`
 - `openresto-frontend/tests/api/client.test.ts`
-- `openresto-frontend/tests/api/auth.test.ts`
-- `openresto-frontend/tests/api/bookings.test.ts`
-- `openresto-frontend/tests/api/holds.test.ts`
+- `openresto-frontend/tests/api/admin.test.ts`
+- `openresto-frontend/tests/api/restaurants.test.ts`
+
+## Verification
+
+- `npm test --prefix openresto-frontend -- --runInBand tests/api/client.test.ts tests/api/admin.test.ts tests/api/restaurants.test.ts`

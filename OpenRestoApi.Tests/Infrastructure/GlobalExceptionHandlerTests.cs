@@ -26,12 +26,14 @@ public class GlobalExceptionHandlerTests
 
     // DefaultHttpContext.Response.Body defaults to Stream.Null (writes are discarded).
     // Swap in a MemoryStream so tests can read the serialized JSON back.
-    private static HttpContext CreateContext()
+    private static HttpContext CreateContext(string? acceptLanguage = null)
     {
         var ctx = new DefaultHttpContext
         {
             Response = { Body = new MemoryStream() }
         };
+        if (!string.IsNullOrWhiteSpace(acceptLanguage))
+            ctx.Request.Headers.AcceptLanguage = acceptLanguage;
         return ctx;
     }
 
@@ -87,6 +89,21 @@ public class GlobalExceptionHandlerTests
         (int status, string message) = await ReadResponse(ctx);
         Assert.Equal((int)HttpStatusCode.Conflict, status);
         Assert.Equal("This table is already booked for that time.", message);
+    }
+
+    [Fact]
+    public async Task ConflictException_LocalizesToSpanish_WhenAcceptLanguageIsSpanish()
+    {
+        GlobalExceptionHandler handler = CreateHandler();
+        HttpContext ctx = CreateContext("es-CO");
+
+        bool handled = await handler.TryHandleAsync(
+            ctx, new ConflictException("This table is already booked for that time."), default);
+
+        Assert.True(handled);
+        (int status, string message) = await ReadResponse(ctx);
+        Assert.Equal((int)HttpStatusCode.Conflict, status);
+        Assert.Equal("Esta mesa ya esta reservada para ese horario.", message);
     }
 
     [Fact]
@@ -174,6 +191,21 @@ public class GlobalExceptionHandlerTests
         Assert.Equal((int)HttpStatusCode.InternalServerError, status);
         Assert.Equal("An unexpected error occurred.", message);
         Assert.DoesNotContain("hunter2", message);
+    }
+
+    [Fact]
+    public async Task UntypedException_Production_FallsBackToEnglish_ForUnsupportedLocale()
+    {
+        GlobalExceptionHandler handler = CreateHandler(isDevelopment: false);
+        HttpContext ctx = CreateContext("fr-FR");
+
+        bool handled = await handler.TryHandleAsync(
+            ctx, new InvalidOperationException("DB password is hunter2"), default);
+
+        Assert.True(handled);
+        (int status, string message) = await ReadResponse(ctx);
+        Assert.Equal((int)HttpStatusCode.InternalServerError, status);
+        Assert.Equal("An unexpected error occurred.", message);
     }
 
     [Fact]

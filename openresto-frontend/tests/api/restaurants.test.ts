@@ -300,6 +300,7 @@ describe("uploadLocationImage", () => {
     expect(url).toContain("/api/media/location/1");
     expect(opts.method).toBe("POST");
     expect(opts.credentials).toBe("include");
+    expect(opts.headers["Accept-Language"]).toBe("en");
   });
 
   it("returns null when response is not ok", async () => {
@@ -334,6 +335,7 @@ describe("deleteLocationImage", () => {
     expect(url).toContain("/api/media/location/1");
     expect(opts.method).toBe("DELETE");
     expect(opts.credentials).toBe("include");
+    expect(opts.headers["Accept-Language"]).toBe("en");
   });
 
   it("returns false on non-ok response", async () => {
@@ -364,6 +366,7 @@ describe("uploadMenuFile", () => {
     expect(url).toContain("/api/media/menu/1");
     expect(opts.method).toBe("POST");
     expect(opts.credentials).toBe("include");
+    expect(opts.headers["Accept-Language"]).toBe("en");
     expect(opts.body).toBeInstanceOf(FormData);
   });
 
@@ -399,6 +402,7 @@ describe("deleteMenuFile", () => {
     expect(url).toContain("/api/media/menu/1");
     expect(opts.method).toBe("DELETE");
     expect(opts.credentials).toBe("include");
+    expect(opts.headers["Accept-Language"]).toBe("en");
   });
 
   it("returns false on non-ok response", async () => {

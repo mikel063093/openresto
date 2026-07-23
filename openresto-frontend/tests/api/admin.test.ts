@@ -1109,6 +1109,7 @@ describe("uploadHeroImage", () => {
     expect(url).toContain("/api/media/hero");
     expect(opts.method).toBe("POST");
     expect(opts.credentials).toBe("include");
+    expect(opts.headers["Accept-Language"]).toBe("en");
   });
 
   it("returns null on non-ok response", async () => {
@@ -1141,6 +1142,7 @@ describe("deleteHeroImage", () => {
     expect(url).toContain("/api/media/hero");
     expect(opts.method).toBe("DELETE");
     expect(opts.credentials).toBe("include");
+    expect(opts.headers["Accept-Language"]).toBe("en");
   });
 
   it("returns false on non-ok response", async () => {

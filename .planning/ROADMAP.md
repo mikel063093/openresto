@@ -9,7 +9,7 @@ This roadmap completes OpenResto localization as a brownfield migration across t
 - [x] **Phase 1: Baseline And Contracts** - Freeze scope, classify inventory gaps, and define the locale/content-preservation contract from current code.
 - [x] **Phase 2: Public UI Localization** - Complete public-facing product copy and locale-aware formatting without touching tenant-authored content.
 - [x] **Phase 3: Admin UI Localization** - Complete admin product copy, role-safe labels, and locale-aware admin formatting.
-- [ ] **Phase 4: API Locale Propagation And Messages** - Centralize `Accept-Language` propagation and localize backend API responses while preserving contracts.
+- [x] **Phase 4: API Locale Propagation And Messages** - Centralize `Accept-Language` propagation and localize backend API responses while preserving contracts.
 - [ ] **Phase 5: Emails And Notification Copy** - Localize outbound email and notification copy using request or booking language with safe fallback behavior.
 - [ ] **Phase 6: Regression Gates And Final Verification** - Add durable detection for untranslated copy and prove both locales through automated and manual gates.
 
@@ -81,9 +81,9 @@ Plans:
 **Plans**: 3 plans
 
 Plans:
-- [ ] 04-01: Centralize locale propagation in frontend API helpers and remove ad hoc header handling.
-- [ ] 04-02: Introduce backend localization infrastructure and migrate high-value controller/service message paths.
-- [ ] 04-03: Add/update backend unit and integration tests for representative `en` and `es-CO` API responses.
+- [x] 04-01: Centralize locale propagation in frontend API helpers and remove ad hoc header handling.
+- [x] 04-02: Introduce backend localization infrastructure and migrate high-value controller/service message paths.
+- [x] 04-03: Add/update backend unit and integration tests for representative `en` and `es-CO` API responses.
 
 **Test Gate**:
 - Frontend API tests assert locale propagation.
@@ -133,6 +133,6 @@ Plans:
 | 1. Baseline And Contracts | 2/2 | Complete | 2026-07-23 |
 | 2. Public UI Localization | 3/3 | Complete | 2026-07-23 |
 | 3. Admin UI Localization | 3/3 | Complete | 2026-07-23 |
-| 4. API Locale Propagation And Messages | 0/3 | Not started | - |
+| 4. API Locale Propagation And Messages | 3/3 | Complete | 2026-07-23 |
 | 5. Emails And Notification Copy | 0/2 | Not started | - |
 | 6. Regression Gates And Final Verification | 0/3 | Not started | - |
