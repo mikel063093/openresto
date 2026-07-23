@@ -3,10 +3,10 @@ gsd_state_version: '1.0'
 status: ready
 progress:
   total_phases: 6
-  completed_phases: 4
-  total_plans: 16
-  completed_plans: 11
-  percent: 69
+  completed_phases: 5
+  total_plans: 18
+  completed_plans: 13
+  percent: 72
 ---
 
 # Project State
@@ -16,23 +16,23 @@ progress:
 See: .planning/PROJECT.md (updated 2026-07-23)
 
 **Core value:** Users and restaurant staff should receive clear, correctly localized product behavior in English or Colombian Spanish without breaking booking flows, admin operations, or existing contracts.
-**Current focus:** Phase 4 complete; Phase 5 intentionally not started in this worktree
+**Current focus:** Phase 5 complete; Phase 6 intentionally not started in this worktree
 
 ## Current Position
 
-Phase: 4 of 6 (API Locale Propagation And Messages)
-Plan: 3 of 3 in current phase
+Phase: 5 of 6 (Emails And Notification Copy)
+Plan: 2 of 2 in current phase
 Status: Complete
-Last activity: 2026-07-23 — Completed Phase 4 locale propagation, backend message localization, and focused frontend/backend verification without starting Phase 5.
+Last activity: 2026-07-23 — Completed Phase 5 backend email/notification localization, focused rendering coverage, and full backend verification.
 
-Progress: [███████░░░] 69%
+Progress: [███████░░░] 72%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 11
+- Total plans completed: 13
 - Average duration: 16 min
-- Total execution time: 2.1 hours plus Phase 4 implementation and verification on 2026-07-23
+- Total execution time: 2.1 hours plus Phase 4 and Phase 5 implementation/verification on 2026-07-23
 
 **By Phase:**
 
@@ -42,9 +42,10 @@ Progress: [███████░░░] 69%
 | 2. Public UI Localization | 3 | 43 min | 14 min |
 | 3. Admin UI Localization | 3 | 51 min | 17 min |
 | 4. API Locale Propagation And Messages | 3 | Complete | n/a |
+| 5. Emails And Notification Copy | 2 | Complete | n/a |
 
 **Recent Trend:**
-- Last 5 plans: 03-02, 03-03, 04-01, 04-02, 04-03
+- Last 5 plans: 04-01, 04-02, 04-03, 05-01, 05-02
 - Trend: Stable
 
 ## Accumulated Context
@@ -65,17 +66,21 @@ Recent decisions affecting current work:
 - Phase 4: Shared frontend API transport owns `Accept-Language` propagation, including direct upload/delete callers.
 - Phase 4: Representative backend auth, booking, hold, and admin messages localize through a central `Accept-Language`-aware translation seam while preserving status codes and `{ message }` contracts.
 - Phase 4: Backend verification may run through the .NET SDK container when the host workspace does not expose a local `dotnet` binary.
+- Phase 5: Booking confirmation emails and notification push payloads localize from request-captured locale with explicit English fallback.
+- Phase 5: Notification queue work items carry locale explicitly so background processing does not depend on request-scoped state.
+- Phase 5: Email/notification localization must preserve brand theming, tenant-authored content, notification payload shape, and notification `{ error }` contracts.
 
 ### Pending Todos
 
-- No active Phase 4 todos remain.
-- Phase 5 is intentionally not started in this worktree per task boundary.
+- No active Phase 5 todos remain.
+- Phase 6 regression gates and final verification have not started in this worktree.
 
 ### Blockers/Concerns
 
 - Partial frontend i18n is already present; later plans must treat it as migration work, not greenfield setup.
 - Backend message localization must preserve the current `message` body shape and status codes that tests already assert.
 - Host `dotnet` is still unavailable locally, so future backend gates may also need the SDK container unless the environment changes.
+- Future notification/email changes must keep locale fallback explicit because background workers do not have ambient request culture.
 
 ## Deferred Items
 
@@ -86,5 +91,5 @@ Recent decisions affecting current work:
 ## Session Continuity
 
 Last session: 2026-07-23 03:14 UTC
-Stopped at: Phase 4 complete; verification artifacts, roadmap, and state updated from passing evidence only
+Stopped at: Phase 5 complete; verification artifacts, roadmap, and state updated from passing evidence only
 Resume file: None

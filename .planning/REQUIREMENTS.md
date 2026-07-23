@@ -73,8 +73,8 @@
 | API-01 | Phase 4 | Pending |
 | API-02 | Phase 4 | Pending |
 | API-03 | Phase 4 | Pending |
-| MAIL-01 | Phase 5 | Pending |
-| MAIL-02 | Phase 5 | Pending |
+| MAIL-01 | Phase 5 | Complete |
+| MAIL-02 | Phase 5 | Complete |
 | QUAL-01 | Phase 1 | Pending |
 | QUAL-02 | Phase 6 | Pending |
 | QUAL-03 | Phase 6 | Pending |

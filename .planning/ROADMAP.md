@@ -100,8 +100,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 05-01: Localize email subject/body generation paths and document language fallback behavior.
-- [ ] 05-02: Add/update backend service tests for localized email rendering and notification copy.
+- [x] 05-01: Localize email subject/body generation paths and document language fallback behavior.
+- [x] 05-02: Add/update backend service tests for localized email rendering and notification copy.
 
 **Test Gate**:
 - Backend email/template tests pass for English and Spanish subject/body output.
@@ -134,5 +134,5 @@ Plans:
 | 2. Public UI Localization | 3/3 | Complete | 2026-07-23 |
 | 3. Admin UI Localization | 3/3 | Complete | 2026-07-23 |
 | 4. API Locale Propagation And Messages | 3/3 | Complete | 2026-07-23 |
-| 5. Emails And Notification Copy | 0/2 | Not started | - |
+| 5. Emails And Notification Copy | 2/2 | Complete | 2026-07-23 |
 | 6. Regression Gates And Final Verification | 0/3 | Not started | - |
