@@ -9,15 +9,20 @@ namespace OpenRestoApi.Controllers;
 [ApiController]
 [Route("api/[controller]")]
 [EnableRateLimiting("public")]
+[ProducesResponseType(typeof(MessageResponse), StatusCodes.Status500InternalServerError)]
+[ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status429TooManyRequests)]
 public class RestaurantsController(RestaurantManagementService service) : ControllerBase
 {
     private readonly RestaurantManagementService _service = service;
 
     [HttpGet]
+    [ProducesResponseType(typeof(List<RestaurantDto>), StatusCodes.Status200OK)]
     public async Task<IActionResult> Get()
         => Ok(await _service.GetAllAsync());
 
     [HttpGet("{id}")]
+    [ProducesResponseType(typeof(RestaurantDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Get(int id)
     {
         RestaurantDto? result = await _service.GetByIdAsync(id);
@@ -26,6 +31,10 @@ public class RestaurantsController(RestaurantManagementService service) : Contro
 
     [HttpPost]
     [Authorize(Roles = "SuperAdmin")]
+    [ProducesResponseType(typeof(RestaurantDto), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     public async Task<IActionResult> Post(RestaurantDto dto)
     {
         RestaurantDto created = await _service.CreateAsync(dto);
@@ -34,6 +43,12 @@ public class RestaurantsController(RestaurantManagementService service) : Contro
 
     [HttpPut("{id}")]
     [Authorize(Roles = "SuperAdmin")]
+    [ProducesResponseType(typeof(RestaurantDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(MessageResponse), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Put(int id, UpdateRestaurantRequest req)
     {
         // ValidationException (bad DefaultBookingDurationMinutes) → 400 is mapped
@@ -46,6 +61,11 @@ public class RestaurantsController(RestaurantManagementService service) : Contro
 
     [HttpPost("{id}/sections")]
     [Authorize(Roles = "SuperAdmin")]
+    [ProducesResponseType(typeof(SectionDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> AddSection(int id, CreateSectionRequest req)
     {
         SectionDto? result = await _service.AddSectionAsync(id, req.Name);
@@ -54,6 +74,11 @@ public class RestaurantsController(RestaurantManagementService service) : Contro
 
     [HttpPut("{id}/sections/{sectionId}")]
     [Authorize(Roles = "SuperAdmin")]
+    [ProducesResponseType(typeof(SectionDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> UpdateSection(int id, int sectionId, UpdateSectionRequest req)
     {
         SectionDto? result = await _service.UpdateSectionAsync(id, sectionId, req.Name);
@@ -62,6 +87,10 @@ public class RestaurantsController(RestaurantManagementService service) : Contro
 
     [HttpDelete("{id}/sections/{sectionId}")]
     [Authorize(Roles = "SuperAdmin")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> DeleteSection(int id, int sectionId)
         => await _service.DeleteSectionAsync(id, sectionId) ? NoContent() : NotFound();
 
@@ -69,6 +98,11 @@ public class RestaurantsController(RestaurantManagementService service) : Contro
 
     [HttpPost("{id}/sections/{sectionId}/tables")]
     [Authorize(Roles = "SuperAdmin")]
+    [ProducesResponseType(typeof(TableDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> AddTable(int id, int sectionId, CreateTableRequest req)
     {
         TableDto? result = await _service.AddTableAsync(id, sectionId, req.Name, req.Seats);
@@ -77,6 +111,11 @@ public class RestaurantsController(RestaurantManagementService service) : Contro
 
     [HttpPut("{id}/sections/{sectionId}/tables/{tableId}")]
     [Authorize(Roles = "SuperAdmin")]
+    [ProducesResponseType(typeof(TableDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> UpdateTable(int id, int sectionId, int tableId, UpdateTableRequest req)
     {
         TableDto? result = await _service.UpdateTableAsync(id, sectionId, tableId, req.Name, req.Seats);
@@ -85,6 +124,10 @@ public class RestaurantsController(RestaurantManagementService service) : Contro
 
     [HttpDelete("{id}/sections/{sectionId}/tables/{tableId}")]
     [Authorize(Roles = "SuperAdmin")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> DeleteTable(int id, int sectionId, int tableId)
         => await _service.DeleteTableAsync(id, sectionId, tableId) ? NoContent() : NotFound();
 }

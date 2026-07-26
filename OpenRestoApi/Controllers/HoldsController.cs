@@ -10,6 +10,8 @@ namespace OpenRestoApi.Controllers;
 [ApiController]
 [Route("api/[controller]")]
 [EnableRateLimiting("public")]
+[ProducesResponseType(typeof(MessageResponse), StatusCodes.Status500InternalServerError)]
+[ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status429TooManyRequests)]
 public class HoldsController(
     IHoldService holdService,
     IHoldPolicyService holdPolicyService,
@@ -26,6 +28,11 @@ public class HoldsController(
     /// are omitted, the server auto-assigns the best available table across all sections.
     /// </summary>
     [HttpPost]
+    [ProducesResponseType(typeof(HoldResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(MessageResponse), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(MessageResponse), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(MessageResponse), StatusCodes.Status409Conflict)]
     public async Task<IActionResult> PlaceHold([FromBody] PlaceHoldRequest request)
     {
         if (!ModelState.IsValid)
@@ -129,6 +136,7 @@ public class HoldsController(
     /// Safe to call even if the hold has already expired.
     /// </summary>
     [HttpDelete("{holdId}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
     public IActionResult ReleaseHold(string holdId)
     {
         _holdService.ReleaseHold(holdId);

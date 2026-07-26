@@ -178,7 +178,12 @@ public static class ServiceCollectionExtensions
                 return new BadRequestObjectResult(problemDetails);
             };
         });
-        services.AddOpenApi(options => options.AddDocumentTransformer<BearerSecuritySchemeTransformer>());
+        services.AddOpenApi(options =>
+        {
+            options.AddDocumentTransformer<BearerSecuritySchemeTransformer>();
+            options.AddSchemaTransformer<OpenApiSchemaExampleTransformer>();
+            options.AddOperationTransformer<OpenApiResponseMetadataTransformer>();
+        });
         services.AddDistributedMemoryCache();
 
         // HoldService must be Singleton — the in-memory dictionary must survive across requests

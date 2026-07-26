@@ -1,5 +1,6 @@
 using OpenRestoApi.Extensions;
 using OpenRestoApi.Infrastructure.Exceptions;
+using OpenRestoApi.Infrastructure.OpenApi;
 using Scalar.AspNetCore;
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
@@ -80,7 +81,8 @@ app.InitializeDatabase(connectionString, builder.Configuration);
 
 // Health endpoint: JSON body (consistent with the rest of the API), and opted
 // out of rate limiting so liveness probes / scanners never get throttled.
-app.MapGet("/api/health", () => Results.Ok(new { status = "ok" }))
-    .DisableRateLimiting();
+app.MapGet("/api/health", () => Results.Ok(new HealthResponse { Status = "ok" }))
+    .DisableRateLimiting()
+    .Produces<HealthResponse>(StatusCodes.Status200OK);
 
 app.Run();

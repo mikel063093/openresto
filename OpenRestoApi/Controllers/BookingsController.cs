@@ -5,12 +5,15 @@ using OpenRestoApi.Core.Application.DTOs;
 using OpenRestoApi.Core.Application.Services;
 using OpenRestoApi.Infrastructure.Cookies;
 using OpenRestoApi.Infrastructure.Localization;
+using OpenRestoApi.Infrastructure.OpenApi;
 
 namespace OpenRestoApi.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
     [EnableRateLimiting("public")]
+    [ProducesResponseType(typeof(MessageResponse), StatusCodes.Status500InternalServerError)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status429TooManyRequests)]
     public class BookingsController(BookingService bookingService, RecentBookingsCookie recentCookie) : ControllerBase
     {
         private readonly BookingService _bookingService = bookingService;
@@ -18,6 +21,8 @@ namespace OpenRestoApi.Controllers
 
         [HttpGet("/api/restaurants/{restaurantId}/bookings")]
         [Authorize]
+        [ProducesResponseType(typeof(IEnumerable<BookingDto>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
         public async Task<IActionResult> GetBookings(int restaurantId)
         {
             IEnumerable<BookingDto> bookings = await _bookingService.GetBookingsByRestaurantAsync(restaurantId);
@@ -26,6 +31,9 @@ namespace OpenRestoApi.Controllers
 
         [HttpGet("{id}")]
         [Authorize]
+        [ProducesResponseType(typeof(BookingDto), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
         public async Task<IActionResult> GetBooking(int id)
         {
             BookingDto? booking = await _bookingService.GetBookingByIdAsync(id);
@@ -37,6 +45,10 @@ namespace OpenRestoApi.Controllers
         }
 
         [HttpGet("ref/{bookingRef}")]
+        [ProducesResponseType(typeof(BookingDto), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(MessageResponse), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(MessageResponse), StatusCodes.Status404NotFound)]
         public async Task<IActionResult> GetBookingByRef(string bookingRef, [FromQuery] string email)
         {
             if (string.IsNullOrWhiteSpace(email))
@@ -53,6 +65,9 @@ namespace OpenRestoApi.Controllers
         }
 
         [HttpPost]
+        [ProducesResponseType(typeof(BookingDto), StatusCodes.Status201Created)]
+        [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(MessageResponse), StatusCodes.Status409Conflict)]
         public async Task<IActionResult> CreateBooking([FromBody] BookingDto bookingDto)
         {
             if (!ModelState.IsValid)
@@ -82,6 +97,7 @@ namespace OpenRestoApi.Controllers
 
         /// <summary>Returns the user's recent bookings from their encrypted HttpOnly cookie.</summary>
         [HttpGet("my-recent")]
+        [ProducesResponseType(typeof(List<CachedBookingEntry>), StatusCodes.Status200OK)]
         public IActionResult GetMyRecentBookings()
         {
             List<CachedBookingEntry> entries = _recentCookie.Read(Request);
@@ -90,6 +106,10 @@ namespace OpenRestoApi.Controllers
 
         [HttpPut("{id}")]
         [Authorize]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
         public async Task<IActionResult> UpdateBooking(int id, [FromBody] BookingDto bookingDto)
         {
             if (id != bookingDto.Id)
@@ -108,6 +128,8 @@ namespace OpenRestoApi.Controllers
 
         [HttpDelete("{id}")]
         [Authorize]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
         public async Task<IActionResult> DeleteBooking(int id)
         {
             await _bookingService.DeleteBookingAsync(id);
@@ -115,6 +137,11 @@ namespace OpenRestoApi.Controllers
         }
 
         [HttpPost("ref/{bookingRef}/cancel")]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(MessageResponse), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(MessageResponse), StatusCodes.Status404NotFound)]
+        [ProducesResponseType(typeof(MessageResponse), StatusCodes.Status409Conflict)]
         public async Task<IActionResult> CancelBookingByRef(string bookingRef, [FromBody] CancelBookingByRefRequest req)
         {
             if (string.IsNullOrWhiteSpace(req.Email))

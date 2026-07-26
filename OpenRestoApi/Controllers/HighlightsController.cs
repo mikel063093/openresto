@@ -9,11 +9,14 @@ namespace OpenRestoApi.Controllers;
 [ApiController]
 [Route("api/highlights")]
 [EnableRateLimiting("public")]
+[ProducesResponseType(typeof(MessageResponse), StatusCodes.Status500InternalServerError)]
+[ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status429TooManyRequests)]
 public class HighlightsController(HighlightService highlightService) : ControllerBase
 {
     private readonly HighlightService _highlights = highlightService;
 
     [HttpGet]
+    [ProducesResponseType(typeof(List<HighlightDto>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetAll()
     {
         var list = await _highlights.GetAllAsync();
@@ -22,6 +25,9 @@ public class HighlightsController(HighlightService highlightService) : Controlle
 
     [HttpPost]
     [Authorize]
+    [ProducesResponseType(typeof(HighlightDto), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> Create([FromBody] CreateHighlightRequest req)
     {
         var dto = await _highlights.CreateAsync(req);
@@ -30,6 +36,10 @@ public class HighlightsController(HighlightService highlightService) : Controlle
 
     [HttpPut("{id:int}")]
     [Authorize]
+    [ProducesResponseType(typeof(HighlightDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Update(int id, [FromBody] UpdateHighlightRequest req)
     {
         var dto = await _highlights.UpdateAsync(id, req);
@@ -43,6 +53,9 @@ public class HighlightsController(HighlightService highlightService) : Controlle
 
     [HttpDelete("{id:int}")]
     [Authorize]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Delete(int id)
     {
         bool deleted = await _highlights.DeleteAsync(id);

@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using OpenRestoApi.Core.Application;
+using OpenRestoApi.Core.Application.DTOs;
 using OpenRestoApi.Core.Application.Services;
 using OpenRestoApi.Core.Domain;
 using OpenRestoApi.Infrastructure.Localization;
@@ -12,11 +13,14 @@ namespace OpenRestoApi.Controllers;
 [ApiController]
 [Route("api/brand")]
 [EnableRateLimiting("public")]
+[ProducesResponseType(typeof(MessageResponse), StatusCodes.Status500InternalServerError)]
+[ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status429TooManyRequests)]
 public class BrandController(BrandService brandService) : ControllerBase
 {
     private readonly BrandService _brand = brandService;
 
     [HttpGet]
+    [ProducesResponseType(typeof(BrandResponse), StatusCodes.Status200OK)]
     public async Task<IActionResult> Get()
     {
         BrandSettings brand = await _brand.GetAsync();
@@ -37,6 +41,9 @@ public class BrandController(BrandService brandService) : ControllerBase
     }
 
     [HttpGet("pwa-icon.svg")]
+    [Produces("image/svg+xml")]
+    [ProducesResponseType(typeof(string), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetPwaIcon()
     {
         BrandSettings brand = await _brand.GetAsync();
@@ -66,6 +73,9 @@ public class BrandController(BrandService brandService) : ControllerBase
     }
 
     [HttpGet("pwa-icon-{size}.png")]
+    [Produces("image/png")]
+    [ProducesResponseType(typeof(byte[]), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetPwaIconPng(int size)
     {
         if (size != 192 && size != 512)
@@ -92,6 +102,10 @@ public class BrandController(BrandService brandService) : ControllerBase
 
     [HttpPatch]
     [Authorize]
+    [ProducesResponseType(typeof(MessageResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(MessageResponse), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> Save([FromBody] BrandRequest req)
     {
         // ValidationException (bad app-name/color/favicon/copyright) → 400 is mapped

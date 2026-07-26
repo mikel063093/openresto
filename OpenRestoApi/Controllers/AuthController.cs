@@ -6,12 +6,15 @@ using OpenRestoApi.Core.Application.DTOs;
 using OpenRestoApi.Core.Application.Interfaces;
 using OpenRestoApi.Core.Application.Services;
 using OpenRestoApi.Infrastructure.Localization;
+using OpenRestoApi.Infrastructure.OpenApi;
 
 namespace OpenRestoApi.Controllers;
 
 [ApiController]
 [Route("api/admin/auth")]
 [EnableRateLimiting("auth")]
+[ProducesResponseType(typeof(MessageResponse), StatusCodes.Status500InternalServerError)]
+[ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status429TooManyRequests)]
 public class AuthController(
     IAuthService authService,
     ISecurityQuestionsService securityQuestions,
@@ -22,6 +25,9 @@ public class AuthController(
     private readonly IAuthCookieService _cookies = cookies;
 
     [HttpPost("login")]
+    [ProducesResponseType(typeof(MessageResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(MessageResponse), StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> Login([FromBody] LoginRequest req)
     {
         string? jwt = await _authService.LoginAsync(req.Email, req.Password);
@@ -32,6 +38,7 @@ public class AuthController(
     }
 
     [HttpPost("logout")]
+    [ProducesResponseType(typeof(MessageResponse), StatusCodes.Status200OK)]
     public IActionResult Logout()
     {
         _cookies.Clear(Response);
@@ -41,6 +48,8 @@ public class AuthController(
     [HttpGet("me")]
     [Authorize]
     [EnableRateLimiting("public")]
+    [ProducesResponseType(typeof(AuthIdentityResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public IActionResult Me()
     {
         string? email = User.FindFirst(ClaimTypes.Email)?.Value;
@@ -50,6 +59,10 @@ public class AuthController(
 
     [HttpPost("change-password")]
     [Authorize]
+    [ProducesResponseType(typeof(MessageResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(MessageResponse), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordRequest req)
     {
         // ValidationException (short password) → 400 is mapped by GlobalExceptionHandler.
@@ -63,6 +76,10 @@ public class AuthController(
 
     [HttpPost("change-email")]
     [Authorize]
+    [ProducesResponseType(typeof(EmailChangeResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(MessageResponse), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> ChangeEmail([FromBody] ChangeEmailRequest req)
     {
         // ValidationException (invalid email) and BusinessRuleException (same email)
@@ -82,6 +99,7 @@ public class AuthController(
     }
 
     [HttpGet("pvq")]
+    [ProducesResponseType(typeof(PvqStatusDto), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetPvqStatus()
     {
         return Ok(await _securityQuestions.GetStatusAsync());
@@ -89,6 +107,10 @@ public class AuthController(
 
     [HttpPost("pvq/setup")]
     [Authorize]
+    [ProducesResponseType(typeof(MessageResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(MessageResponse), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> SetupPvq([FromBody] SetupPvqRequest req)
     {
         if (string.IsNullOrWhiteSpace(req.Question) || string.IsNullOrWhiteSpace(req.Answer))
@@ -99,6 +121,10 @@ public class AuthController(
     }
 
     [HttpPost("pvq/verify")]
+    [ProducesResponseType(typeof(PvqVerifyResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(MessageResponse), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(MessageResponse), StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> VerifyPvq([FromBody] VerifyPvqRequest req)
     {
         PvqVerifyOutcome outcome = await _securityQuestions.VerifyAsync(req.Email, req.Answer);
@@ -111,6 +137,9 @@ public class AuthController(
     }
 
     [HttpPost("reset-password")]
+    [ProducesResponseType(typeof(MessageResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(MessageResponse), StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequest req)
     {
         // ValidationException (short password) → 400 is mapped by GlobalExceptionHandler.
