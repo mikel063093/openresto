@@ -1,7 +1,10 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using OpenRestoApi.Core.Application.DTOs;
 using OpenRestoApi.Core.Application.Services;
+using OpenRestoApi.Infrastructure.Localization;
+using OpenRestoApi.Infrastructure.OpenApi;
 
 namespace OpenRestoApi.Controllers;
 
@@ -9,6 +12,9 @@ namespace OpenRestoApi.Controllers;
 [Route("api/media")]
 [Authorize]
 [EnableRateLimiting("public")]
+[ProducesResponseType(typeof(MessageResponse), StatusCodes.Status500InternalServerError)]
+[ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+[ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status429TooManyRequests)]
 public class MediaController(MediaService mediaService) : ControllerBase
 {
     private readonly MediaService _mediaService = mediaService;
@@ -21,6 +27,9 @@ public class MediaController(MediaService mediaService) : ControllerBase
 
     [HttpPost("hero")]
     [RequestSizeLimit(5 * 1024 * 1024 + 8192)]
+    [ProducesResponseType(typeof(UrlResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(MessageResponse), StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> UploadHero(IFormFile file)
     {
         if (!_allowedTypes.Contains(file.ContentType))
@@ -35,6 +44,7 @@ public class MediaController(MediaService mediaService) : ControllerBase
     }
 
     [HttpDelete("hero")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> DeleteHero()
     {
         await _mediaService.DeleteHeroAsync();
@@ -43,6 +53,10 @@ public class MediaController(MediaService mediaService) : ControllerBase
 
     [HttpPost("location/{id:int}")]
     [RequestSizeLimit(2 * 1024 * 1024 + 8192)]
+    [ProducesResponseType(typeof(UrlResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(MessageResponse), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> UploadLocation(int id, IFormFile file)
     {
         if (!_allowedTypes.Contains(file.ContentType))
@@ -58,6 +72,8 @@ public class MediaController(MediaService mediaService) : ControllerBase
     }
 
     [HttpDelete("location/{id:int}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> DeleteLocation(int id)
     {
         bool found = await _mediaService.DeleteLocationAsync(id);
@@ -67,6 +83,10 @@ public class MediaController(MediaService mediaService) : ControllerBase
 
     [HttpPost("menu/{id:int}")]
     [RequestSizeLimit(10 * 1024 * 1024 + 8192)]
+    [ProducesResponseType(typeof(UrlResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(MessageResponse), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> UploadMenu(int id, IFormFile file)
     {
         if (file.ContentType != _menuContentType)
@@ -82,6 +102,8 @@ public class MediaController(MediaService mediaService) : ControllerBase
     }
 
     [HttpDelete("menu/{id:int}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> DeleteMenu(int id)
     {
         bool found = await _mediaService.DeleteMenuAsync(id);

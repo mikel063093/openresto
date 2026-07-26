@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using OpenRestoApi.Core.Application.DTOs;
 using OpenRestoApi.Core.Application.Services;
 using OpenRestoApi.Core.Domain;
 
@@ -8,11 +9,15 @@ namespace OpenRestoApi.Controllers;
 [ApiController]
 [Route("api/admin/email-settings")]
 [Authorize]
+[ProducesResponseType(typeof(MessageResponse), StatusCodes.Status500InternalServerError)]
+[ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+[ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status429TooManyRequests)]
 public class EmailSettingsController(EmailSettingsService emailSettings) : ControllerBase
 {
     private readonly EmailSettingsService _emailSettings = emailSettings;
 
     [HttpGet]
+    [ProducesResponseType(typeof(EmailSettingsResponse), StatusCodes.Status200OK)]
     public async Task<IActionResult> Get()
     {
         EmailSettings? settings = await _emailSettings.GetAsync();
@@ -36,6 +41,8 @@ public class EmailSettingsController(EmailSettingsService emailSettings) : Contr
     }
 
     [HttpPatch]
+    [ProducesResponseType(typeof(MessageResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> Save([FromBody] EmailSettingsRequest req)
     {
         await _emailSettings.SaveAsync(
@@ -45,6 +52,7 @@ public class EmailSettingsController(EmailSettingsService emailSettings) : Contr
     }
 
     [HttpGet("failures")]
+    [ProducesResponseType(typeof(IEnumerable<EmailFailureResponse>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetFailures()
     {
         IReadOnlyList<EmailFailure> failures = await _emailSettings.GetFailuresAsync();
@@ -60,6 +68,8 @@ public class EmailSettingsController(EmailSettingsService emailSettings) : Contr
     }
 
     [HttpPost("test")]
+    [ProducesResponseType(typeof(MessageResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(MessageResponse), StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> Test()
     {
         try

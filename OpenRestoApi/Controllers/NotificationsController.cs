@@ -2,12 +2,17 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using OpenRestoApi.Core.Application.DTOs;
 using OpenRestoApi.Core.Application.Interfaces;
+using OpenRestoApi.Infrastructure.Localization;
+using OpenRestoApi.Infrastructure.OpenApi;
 
 namespace OpenRestoApi.Controllers;
 
 [ApiController]
 [Route("api/admin")]
 [Authorize]
+[ProducesResponseType(typeof(MessageResponse), StatusCodes.Status500InternalServerError)]
+[ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+[ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status429TooManyRequests)]
 public class NotificationsController(INotificationService notificationService) : ControllerBase
 {
     private readonly INotificationService _notifications = notificationService;
@@ -19,6 +24,7 @@ public class NotificationsController(INotificationService notificationService) :
     /// type values: BookingCreated | BookingCancelled | RestaurantNearlyFull
     /// </summary>
     [HttpGet("notifications")]
+    [ProducesResponseType(typeof(NotificationListResponse), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetNotifications(
         [FromQuery] int? restaurantId,
         [FromQuery] string? type,
@@ -41,6 +47,7 @@ public class NotificationsController(INotificationService notificationService) :
     /// GET /api/admin/notifications/unread-count?restaurantId=1
     /// </summary>
     [HttpGet("notifications/unread-count")]
+    [ProducesResponseType(typeof(CountResponse), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetUnreadCount([FromQuery] int? restaurantId)
     {
         int count = await _notifications.GetUnreadCountAsync(restaurantId);
@@ -52,6 +59,7 @@ public class NotificationsController(INotificationService notificationService) :
     /// PATCH /api/admin/notifications/{id}/read
     /// </summary>
     [HttpPatch("notifications/{id:int}/read")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> MarkRead(int id)
     {
         await _notifications.MarkReadAsync(id);
@@ -63,6 +71,8 @@ public class NotificationsController(INotificationService notificationService) :
     /// PATCH /api/admin/notifications/read-all?restaurantId=1
     /// </summary>
     [HttpPatch("notifications/read-all")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> MarkAllRead([FromQuery] int restaurantId)
     {
         if (restaurantId <= 0)
@@ -78,6 +88,8 @@ public class NotificationsController(INotificationService notificationService) :
     /// Returns 204 if VAPID is not configured (push disabled).
     /// </summary>
     [HttpGet("push/vapid-public-key")]
+    [ProducesResponseType(typeof(VapidPublicKeyResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
     public IActionResult GetVapidPublicKey()
     {
         string? key = _notifications.GetVapidPublicKey();
@@ -91,6 +103,9 @@ public class NotificationsController(INotificationService notificationService) :
     /// Body: { endpoint, p256dh, auth, userAgent? }
     /// </summary>
     [HttpPost("push/subscribe")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> Subscribe(
         [FromQuery] int restaurantId,
         [FromBody] PushSubscribeRequest request)
@@ -108,6 +123,7 @@ public class NotificationsController(INotificationService notificationService) :
     /// Body: "https://fcm.googleapis.com/..."
     /// </summary>
     [HttpDelete("push/subscribe")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> Unsubscribe([FromBody] string endpoint)
     {
         await _notifications.UnsubscribeAsync(endpoint);
@@ -115,6 +131,7 @@ public class NotificationsController(INotificationService notificationService) :
     }
 
     [HttpDelete("notifications/all")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> DeleteAll(
         [FromQuery] int? restaurantId,
         [FromQuery] string? type,
@@ -125,6 +142,7 @@ public class NotificationsController(INotificationService notificationService) :
     }
 
     [HttpDelete("notifications/{id:int}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> DeleteNotification(int id)
     {
         await _notifications.DeleteByIdAsync(id);
@@ -132,6 +150,8 @@ public class NotificationsController(INotificationService notificationService) :
     }
 
     [HttpDelete("notifications")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> DeleteNotifications([FromBody] List<int> ids)
     {
         if (ids == null || ids.Count == 0)

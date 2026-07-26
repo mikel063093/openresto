@@ -220,7 +220,12 @@ public static class ServiceCollectionExtensions
                 return new BadRequestObjectResult(problemDetails);
             };
         });
-        services.AddOpenApi(options => options.AddDocumentTransformer<BearerSecuritySchemeTransformer>());
+        services.AddOpenApi(options =>
+        {
+            options.AddDocumentTransformer<BearerSecuritySchemeTransformer>();
+            options.AddSchemaTransformer<OpenApiSchemaExampleTransformer>();
+            options.AddOperationTransformer<OpenApiResponseMetadataTransformer>();
+        });
         services.AddDistributedMemoryCache();
         services.AddHttpContextAccessor();
         services.AddScoped<OperatorMcpTools>();

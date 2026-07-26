@@ -2,12 +2,17 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using OpenRestoApi.Core.Application.DTOs;
 using OpenRestoApi.Core.Application.Services;
+using OpenRestoApi.Infrastructure.Localization;
+using OpenRestoApi.Infrastructure.OpenApi;
 
 namespace OpenRestoApi.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
 [Authorize]
+[ProducesResponseType(typeof(MessageResponse), StatusCodes.Status500InternalServerError)]
+[ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+[ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status429TooManyRequests)]
 public class AdminController(AdminService adminService) : ControllerBase
 {
     public enum bookingStatus { active, cancelled, all, past, upcoming }
@@ -15,11 +20,15 @@ public class AdminController(AdminService adminService) : ControllerBase
 
     [Authorize(Policy = "SuperAdminOnly")]
     [HttpGet("overview")]
+    [ProducesResponseType(typeof(AdminOverviewDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     public async Task<IActionResult> Overview()
         => Ok(await _adminService.GetOverviewAsync());
 
     [Authorize(Policy = "BookingsRead")]
     [HttpGet("bookings")]
+    [ProducesResponseType(typeof(List<BookingDetailDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     public async Task<IActionResult> GetBookings(
         [FromQuery] int? restaurantId,
         [FromQuery] DateTime? date,
@@ -35,6 +44,9 @@ public class AdminController(AdminService adminService) : ControllerBase
 
     [Authorize(Policy = "BookingsRead")]
     [HttpGet("bookings/{id}")]
+    [ProducesResponseType(typeof(BookingDetailDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetBooking(int id)
     {
         BookingDetailDto? result = await _adminService.GetBookingAsync(id);
@@ -43,6 +55,11 @@ public class AdminController(AdminService adminService) : ControllerBase
 
     [Authorize(Policy = "BookingsWrite")]
     [HttpPost("bookings")]
+    [ProducesResponseType(typeof(BookingDetailDto), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(MessageResponse), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(MessageResponse), StatusCodes.Status409Conflict)]
     public async Task<IActionResult> CreateBooking([FromBody] AdminCreateBookingRequest req)
     {
         // ValidationException (bad table/section) → 400, ConflictException (overlap/seats) → 409
@@ -53,6 +70,10 @@ public class AdminController(AdminService adminService) : ControllerBase
 
     [Authorize(Policy = "BookingsWrite")]
     [HttpPost("bookings/{id}/extend")]
+    [ProducesResponseType(typeof(BookingExtendResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> ExtendBooking(int id, [FromBody] ExtendBookingRequest req)
     {
         DateTime? endTime = await _adminService.ExtendBookingAsync(id, req.Minutes);
@@ -61,6 +82,10 @@ public class AdminController(AdminService adminService) : ControllerBase
 
     [Authorize(Policy = "BookingsWrite")]
     [HttpPost("bookings/{id}/cancel")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(MessageResponse), StatusCodes.Status409Conflict)]
     public async Task<IActionResult> CancelBooking(int id)
     {
         // ConflictException (past booking) → 409 is mapped by GlobalExceptionHandler.
@@ -69,11 +94,18 @@ public class AdminController(AdminService adminService) : ControllerBase
 
     [Authorize(Policy = "SuperAdminOnly")]
     [HttpDelete("bookings/{id}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> PurgeBooking(int id)
         => await _adminService.PurgeBookingAsync(id) ? NoContent() : NotFound();
 
     [Authorize(Policy = "SuperAdminOnly")]
     [HttpPost("restaurants")]
+    [ProducesResponseType(typeof(RestaurantDto), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(MessageResponse), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     public async Task<IActionResult> CreateRestaurant([FromBody] CreateRestaurantRequest req)
     {
         if (string.IsNullOrWhiteSpace(req.Name))
@@ -87,6 +119,10 @@ public class AdminController(AdminService adminService) : ControllerBase
 
     [Authorize(Policy = "SuperAdminOnly")]
     [HttpPatch("restaurants/{id}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> PatchRestaurant(int id, [FromBody] AdminRestaurantPatchRequest req)
     {
         if (req.IsArchived.HasValue)
@@ -99,11 +135,18 @@ public class AdminController(AdminService adminService) : ControllerBase
 
     [Authorize(Policy = "SuperAdminOnly")]
     [HttpDelete("restaurants/{id}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> DeleteRestaurant(int id)
         => await _adminService.DeleteRestaurantAsync(id) ? NoContent() : NotFound();
 
     [Authorize(Policy = "SuperAdminOnly")]
     [HttpPost("restaurants/{id}/pause")]
+    [ProducesResponseType(typeof(MessageResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> PauseBookings(int id, [FromBody] PauseRestaurantRequest req)
     {
         bool success = await _adminService.PauseRestaurantBookingsAsync(id, req.Minutes);
@@ -112,6 +155,9 @@ public class AdminController(AdminService adminService) : ControllerBase
 
     [Authorize(Policy = "SuperAdminOnly")]
     [HttpPost("restaurants/{id}/unpause")]
+    [ProducesResponseType(typeof(MessageResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> UnpauseBookings(int id)
     {
         bool success = await _adminService.UnpauseRestaurantBookingsAsync(id);
@@ -120,6 +166,10 @@ public class AdminController(AdminService adminService) : ControllerBase
 
     [Authorize(Policy = "SuperAdminOnly")]
     [HttpPost("restaurants/{id}/extend")]
+    [ProducesResponseType(typeof(RestaurantExtendResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> ExtendBookings(int id, [FromBody] ExtendRestaurantRequest req)
     {
         List<BookingDetailDto>? extendedBookings = await _adminService.ExtendAllActiveBookingsAsync(id, req.Minutes);
@@ -130,6 +180,8 @@ public class AdminController(AdminService adminService) : ControllerBase
 
     [Authorize(Policy = "BookingsRead")]
     [HttpGet("restaurants")]
+    [ProducesResponseType(typeof(List<LookupDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     public async Task<IActionResult> GetRestaurants()
     {
         List<LookupDto> restaurants = await _adminService.GetRestaurantsAsync();
@@ -138,6 +190,8 @@ public class AdminController(AdminService adminService) : ControllerBase
 
     [Authorize(Policy = "BookingsRead")]
     [HttpGet("restaurants/{restaurantId}/sections")]
+    [ProducesResponseType(typeof(List<LookupDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     public async Task<IActionResult> GetSections(int restaurantId)
     {
         List<LookupDto> sections = await _adminService.GetSectionsAsync(restaurantId);
@@ -146,6 +200,11 @@ public class AdminController(AdminService adminService) : ControllerBase
 
     [Authorize(Policy = "SuperAdminOnly")]
     [HttpPatch("restaurants/{id}/sections/reorder")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(MessageResponse), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> ReorderSections(int id, [FromBody] ReorderSectionsRequest req)
     {
         bool? result = await _adminService.ReorderSectionsAsync(id, req.SectionIds);
@@ -159,6 +218,9 @@ public class AdminController(AdminService adminService) : ControllerBase
 
     [Authorize(Policy = "BookingsRead")]
     [HttpGet("restaurants/{restaurantId}/tables")]
+    [ProducesResponseType(typeof(List<SectionDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(MessageResponse), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetTables(int restaurantId)
     {
         List<SectionDto>? result = await _adminService.GetTablesAsync(restaurantId);
@@ -169,6 +231,11 @@ public class AdminController(AdminService adminService) : ControllerBase
 
     [Authorize(Policy = "SuperAdminOnly")]
     [HttpPost("bookings/{id}/email")]
+    [ProducesResponseType(typeof(MessageResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(MessageResponse), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> SendEmail(int id, [FromBody] SendBookingEmailRequest req)
     {
         // Intentionally keeps its catch: SMTP/transport failures (SmtpException,
@@ -195,6 +262,10 @@ public class AdminController(AdminService adminService) : ControllerBase
 
     [Authorize(Policy = "BookingsWrite")]
     [HttpPost("bookings/{id}/restore")]
+    [ProducesResponseType(typeof(MessageResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(MessageResponse), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> RestoreBooking(int id)
     {
         // BusinessRuleException (booking already active) → 400 is mapped by GlobalExceptionHandler.
@@ -204,6 +275,11 @@ public class AdminController(AdminService adminService) : ControllerBase
 
     [Authorize(Policy = "BookingsWrite")]
     [HttpPut("bookings/{id}")]
+    [ProducesResponseType(typeof(BookingDetailDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(MessageResponse), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> AdminUpdateBooking(int id, [FromBody] AdminUpdateBookingRequest req)
     {
         // ValidationException (bad restaurant/table) and BusinessRuleException
