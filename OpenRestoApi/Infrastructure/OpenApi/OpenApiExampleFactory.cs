@@ -254,6 +254,25 @@ internal static class OpenApiExampleFactory
             });
         }
 
+        if (targetType == typeof(OperatorCredentialListItemDto))
+        {
+            return JsonSerializer.SerializeToNode(CreateOperatorCredentialMetadata());
+        }
+
+        if (targetType == typeof(IssueOperatorCredentialResponseDto))
+        {
+            return JsonSerializer.SerializeToNode(new IssueOperatorCredentialResponseDto
+            {
+                CredentialId = 42,
+                Identifier = "operator.example",
+                CredentialKeyId = "example-key-id",
+                IssuedAtUtc = DateTime.Parse("2026-07-27T15:00:00Z", null, System.Globalization.DateTimeStyles.AdjustToUniversal),
+                ExpiresAtUtc = DateTime.Parse("2026-07-27T23:00:00Z", null, System.Globalization.DateTimeStyles.AdjustToUniversal),
+                Restaurants = [new OperatorCredentialScopeDto { RestaurantId = 7, RestaurantName = "Open Resto Downtown" }],
+                PlaintextToken = "ormcp.example.[REDACTED]"
+            });
+        }
+
         if (targetType == typeof(AdminUserDto))
         {
             return JsonSerializer.SerializeToNode(new AdminUserDto
@@ -461,6 +480,19 @@ internal static class OpenApiExampleFactory
         JsonNode? item = CreateForType(elementType);
         return item == null ? new JsonArray() : new JsonArray(item);
     }
+
+    private static OperatorCredentialListItemDto CreateOperatorCredentialMetadata() => new()
+    {
+        CredentialId = 42,
+        Identifier = "operator.example",
+        CredentialKeyId = "example-key-id",
+        IssuedAtUtc = DateTime.Parse("2026-07-27T15:00:00Z", null, System.Globalization.DateTimeStyles.AdjustToUniversal),
+        ExpiresAtUtc = DateTime.Parse("2026-07-27T23:00:00Z", null, System.Globalization.DateTimeStyles.AdjustToUniversal),
+        LastUsedAtUtc = null,
+        RevokedAtUtc = null,
+        Notes = "Turno de tarde",
+        Restaurants = [new OperatorCredentialScopeDto { RestaurantId = 7, RestaurantName = "Open Resto Downtown" }]
+    };
 
     private static RestaurantDto CreateRestaurant() => new()
     {
