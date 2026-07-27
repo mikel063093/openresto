@@ -170,6 +170,42 @@ public sealed class BookingNotificationService(
             ));
     }
 
+    public async Task NotifyOperatorEscalationAsync(Booking booking, string restaurantName, string operatorIdentifier, string reason)
+    {
+        _log.LogInformation("[Notif] OperatorEscalation: ref={Ref} restaurant={Restaurant} operator={Operator}",
+            booking.BookingRef, restaurantName, operatorIdentifier);
+
+        var notification = new AdminNotification
+        {
+            RestaurantId = booking.RestaurantId,
+            BookingId = booking.Id,
+            BookingRef = booking.BookingRef,
+            Type = NotificationType.OperatorEscalation,
+            CustomerName = booking.CustomerName ?? "Guest",
+            BookingDate = booking.Date,
+            Seats = booking.Seats,
+            RestaurantName = restaurantName,
+            IsRead = false,
+            CreatedAt = DateTime.UtcNow,
+            PushError = null,
+        };
+
+        await _notificationRepository.AddAsync(notification);
+
+        string localTime = FormatUtcAsLocalTime(booking.Date);
+        await SendPushAsync(
+            booking.RestaurantId,
+            notification.Id,
+            new PushPayload(
+                Title: $"Operator escalation - {restaurantName}",
+                Body: $"{operatorIdentifier} escalated {booking.CustomerName ?? "Guest"} · {localTime} · {reason}",
+                Type: NotificationType.OperatorEscalation,
+                BookingId: booking.Id,
+                BookingRef: booking.BookingRef,
+                RestaurantId: booking.RestaurantId
+            ));
+    }
+
     // ── Private helpers ───────────────────────────────────────────────────────
 
     private async Task SendPushAsync(int restaurantId, int notificationId, PushPayload payload)

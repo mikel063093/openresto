@@ -1,0 +1,50 @@
+      FROM (
+          SELECT "o"."Id", "o"."CredentialKeyId", "o"."ExpiresAt", "o"."IssuedAt", "o"."LastUsedAt", "o"."Notes", "o"."OperatorPrincipalId", "o"."RevokedAt", "o"."TokenDigest", "o0"."Id" AS "Id0", "o0"."CreatedAt", "o0"."Identifier", "o0"."IsActive", "o0"."NormalizedIdentifier", "o0"."UpdatedAt"
+          FROM "OperatorAgentCredentials" AS "o"
+          INNER JOIN "OperatorPrincipals" AS "o0" ON "o"."OperatorPrincipalId" = "o0"."Id"
+          WHERE "o"."CredentialKeyId" = @keyId
+          LIMIT 2
+      ) AS "s"
+      LEFT JOIN "OperatorRestaurantScopes" AS "o1" ON "s"."Id0" = "o1"."OperatorPrincipalId"
+      ORDER BY "s"."Id", "s"."Id0"
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (0ms) [Parameters=[@p1='1', @p0='2026-07-27T06:05:39.7495884Z' (Nullable = true) (DbType = DateTime)], CommandType='Text', CommandTimeout='30']
+      UPDATE "OperatorAgentCredentials" SET "LastUsedAt" = @p0
+      WHERE "Id" = @p1
+      RETURNING 1;
+info: ModelContextProtocol.Server.McpServer[570385771]
+      Server (openresto-operator-mcp 1.0.0), Client (SmokeClient 1.0.0.0) method 'tools/list' request handler called.
+info: ModelContextProtocol.Server.McpServer[1867955179]
+      Server (openresto-operator-mcp 1.0.0), Client (SmokeClient 1.0.0.0) method 'tools/list' request handler completed in 15.5944ms.
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (0ms) [Parameters=[@keyId='c67982949fd8f329' (Size = 16)], CommandType='Text', CommandTimeout='30']
+      SELECT "s"."Id", "s"."CredentialKeyId", "s"."ExpiresAt", "s"."IssuedAt", "s"."LastUsedAt", "s"."Notes", "s"."OperatorPrincipalId", "s"."RevokedAt", "s"."TokenDigest", "s"."Id0", "s"."CreatedAt", "s"."Identifier", "s"."IsActive", "s"."NormalizedIdentifier", "s"."UpdatedAt", "o1"."Id", "o1"."CreatedAt", "o1"."OperatorPrincipalId", "o1"."RestaurantId"
+      FROM (
+          SELECT "o"."Id", "o"."CredentialKeyId", "o"."ExpiresAt", "o"."IssuedAt", "o"."LastUsedAt", "o"."Notes", "o"."OperatorPrincipalId", "o"."RevokedAt", "o"."TokenDigest", "o0"."Id" AS "Id0", "o0"."CreatedAt", "o0"."Identifier", "o0"."IsActive", "o0"."NormalizedIdentifier", "o0"."UpdatedAt"
+          FROM "OperatorAgentCredentials" AS "o"
+          INNER JOIN "OperatorPrincipals" AS "o0" ON "o"."OperatorPrincipalId" = "o0"."Id"
+          WHERE "o"."CredentialKeyId" = @keyId
+          LIMIT 2
+      ) AS "s"
+      LEFT JOIN "OperatorRestaurantScopes" AS "o1" ON "s"."Id0" = "o1"."OperatorPrincipalId"
+      ORDER BY "s"."Id", "s"."Id0"
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (0ms) [Parameters=[@p1='1', @p0='2026-07-27T06:05:39.8130797Z' (Nullable = true) (DbType = DateTime)], CommandType='Text', CommandTimeout='30']
+      UPDATE "OperatorAgentCredentials" SET "LastUsedAt" = @p0
+      WHERE "Id" = @p1
+      RETURNING 1;
+info: ModelContextProtocol.Server.McpServer[570385771]
+      Server (openresto-operator-mcp 1.0.0), Client (SmokeClient 1.0.0.0) method 'tools/call' request handler called.
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (1ms) [Parameters=[@operatorId='1' (Nullable = true)], CommandType='Text', CommandTimeout='30']
+      SELECT "b"."Id", "b"."BookingRef", "b"."CancelledAt", "b"."CreatedByOperatorId", "b"."CreatedViaChannel", "b"."CustomerEmail", "b"."CustomerName", "b"."Date", "b"."EndTime", "b"."IsCancelled", "b"."RestaurantId", "b"."Seats", "b"."SectionId", "b"."SpecialRequests", "b"."TableId", "t"."Id", "t"."Name", "t"."Seats", "t"."SectionId", "s"."Id", "s"."Name", "s"."RestaurantId", "s"."SortOrder", "r"."Id", "r"."Address", "r"."BookingSlotIntervalMinutes", "r"."BookingsPausedUntil", "r"."CloseTime", "r"."DefaultBookingDurationMinutes", "r"."Description", "r"."ImageUrl", "r"."IsArchived", "r"."MaxTableOversizeSeats", "r"."MenuUrl", "r"."Name", "r"."OpenDays", "r"."OpenHoursJson", "r"."OpenTime", "r"."Tags", "r"."Timezone", "r"."WalkInDays", "r"."WalkInOnly"
+      FROM "Bookings" AS "b"
+      LEFT JOIN "Tables" AS "t" ON "b"."TableId" = "t"."Id"
+      LEFT JOIN "Sections" AS "s" ON "b"."SectionId" = "s"."Id"
+      INNER JOIN "Restaurants" AS "r" ON "b"."RestaurantId" = "r"."Id"
+      WHERE "b"."CreatedByOperatorId" = @operatorId
+      ORDER BY "b"."Date" DESC
+info: ModelContextProtocol.Server.McpServer[2065726448]
+      "operator_list_reservations" completed. IsError = False.
+info: ModelContextProtocol.Server.McpServer[1867955179]
+      Server (openresto-operator-mcp 1.0.0), Client (SmokeClient 1.0.0.0) method 'tools/call' request handler completed in 97.2819ms.

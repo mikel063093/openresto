@@ -64,4 +64,19 @@ public class NotificationQueueTests
         var queue = new NotificationQueue();
         Assert.IsAssignableFrom<OpenRestoApi.Core.Application.Interfaces.INotificationQueue>(queue);
     }
+
+    [Fact]
+    public void EnqueueOperatorEscalation_WritesOperatorEscalationWork()
+    {
+        var queue = new NotificationQueue();
+        Booking booking = CreateBooking();
+
+        queue.EnqueueOperatorEscalation(booking, "Test Resto", "operator@test.com", "Needs manager review");
+
+        Assert.True(queue.TryReadForTests(out NotificationWorkItem? item));
+        var work = Assert.IsType<OperatorEscalationWork>(item);
+        Assert.Same(booking, work.Booking);
+        Assert.Equal("operator@test.com", work.OperatorIdentifier);
+        Assert.Equal("Needs manager review", work.Reason);
+    }
 }

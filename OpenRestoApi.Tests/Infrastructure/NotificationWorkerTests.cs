@@ -181,4 +181,28 @@ public class NotificationWorkerTests
             await worker.StopAsync(CancellationToken.None);
         }
     }
+
+    [Fact]
+    public async Task ProcessesOperatorEscalationWork()
+    {
+        (NotificationWorker worker, NotificationQueue queue, Mock<IBookingNotificationService> notify) = CreateWorker();
+        var booking = new Booking { BookingRef = "ESC" };
+        var tcs = new TaskCompletionSource();
+        notify.Setup(n => n.NotifyOperatorEscalationAsync(booking, "Resto", "operator@test.com", "Needs manager"))
+            .Callback(() => tcs.TrySetResult())
+            .Returns(Task.CompletedTask);
+
+        await worker.StartAsync(CancellationToken.None);
+        try
+        {
+            queue.EnqueueOperatorEscalation(booking, "Resto", "operator@test.com", "Needs manager");
+            await Task.WhenAny(tcs.Task, Task.Delay(2000));
+            Assert.True(tcs.Task.IsCompletedSuccessfully);
+            notify.Verify(n => n.NotifyOperatorEscalationAsync(booking, "Resto", "operator@test.com", "Needs manager"), Times.Once);
+        }
+        finally
+        {
+            await worker.StopAsync(CancellationToken.None);
+        }
+    }
 }

@@ -1,5 +1,6 @@
 using OpenRestoApi.Extensions;
 using OpenRestoApi.Infrastructure.Exceptions;
+using Microsoft.AspNetCore.Authorization;
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
@@ -47,12 +48,21 @@ if (app.Environment.IsDevelopment() || app.Environment.IsEnvironment("Testing"))
 
 app.UseCors("AllowFrontend");
 
-app.UseRateLimiter();
-
 app.UseAuthentication();
+app.UseRateLimiter();
 app.UseAuthorization();
 
 app.MapControllers();
+var mcpEndpoint = app.MapMcp("/api/mcp/operator")
+    .RequireAuthorization(new AuthorizeAttribute
+    {
+        AuthenticationSchemes = OpenRestoApi.Infrastructure.Auth.OperatorAuthenticationDefaults.SchemeName,
+    });
+
+if (!app.Environment.IsEnvironment("Testing"))
+{
+    mcpEndpoint.RequireRateLimiting("operatorMcp");
+}
 
 // Anything under /api/* that isn't matched by a controller route returns a
 // JSON ProblemDetails 404 — never the SPA's HTML index or an empty body.

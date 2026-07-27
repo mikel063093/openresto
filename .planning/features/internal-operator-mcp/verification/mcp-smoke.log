@@ -1,0 +1,4 @@
+TOOLS=operator_cancel_reservation,operator_create_reservation,operator_escalate_reservation,operator_get_availability,operator_get_reservation,operator_list_reservations,operator_update_reservation
+IS_ERROR=
+STRUCTURED=[]
+curl http://127.0.0.1:18080/api/health -> 200 {"status":"ok"}

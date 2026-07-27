@@ -13,4 +13,5 @@ public interface IBookingNotificationService
     Task NotifyBookingCreatedAsync(Booking booking, string restaurantName);
     Task NotifyBookingCancelledAsync(Booking booking, string restaurantName);
     Task CheckAndNotifyCapacityAsync(int restaurantId, string restaurantName, DateTime bookingDate);
+    Task NotifyOperatorEscalationAsync(Booking booking, string restaurantName, string operatorIdentifier, string reason);
 }

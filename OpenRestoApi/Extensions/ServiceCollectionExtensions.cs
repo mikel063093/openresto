@@ -5,10 +5,13 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.IdentityModel.Tokens;
+using ModelContextProtocol.Server;
 using OpenRestoApi.Core.Application.Interfaces;
 using OpenRestoApi.Core.Application.Services;
 using OpenRestoApi.Core.Domain;
+using OpenRestoApi.Infrastructure.Auth;
 using OpenRestoApi.Infrastructure.Holds;
+using OpenRestoApi.Infrastructure.Persistence;
 using OpenRestoApi.Infrastructure.Persistence.Repositories;
 using WebPush;
 
@@ -53,9 +56,32 @@ public static class ServiceCollectionExtensions
         int authLimit = isTesting ? 10000 : 10;   // per IP: brute-force protection on /login
         int publicLimit = isTesting ? 10000 : 120;  // per IP: ~2 req/s, covers normal browsing
         int globalLimit = isTesting ? 10000 : 300;  // per IP: overall ceiling
+        int operatorMcpLimit = isTesting ? 20 : 5;
 
         static string IpKey(HttpContext ctx) =>
             ctx.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+
+        static string OperatorCredentialPartitionKey(HttpContext ctx)
+        {
+            string? header = ctx.Request.Headers.Authorization;
+            if (!string.IsNullOrWhiteSpace(header) &&
+                header.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+            {
+                string token = header["Bearer ".Length..].Trim();
+                string[] parts = token.Split('.', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+                if (parts.Length == 3 && string.Equals(parts[0], "ormcp", StringComparison.Ordinal))
+                {
+                    return $"credential:{parts[1]}";
+                }
+            }
+
+            if (ctx.User.Identity?.IsAuthenticated == true)
+            {
+                return $"credential:{ctx.User.FindFirst(OperatorAuthenticationDefaults.CredentialIdClaim)?.Value ?? "unknown"}";
+            }
+
+            return $"unauth:{IpKey(ctx)}";
+        }
 
         services.AddRateLimiter(options =>
         {
@@ -78,6 +104,17 @@ public static class ServiceCollectionExtensions
                     Window = TimeSpan.FromMinutes(1),
                     QueueLimit = 0,
                 }));
+
+            options.AddPolicy("operatorMcp", ctx =>
+            {
+                return RateLimitPartition.GetFixedWindowLimiter(OperatorCredentialPartitionKey(ctx), _ => new FixedWindowRateLimiterOptions
+                {
+                    AutoReplenishment = true,
+                    PermitLimit = operatorMcpLimit,
+                    Window = TimeSpan.FromMinutes(1),
+                    QueueLimit = 0,
+                });
+            });
 
             options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(ctx =>
                 RateLimitPartition.GetFixedWindowLimiter(IpKey(ctx), _ => new FixedWindowRateLimiterOptions
@@ -134,7 +171,10 @@ public static class ServiceCollectionExtensions
                         return Task.CompletedTask;
                     }
                 };
-            });
+            })
+            .AddScheme<Microsoft.AspNetCore.Authentication.AuthenticationSchemeOptions, OperatorBearerAuthenticationHandler>(
+                OperatorAuthenticationDefaults.SchemeName,
+                _ => { });
 
         services.AddAuthorization(options =>
         {
@@ -161,6 +201,24 @@ public static class ServiceCollectionExtensions
         services.AddControllers();
         services.AddOpenApi();
         services.AddDistributedMemoryCache();
+        services.AddHttpContextAccessor();
+        services.AddScoped<OperatorMcpTools>();
+        services.AddMcpServer(options =>
+            {
+                options.ServerInfo = new ModelContextProtocol.Protocol.Implementation
+                {
+                    Name = "openresto-operator-mcp",
+                    Version = "1.0.0",
+                };
+                options.ServerInstructions = "Authenticated internal operator tools for OpenResto reservations.";
+            })
+            .WithHttpTransport(options =>
+            {
+                options.Stateless = true;
+                options.EnableLegacySse = false;
+            })
+            .WithToolsFromAssembly(typeof(OperatorMcpTools).Assembly)
+            .AddAuthorizationFilters();
 
         // HoldService must be Singleton — the in-memory dictionary must survive across requests
         services.AddSingleton<ISystemClock, SystemClock>();
@@ -189,6 +247,10 @@ public static class ServiceCollectionExtensions
         services.AddScoped<AdminUserService>();
         services.AddScoped<BookingService>();
         services.AddScoped<AdminService>();
+        services.AddScoped<OperatorCredentialService>();
+        services.AddScoped<OperatorIdentityAccessor>();
+        services.AddScoped<OperatorAvailabilityService>();
+        services.AddScoped<OperatorReservationService>();
         services.AddScoped<RestaurantManagementService>();
         services.AddScoped<BrandService>();
         services.AddScoped<EmailSettingsService>();

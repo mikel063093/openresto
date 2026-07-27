@@ -1,0 +1,106 @@
+using Microsoft.Data.Sqlite;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
+using Microsoft.Extensions.DependencyInjection;
+using OpenRestoApi.Infrastructure.Persistence;
+
+namespace OpenRestoApi.Tests.Migrations;
+
+/// <summary>
+/// Proves the operator-MCP foundation migration creates the new operator tables and nullable
+/// booking ownership columns on a fresh install, and that upgrading from the prior schema
+/// produces the exact same Bookings table definition.
+/// </summary>
+public sealed class OperatorMcpFoundationMigrationTests : IDisposable
+{
+    private const string LastMigrationBeforeOperatorMcpFoundation = "20260722013508_AddAdminCredentialIsActive";
+
+    private readonly SqliteConnection _connection;
+
+    public OperatorMcpFoundationMigrationTests()
+    {
+        _connection = new SqliteConnection("Data Source=:memory:");
+        _connection.Open();
+    }
+
+    public void Dispose()
+    {
+        _connection.Dispose();
+        GC.SuppressFinalize(this);
+    }
+
+    private AppDbContext CreateContext()
+    {
+        DbContextOptions<AppDbContext> opts = new DbContextOptionsBuilder<AppDbContext>()
+            .UseSqlite(_connection)
+            .Options;
+        return new AppDbContext(opts);
+    }
+
+    [Fact]
+    public async Task FreshInstall_CreatesOperatorTables_AndNullableBookingOwnershipColumns()
+    {
+        using AppDbContext db = CreateContext();
+        await db.Database.MigrateAsync();
+
+        Assert.Equal("table", await GetObjectTypeAsync("OperatorPrincipals"));
+        Assert.Equal("table", await GetObjectTypeAsync("OperatorRestaurantScopes"));
+        Assert.Equal("table", await GetObjectTypeAsync("OperatorAgentCredentials"));
+        Assert.Equal("table", await GetObjectTypeAsync("OperatorActionAudits"));
+
+        var bookingColumns = await GetTableInfoAsync("Bookings");
+
+        Assert.Contains(bookingColumns, c => c.Name == "CreatedByOperatorId" && c.Type == "INTEGER" && c.NotNull == 0);
+        Assert.Contains(bookingColumns, c => c.Name == "CreatedViaChannel" && c.Type == "TEXT" && c.NotNull == 0);
+    }
+
+    [Fact]
+    public async Task Upgrade_ProducesSameBookingsSchema_AsFreshInstall()
+    {
+        using var freshConnection = new SqliteConnection("Data Source=:memory:");
+        freshConnection.Open();
+        using (var freshDb = new AppDbContext(new DbContextOptionsBuilder<AppDbContext>().UseSqlite(freshConnection).Options))
+        {
+            await freshDb.Database.MigrateAsync();
+        }
+
+        using AppDbContext upgradeDb = CreateContext();
+        IMigrator migrator = upgradeDb.GetInfrastructure().GetRequiredService<IMigrator>();
+        await migrator.MigrateAsync(LastMigrationBeforeOperatorMcpFoundation);
+        await migrator.MigrateAsync();
+
+        Assert.Equal(GetTableSchema(freshConnection, "Bookings"), GetTableSchema(_connection, "Bookings"));
+    }
+
+    private async Task<string?> GetObjectTypeAsync(string name)
+    {
+        await using var cmd = _connection.CreateCommand();
+        cmd.CommandText = "SELECT type FROM sqlite_master WHERE name = $name;";
+        cmd.Parameters.AddWithValue("$name", name);
+        return (string?)await cmd.ExecuteScalarAsync();
+    }
+
+    private async Task<List<(string Name, string Type, long NotNull)>> GetTableInfoAsync(string tableName)
+    {
+        await using var cmd = _connection.CreateCommand();
+        cmd.CommandText = $"PRAGMA table_info({tableName});";
+        await using var reader = await cmd.ExecuteReaderAsync();
+
+        var rows = new List<(string Name, string Type, long NotNull)>();
+        while (await reader.ReadAsync())
+        {
+            rows.Add((reader.GetString(1), reader.GetString(2), reader.GetInt64(3)));
+        }
+
+        return rows;
+    }
+
+    private static string GetTableSchema(SqliteConnection connection, string tableName)
+    {
+        using var cmd = connection.CreateCommand();
+        cmd.CommandText = "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = $name;";
+        cmd.Parameters.AddWithValue("$name", tableName);
+        return (string)(cmd.ExecuteScalar() ?? throw new InvalidOperationException($"Table {tableName} not found."));
+    }
+}

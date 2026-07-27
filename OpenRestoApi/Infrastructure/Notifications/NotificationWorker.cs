@@ -24,6 +24,7 @@ internal sealed class NotificationWorker(
                     BookingCreatedWork w => svc.NotifyBookingCreatedAsync(w.Booking, w.RestaurantName),
                     BookingCancelledWork w => svc.NotifyBookingCancelledAsync(w.Booking, w.RestaurantName),
                     CapacityCheckWork w => svc.CheckAndNotifyCapacityAsync(w.RestaurantId, w.RestaurantName, w.BookingDate),
+                    OperatorEscalationWork w => svc.NotifyOperatorEscalationAsync(w.Booking, w.RestaurantName, w.OperatorIdentifier, w.Reason),
                     _ => Task.CompletedTask,
                 });
             }

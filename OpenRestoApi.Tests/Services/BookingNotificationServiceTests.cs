@@ -162,6 +162,22 @@ public class BookingNotificationServiceTests : IDisposable
         Assert.Equal("Guest", n!.CustomerName);
     }
 
+    [Fact]
+    public async Task NotifyOperatorEscalationAsync_CreatesNotification()
+    {
+        await SeedRestaurantAsync();
+        var booking = MakeBooking();
+        _db.Bookings.Add(booking);
+        await _db.SaveChangesAsync();
+
+        await CreateService().NotifyOperatorEscalationAsync(booking, "Resto", "operator@test.com", "VIP complaint");
+
+        AdminNotification? n = await _db.AdminNotifications.FirstOrDefaultAsync();
+        Assert.NotNull(n);
+        Assert.Equal(NotificationType.OperatorEscalation, n!.Type);
+        Assert.Equal("Resto", n.RestaurantName);
+    }
+
     // ── CheckAndNotifyCapacityAsync ───────────────────────────────────────────
 
     [Fact]

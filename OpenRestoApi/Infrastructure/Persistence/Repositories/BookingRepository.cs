@@ -197,5 +197,25 @@ namespace OpenRestoApi.Infrastructure.Persistence.Repositories
         {
             return await _db.Bookings.Where(b => b.TableId == tableId).ToListAsync();
         }
+
+        public async Task<List<Booking>> GetByOperatorAsync(int operatorId)
+        {
+            return await _db.Bookings
+                .Include(b => b.Table)
+                .Include(b => b.Section)
+                .Include(b => b.Restaurant)
+                .Where(b => b.CreatedByOperatorId == operatorId)
+                .OrderByDescending(b => b.Date)
+                .ToListAsync();
+        }
+
+        public async Task<Booking?> GetByIdForOperatorAsync(int id, int operatorId)
+        {
+            return await _db.Bookings
+                .Include(b => b.Table)
+                .Include(b => b.Section)
+                .Include(b => b.Restaurant)
+                .FirstOrDefaultAsync(b => b.Id == id && b.CreatedByOperatorId == operatorId);
+        }
     }
 }

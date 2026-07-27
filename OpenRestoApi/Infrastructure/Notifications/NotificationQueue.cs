@@ -30,6 +30,9 @@ internal sealed class NotificationQueue : INotificationQueue
     public void EnqueueCapacityCheck(int restaurantId, string restaurantName, DateTime bookingDate) =>
         Channel.Writer.TryWrite(new CapacityCheckWork(restaurantId, restaurantName, bookingDate));
 
+    public void EnqueueOperatorEscalation(Booking booking, string restaurantName, string operatorIdentifier, string reason) =>
+        Channel.Writer.TryWrite(new OperatorEscalationWork(booking, restaurantName, operatorIdentifier, reason));
+
     // The CustomAccessibility analyzer's [OnlyAccessibleBy]/[ExternalAccessAllowed]
     // pair on the class only covers construction and the (public,
     // interface-implementing) Enqueue* methods — internal members need the same

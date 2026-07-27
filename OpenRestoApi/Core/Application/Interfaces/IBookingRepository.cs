@@ -80,4 +80,10 @@ public interface IBookingRepository
 
     /// <summary>All bookings assigned to a table — used by RestaurantManagementService.DeleteTableAsync to FK-null them.</summary>
     Task<List<Booking>> GetByTableAsync(int tableId);
+
+    /// <summary>All bookings owned by an operator, newest first, with eager-loaded graph.</summary>
+    Task<List<Booking>> GetByOperatorAsync(int operatorId);
+
+    /// <summary>Owned booking by id with eager-loaded graph; null when not found or not owned.</summary>
+    Task<Booking?> GetByIdForOperatorAsync(int id, int operatorId);
 }

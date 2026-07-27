@@ -1,6 +1,39 @@
-@OpenRestoApi_HostAddress = http://localhost:5062
+@OpenRestoApi_HostAddress = http://localhost:8080
+@OperatorMcpToken = replace-me
 
-GET {{OpenRestoApi_HostAddress}}/weatherforecast/
+### Health
+GET {{OpenRestoApi_HostAddress}}/api/health
 Accept: application/json
 
-###
+### Operator MCP initialize
+POST {{OpenRestoApi_HostAddress}}/api/mcp/operator
+Authorization: Bearer {{OperatorMcpToken}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": "init-1",
+  "method": "initialize",
+  "params": {
+    "protocolVersion": "2025-11-05",
+    "clientInfo": {
+      "name": "openresto-http-sample",
+      "version": "1.0.0"
+    },
+    "capabilities": {}
+  }
+}
+
+### Operator MCP list tools
+POST {{OpenRestoApi_HostAddress}}/api/mcp/operator
+Authorization: Bearer {{OperatorMcpToken}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": "tools-1",
+  "method": "tools/list",
+  "params": {}
+}
