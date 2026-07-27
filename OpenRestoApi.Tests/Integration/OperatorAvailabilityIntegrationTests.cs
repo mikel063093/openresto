@@ -18,7 +18,7 @@ public sealed class OperatorAvailabilityIntegrationTests(TestWebAppFactory facto
     {
         int scopedRestaurantId = await SeedRestaurantAsync("Scoped");
         int otherRestaurantId = await SeedRestaurantAsync("Other");
-        string token = await SeedOperatorTokenAsync(scopedRestaurantId);
+        string token = await SeedOperatorTokenAsync(scopedRestaurantId, "scoped-read");
 
         HttpClient operatorClient = _factory.CreateClient();
         operatorClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
@@ -52,6 +52,64 @@ public sealed class OperatorAvailabilityIntegrationTests(TestWebAppFactory facto
         Assert.Equal(HttpStatusCode.Unauthorized, adminResponse.StatusCode);
     }
 
+    [Fact]
+    public async Task ScopedOperatorCredential_RequestingNonexistentRestaurant_ReturnsNotFound_AndAuditsWithoutInvalidRestaurantFk()
+    {
+        int scopedRestaurantId = await SeedRestaurantAsync("Scoped");
+        string token = await SeedOperatorTokenAsync(scopedRestaurantId, "nonexistent");
+
+        HttpClient operatorClient = _factory.CreateClient();
+        operatorClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        string date = DateTime.UtcNow.AddDays(1).ToString("yyyy-MM-dd");
+        int nonexistentRestaurantId = scopedRestaurantId + 10_000;
+
+        HttpResponseMessage response = await operatorClient.GetAsync(
+            $"/api/internal/operators/restaurants/{nonexistentRestaurantId}/availability?date={date}&seats=2");
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+
+        using IServiceScope auditScope = _factory.Services.CreateScope();
+        AppDbContext auditDb = auditScope.ServiceProvider.GetRequiredService<AppDbContext>();
+        OperatorActionAudit audit = Assert.Single(auditDb.OperatorActionAudits.Where(x =>
+            x.Action == "availability.read" &&
+            x.Outcome == "denied" &&
+            x.Reason == "restaurant_out_of_scope" &&
+            x.RestaurantIdSnapshot == nonexistentRestaurantId));
+
+        Assert.Null(audit.RestaurantId);
+        Assert.Equal(string.Empty, audit.RestaurantNameSnapshot);
+    }
+
+    [Fact]
+    public async Task ScopedOperatorCredential_RequestingExistingOutOfScopeRestaurant_ReturnsNotFound_AndAuditsWithValidRestaurantFk()
+    {
+        int scopedRestaurantId = await SeedRestaurantAsync("Scoped");
+        int otherRestaurantId = await SeedRestaurantAsync("Other");
+        string token = await SeedOperatorTokenAsync(scopedRestaurantId, "out-of-scope");
+
+        HttpClient operatorClient = _factory.CreateClient();
+        operatorClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        string date = DateTime.UtcNow.AddDays(1).ToString("yyyy-MM-dd");
+
+        HttpResponseMessage response = await operatorClient.GetAsync(
+            $"/api/internal/operators/restaurants/{otherRestaurantId}/availability?date={date}&seats=2");
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+
+        using IServiceScope auditScope = _factory.Services.CreateScope();
+        AppDbContext auditDb = auditScope.ServiceProvider.GetRequiredService<AppDbContext>();
+        OperatorActionAudit audit = Assert.Single(auditDb.OperatorActionAudits.Where(x =>
+            x.Action == "availability.read" &&
+            x.Outcome == "denied" &&
+            x.Reason == "restaurant_out_of_scope" &&
+            x.RestaurantIdSnapshot == otherRestaurantId));
+
+        Assert.Equal(otherRestaurantId, audit.RestaurantId);
+        Assert.Equal("Operator Other", audit.RestaurantNameSnapshot);
+    }
+
     private async Task<int> SeedRestaurantAsync(string suffix)
     {
         using IServiceScope scope = _factory.Services.CreateScope();
@@ -76,14 +134,15 @@ public sealed class OperatorAvailabilityIntegrationTests(TestWebAppFactory facto
         return restaurant.Id;
     }
 
-    private async Task<string> SeedOperatorTokenAsync(int scopedRestaurantId)
+    private async Task<string> SeedOperatorTokenAsync(int scopedRestaurantId, string uniqueSuffix)
     {
         using IServiceScope scope = _factory.Services.CreateScope();
         AppDbContext db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        string identifier = $"operator-{uniqueSuffix}@test.com";
         db.OperatorPrincipals.Add(new OperatorPrincipal
         {
-            Identifier = "operator@test.com",
-            NormalizedIdentifier = "operator@test.com",
+            Identifier = identifier,
+            NormalizedIdentifier = identifier,
             IsActive = true,
             CreatedAt = DateTime.UtcNow,
             RestaurantScopes = new List<OperatorRestaurantScope>

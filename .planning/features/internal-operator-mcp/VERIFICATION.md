@@ -30,3 +30,19 @@ Raw logs:
 - The fix was narrow and repo-consistent: explicit `[OnlyAccessibleBy("OpenRestoApi.Tests.Services.OperatorReservationServiceTests")]` annotations were added to `BookingRepository`, `TableRepository`, `SectionRepository`, `RestaurantRepository`, and `HoldService`, matching the existing restricted-access convention used by neighboring tests.
 - A pre-existing compile blocker in `ForwardedHeadersOptions.KnownIPNetworks` had to be corrected to `KnownNetworks` before the requested tests could execute under the available SDK.
 - Existing dependency warnings remain for `Microsoft.OpenApi` `2.0.0` and `SQLitePCLRaw.lib.e_sqlite3` `2.1.11`. They were present during verification and were not changed by this feature.
+
+## 2026-07-27 Availability Audit FK Regression
+
+Commands:
+- `docker run --rm -v /tmp/openresto-internal-mcp-design:/workspace -w /workspace mcr.microsoft.com/dotnet/sdk:10.0 dotnet test OpenRestoApi.Tests/OpenRestoApi.Tests.csproj --filter OperatorAvailabilityIntegrationTests`
+- `docker run --rm -v /tmp/openresto-internal-mcp-design:/work -w /work mcr.microsoft.com/dotnet/sdk:10.0 dotnet test OpenRestoApi.Tests/OpenRestoApi.Tests.csproj`
+
+Results:
+- RED before fix: `ScopedOperatorCredential_RequestingNonexistentRestaurant_ReturnsNotFound_AndAuditsWithoutInvalidRestaurantFk` failed with `Expected: NotFound`, `Actual: InternalServerError`.
+- GREEN targeted regression suite after fix: `3` passed, `0` failed, `0` skipped.
+- Exact required full suite after fix: `1205` passed, `0` failed, `0` skipped, duration `27 s`.
+- Full-suite coverage after fix: line `96.51%`, branch `84.26%`, method `98.17%`.
+
+Audit evidence:
+- Nonexistent requested restaurant ID: response remained `404`; denial audit stored `RestaurantId = null`, `RestaurantIdSnapshot = <requested id>`, `RestaurantNameSnapshot = ""`.
+- Existing but out-of-scope restaurant ID: response remained `404`; denial audit stored a valid `RestaurantId` FK to the existing restaurant plus the same durable requested-id snapshot.

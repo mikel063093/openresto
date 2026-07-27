@@ -36,14 +36,16 @@ public sealed class OperatorAvailabilityService(
         string outcome,
         string? reason)
     {
+        Core.Domain.Restaurant? restaurant = await _db.Restaurants.FindAsync(restaurantId);
+
         _db.OperatorActionAudits.Add(new Core.Domain.OperatorActionAudit
         {
             OperatorPrincipalId = identity.OperatorId,
             OperatorPrincipalIdSnapshot = identity.OperatorId,
             OperatorAgentCredentialId = identity.CredentialId,
-            RestaurantId = restaurantId,
+            RestaurantId = restaurant?.Id,
             RestaurantIdSnapshot = restaurantId,
-            RestaurantNameSnapshot = (await _db.Restaurants.FindAsync(restaurantId))?.Name ?? string.Empty,
+            RestaurantNameSnapshot = restaurant?.Name ?? string.Empty,
             BookingId = bookingId,
             Action = action,
             Outcome = outcome,
