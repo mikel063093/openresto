@@ -5,7 +5,6 @@ using Microsoft.AspNetCore.RateLimiting;
 using OpenRestoApi.Core.Application.DTOs;
 using OpenRestoApi.Core.Application.Interfaces;
 using OpenRestoApi.Core.Application.Services;
-using OpenRestoApi.Infrastructure.Localization;
 using OpenRestoApi.Infrastructure.OpenApi;
 
 namespace OpenRestoApi.Controllers;

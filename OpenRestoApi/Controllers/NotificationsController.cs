@@ -2,7 +2,6 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using OpenRestoApi.Core.Application.DTOs;
 using OpenRestoApi.Core.Application.Interfaces;
-using OpenRestoApi.Infrastructure.Localization;
 using OpenRestoApi.Infrastructure.OpenApi;
 
 namespace OpenRestoApi.Controllers;
