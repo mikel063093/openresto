@@ -77,6 +77,8 @@ Implement the binding spec in the existing ASP.NET Core backend with a real Stre
   - regression tests for existing public/admin flows touched by the new code
   - Docker/Nginx route smoke checks for `/api/mcp/operator` behind the local HTTPS topology where feasible
   - lint/build/full backend suite
+  - keep OpenAPI/Scalar docs protected in deployed semantics while adding a protected MCP integration guide discoverable from `/api-reference`
+  - verify guide text remains secret-free and matches the implemented credential TTL, scoping, tool inventory, and auth behaviors
 
 ## Expected Changed Areas
 - `OpenRestoApi/Core/Domain/*`

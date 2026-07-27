@@ -1,10 +1,14 @@
 using System.Net;
 using System.Text.Json;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Routing;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace OpenRestoApi.Tests.Integration;
 
 public class OpenApiDocumentationTests(TestWebAppFactory factory) : IClassFixture<TestWebAppFactory>
 {
+    private const string GuidePath = "/api-reference/operator-mcp";
     private readonly TestWebAppFactory _factory = factory;
 
     [Fact]
@@ -47,6 +51,12 @@ public class OpenApiDocumentationTests(TestWebAppFactory factory) : IClassFixtur
         AssertJsonResponse(root, "/api/admin/auth/change-email", "post", "400",
             expectedSchemaNames: ["MessageResponse", "ValidationProblemDetails"]);
 
+        string description = root.GetProperty("info").GetProperty("description").GetString() ?? string.Empty;
+        Assert.Contains("Streamable HTTP / JSON-RPC", description, StringComparison.Ordinal);
+        Assert.Contains("POST /api/mcp/operator", description, StringComparison.Ordinal);
+        Assert.Contains(GuidePath, description, StringComparison.Ordinal);
+        Assert.Contains("must not be exercised through REST \"Try it\"", description, StringComparison.Ordinal);
+
         AssertEveryOperationHasDocumentedResponseBodies(root);
     }
 
@@ -59,6 +69,47 @@ public class OpenApiDocumentationTests(TestWebAppFactory factory) : IClassFixtur
         Assert.Equal("text/html", response.Content.Headers.ContentType?.MediaType);
         string html = await response.Content.ReadAsStringAsync();
         Assert.Contains("Scalar", html, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task OperatorMcpGuide_LoadsProtectedGuideContent_WithoutLiveSecrets()
+    {
+        HttpResponseMessage response = await _factory.CreateClient().GetAsync(GuidePath);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("text/html", response.Content.Headers.ContentType?.MediaType);
+
+        string html = await response.Content.ReadAsStringAsync();
+        Assert.Contains("OpenResto Operator MCP Guide", html, StringComparison.Ordinal);
+        Assert.Contains("Streamable HTTP / JSON-RPC", html, StringComparison.Ordinal);
+        Assert.Contains("POST /api/mcp/operator", html, StringComparison.Ordinal);
+        Assert.Contains("OPENRESTO_MCP_TOKEN", html, StringComparison.Ordinal);
+        Assert.Contains("[REDACTED]", html, StringComparison.Ordinal);
+        Assert.Contains("401 Unauthorized", html, StringComparison.Ordinal);
+        Assert.Contains("404 Not Found", html, StringComparison.Ordinal);
+        Assert.DoesNotContain("guest@example.com", html, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task ProductionDocsExposure_RemainsSuperAdminProtected()
+    {
+        using var productionFactory = new TestWebAppFactory(environmentName: "Production", exposeOpenApiDocs: true);
+        HttpClient anonymous = productionFactory.CreateClient();
+
+        Assert.Equal(HttpStatusCode.Unauthorized, (await anonymous.GetAsync("/openapi/v1.json")).StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, (await anonymous.GetAsync("/api-reference")).StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, (await anonymous.GetAsync(GuidePath)).StatusCode);
+
+        using IServiceScope scope = productionFactory.Services.CreateScope();
+        EndpointDataSource endpoints = scope.ServiceProvider.GetRequiredService<EndpointDataSource>();
+        RouteEndpoint guideEndpoint = endpoints.Endpoints
+            .OfType<RouteEndpoint>()
+            .Single(endpoint =>
+                string.Equals(endpoint.RoutePattern.RawText, GuidePath, StringComparison.Ordinal)
+                || string.Equals(endpoint.RoutePattern.RawText, GuidePath.TrimStart('/'), StringComparison.Ordinal));
+        IAuthorizeData authorizeData = Assert.Single(guideEndpoint.Metadata.OfType<IAuthorizeData>());
+        Assert.Equal("SuperAdminOnly", authorizeData.Policy);
+        Assert.Equal("Bearer", authorizeData.AuthenticationSchemes);
     }
 
     private async Task<JsonElement> GetOpenApiDocumentAsync()

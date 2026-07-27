@@ -110,3 +110,20 @@ Behavioral proof:
 - Admin credential management routes now require both the immutable `admin_credential_id` claim and a DB-backed current-account verification of `IsActive`, `Role == SuperAdmin`, and unchanged normalized email.
 - Stale JWTs are denied after deactivation, demotion, and email rename; successful audit rows always record the verified `ActorAdminCredentialId`.
 - The plaintext operator bearer is only surfaced in a dedicated acknowledgement modal and is cleared on acknowledgement, collapse, and unmount.
+
+## 2026-07-27 Protected OpenAPI / Scalar MCP Guide
+
+Commands:
+- `docker run --rm -v /tmp/openresto-internal-mcp-design:/src -w /src mcr.microsoft.com/dotnet/sdk:10.0 dotnet test OpenRestoApi.Tests/OpenRestoApi.Tests.csproj --filter "FullyQualifiedName~OpenApiDocumentationTests|FullyQualifiedName~OperatorMcpIntegrationTests"`
+- `docker run --rm -v /tmp/openresto-internal-mcp-design:/src -w /src mcr.microsoft.com/dotnet/sdk:10.0 dotnet test OpenRestoApi.Tests/OpenRestoApi.Tests.csproj`
+
+Results:
+- Focused protected-docs + MCP regression suite in `mcr.microsoft.com/dotnet/sdk:10.0`: passed, `7` passed, `0` failed, `0` skipped, duration `5 s`.
+- Full backend suite in `mcr.microsoft.com/dotnet/sdk:10.0`: passed, `1228` passed, `0` failed, `0` skipped, duration `36 s`.
+- Full-suite coverage after the docs slice: line `96.07%`, branch `83.2%`, method `97.83%`.
+
+Behavioral proof to capture after verification:
+- OpenAPI `info.description` links to the protected MCP guide and explicitly warns that `POST /api/mcp/operator` is Streamable HTTP / JSON-RPC, not a REST `Try it` target.
+- The protected guide under `/api-reference/operator-mcp` is routed through the existing `/api-reference` backend path and does not emit live secrets.
+- Production-style docs exposure remains `SuperAdminOnly` for `/openapi/v1.json`, `/api-reference`, and the new guide route.
+- The guide endpoint itself carries `SuperAdminOnly` authorization metadata plus the explicit JWT bearer scheme in production-style exposure, while anonymous production requests still receive `401`.

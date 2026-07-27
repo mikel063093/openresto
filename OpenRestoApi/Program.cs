@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using OpenRestoApi.Extensions;
 using OpenRestoApi.Infrastructure.Exceptions;
 using OpenRestoApi.Infrastructure.OpenApi;
@@ -51,13 +52,24 @@ if (exposeApiReference)
 {
     var openApi = app.MapOpenApi();
     var apiReference = app.MapScalarApiReference("/api-reference");
+    var mcpGuide = app.MapGet(
+            OperatorMcpDocumentation.GuidePath,
+            () => Results.Content(OperatorMcpDocumentation.HtmlPage, "text/html; charset=utf-8"))
+        .ExcludeFromDescription();
 
     // Development and isolated test-host runs intentionally keep docs open for local tooling.
     // Any deployed non-development environment must opt in and is restricted to SuperAdmin.
     if (!app.Environment.IsDevelopment() && !app.Environment.IsEnvironment("Testing"))
     {
-        openApi.RequireAuthorization("SuperAdminOnly");
-        apiReference.RequireAuthorization("SuperAdminOnly");
+        var superAdminDocsAuth = new AuthorizeAttribute
+        {
+            Policy = "SuperAdminOnly",
+            AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme,
+        };
+
+        openApi.RequireAuthorization(superAdminDocsAuth);
+        apiReference.RequireAuthorization(superAdminDocsAuth);
+        mcpGuide.RequireAuthorization(superAdminDocsAuth);
     }
 }
 

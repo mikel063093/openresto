@@ -21,19 +21,28 @@ public class TestWebAppFactory : WebApplicationFactory<Program>
     public const string JwtKey = "test-jwt-signing-key-for-integration-tests-minimum-32-chars!!";
     public const string JwtIssuer = "openresto-api";
     public const string JwtAudience = "openresto-admin";
+    private readonly string _environmentName;
+    private readonly bool _exposeOpenApiDocs;
 
     // Keep the connection open for the lifetime of the factory so the in-memory SQLite DB persists
     private readonly SqliteConnection _connection;
 
     public TestWebAppFactory()
+        : this("Testing", false)
     {
+    }
+
+    internal TestWebAppFactory(string environmentName, bool exposeOpenApiDocs)
+    {
+        _environmentName = environmentName;
+        _exposeOpenApiDocs = exposeOpenApiDocs;
         _connection = new SqliteConnection("Data Source=:memory:");
         _connection.Open();
     }
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
-        builder.UseEnvironment("Testing");
+        builder.UseEnvironment(_environmentName);
 
         builder.ConfigureServices(services =>
         {
@@ -80,6 +89,10 @@ public class TestWebAppFactory : WebApplicationFactory<Program>
         builder.UseSetting("Admin:Email", AdminEmail);
         builder.UseSetting("Admin:Password", AdminPassword);
         builder.UseSetting("Cors:Origins", "http://localhost");
+        if (_exposeOpenApiDocs)
+        {
+            builder.UseSetting("OpenApi:ExposeDocs", "true");
+        }
     }
 
     /// <summary>

@@ -223,6 +223,7 @@ public static class ServiceCollectionExtensions
         services.AddOpenApi(options =>
         {
             options.AddDocumentTransformer<BearerSecuritySchemeTransformer>();
+            options.AddDocumentTransformer<OperatorMcpOpenApiDocumentTransformer>();
             options.AddSchemaTransformer<OpenApiSchemaExampleTransformer>();
             options.AddOperationTransformer<OpenApiResponseMetadataTransformer>();
         });
