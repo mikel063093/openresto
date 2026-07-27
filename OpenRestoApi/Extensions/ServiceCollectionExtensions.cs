@@ -322,4 +322,47 @@ public static class ServiceCollectionExtensions
 
         return services;
     }
+
+    private static Dictionary<string, string[]> BuildValidationErrors(ActionContext context)
+    {
+        Dictionary<string, string[]> errors = context.ModelState
+            .Where(entry => entry.Value?.Errors.Count > 0)
+            .ToDictionary(
+                entry => NormalizeModelStateKey(entry.Key),
+                entry => entry.Value!.Errors
+                    .Select(error => error.ErrorMessage)
+                    .Where(message => !string.IsNullOrWhiteSpace(message))
+                    .ToArray());
+
+        bool hasFieldErrors = errors.Keys.Any(key => !string.IsNullOrWhiteSpace(key));
+        if (!hasFieldErrors)
+        {
+            return errors;
+        }
+
+        foreach (string parameterName in context.ActionDescriptor.Parameters
+                     .Select(parameter => parameter.Name)
+                     .Where(name => !string.IsNullOrWhiteSpace(name))
+                     .Cast<string>()
+                     .ToArray())
+        {
+            if (errors.TryGetValue(parameterName, out string[]? messages) &&
+                messages.All(message => message.Contains("field is required", StringComparison.OrdinalIgnoreCase)))
+            {
+                errors.Remove(parameterName);
+            }
+        }
+
+        return errors;
+    }
+
+    private static string NormalizeModelStateKey(string key)
+    {
+        if (string.IsNullOrWhiteSpace(key) || key == "$")
+        {
+            return string.Empty;
+        }
+
+        return key.StartsWith("$.", StringComparison.Ordinal) ? key[2..] : key;
+    }
 }
