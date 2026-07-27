@@ -13,6 +13,7 @@ namespace OpenRestoApi.Infrastructure.Holds;
 [OnlyAccessibleBy("OpenRestoApi.Extensions.ServiceCollectionExtensions")]
 [OnlyAccessibleBy("OpenRestoApi.Tests.Holds.HoldServiceTests")]
 [OnlyAccessibleBy("OpenRestoApi.Tests.Services.BookingServiceTests")]
+[OnlyAccessibleBy("OpenRestoApi.Tests.Services.OperatorReservationServiceTests")]
 [ExternalAccessAllowed]
 internal class HoldService(ISystemClock clock) : IHoldService
 {

@@ -6,6 +6,7 @@ Date: 2026-07-27 UTC
 - `docker run --rm -v /tmp/openresto-internal-mcp-design:/src -w /src mcr.microsoft.com/dotnet/sdk:10.0-preview dotnet test OpenRestoApi.Tests/OpenRestoApi.Tests.csproj --filter "FullyQualifiedName~BookingServiceTests|FullyQualifiedName~OperatorReservationServiceTests|FullyQualifiedName~OperatorReservationOwnershipIntegrationTests|FullyQualifiedName~OperatorAvailabilityIntegrationTests|FullyQualifiedName~OperatorMcpFoundationMigrationTests"`
 - `docker run --rm -v /tmp/openresto-internal-mcp-design:/src -w /src/OpenRestoApi mcr.microsoft.com/dotnet/sdk:10.0-preview sh -lc "dotnet tool install --tool-path /tmp/dotnet-tools dotnet-ef --version 10.0.10 >/tmp/install.log && /tmp/dotnet-tools/dotnet-ef migrations add AddOperatorAuditRetentionAndEscalationDurability"`
 - `docker run --rm -v /tmp/openresto-internal-mcp-design:/src -w /src mcr.microsoft.com/dotnet/sdk:10.0-preview dotnet test OpenRestoApi.Tests/OpenRestoApi.Tests.csproj`
+- `docker run --rm -v /tmp/openresto-internal-mcp-design:/work -w /work mcr.microsoft.com/dotnet/sdk:10.0 dotnet test OpenRestoApi.Tests/OpenRestoApi.Tests.csproj`
 
 Raw logs:
 - `verification/full-test.log`
@@ -15,6 +16,7 @@ Raw logs:
 - Additive migration/snapshot: generated as `20260727062349_AddOperatorAuditRetentionAndEscalationDurability`.
 - Full automated backend suite: passed, `1203` passed, `0` failed, `0` skipped.
 - Coverage from full suite: line `96.51%`, branch `84.13%`, method `98.17%`.
+- Independent re-verification with the exact non-preview SDK command above: passed, `1203` passed, `0` failed, `0` skipped, exit code `0`.
 
 ## Migration Proof
 - `OperatorMcpFoundationMigrationTests.FreshInstall_CreatesOperatorTables_AndNullableBookingOwnershipColumns`: passed.
@@ -24,5 +26,7 @@ Raw logs:
 
 ## Notes
 - The strict TDD loop ran in a containerized SDK because this workspace does not expose a local `dotnet` binary on `PATH`.
+- An independent run of `mcr.microsoft.com/dotnet/sdk:10.0 dotnet test OpenRestoApi.Tests/OpenRestoApi.Tests.csproj` initially failed at compile time with `CACC000` accessibility-analyzer errors in `OpenRestoApi.Tests/Services/OperatorReservationServiceTests.cs`.
+- The fix was narrow and repo-consistent: explicit `[OnlyAccessibleBy("OpenRestoApi.Tests.Services.OperatorReservationServiceTests")]` annotations were added to `BookingRepository`, `TableRepository`, `SectionRepository`, `RestaurantRepository`, and `HoldService`, matching the existing restricted-access convention used by neighboring tests.
 - A pre-existing compile blocker in `ForwardedHeadersOptions.KnownIPNetworks` had to be corrected to `KnownNetworks` before the requested tests could execute under the available SDK.
 - Existing dependency warnings remain for `Microsoft.OpenApi` `2.0.0` and `SQLitePCLRaw.lib.e_sqlite3` `2.1.11`. They were present during verification and were not changed by this feature.
