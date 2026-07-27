@@ -710,6 +710,34 @@ export interface UpdateAdminUserRequest {
   isActive?: boolean;
 }
 
+export interface OperatorCredentialScope {
+  restaurantId: number;
+  restaurantName: string;
+}
+
+export interface OperatorCredentialListItem {
+  credentialId: number;
+  identifier: string;
+  credentialKeyId: string;
+  issuedAtUtc: string;
+  expiresAtUtc: string;
+  revokedAtUtc: string | null;
+  lastUsedAtUtc: string | null;
+  notes?: string | null;
+  restaurants: OperatorCredentialScope[];
+}
+
+export interface IssueOperatorCredentialRequest {
+  identifier: string;
+  restaurantIds: number[];
+  ttlHours?: number;
+  notes?: string;
+}
+
+export interface IssueOperatorCredentialResponse extends OperatorCredentialListItem {
+  plaintextToken: string;
+}
+
 async function userError(res: Response): Promise<never> {
   const body = await res.json().catch(() => ({}));
   throw new Error(body.message ?? "Unable to update user.");
@@ -738,4 +766,28 @@ export async function updateAdminUser(
 export async function deactivateAdminUser(id: number): Promise<void> {
   const res = await post(`/admin/users/${id}/deactivate`);
   if (!res.ok) return userError(res);
+}
+
+async function operatorCredentialError(res: Response): Promise<never> {
+  const body = await res.json().catch(() => ({}));
+  throw new Error(body.message ?? "No fue posible administrar la credencial.");
+}
+
+export async function getOperatorCredentials(): Promise<OperatorCredentialListItem[]> {
+  const res = await get("/admin/operator-credentials");
+  if (!res.ok) return operatorCredentialError(res);
+  return res.json();
+}
+
+export async function issueOperatorCredential(
+  request: IssueOperatorCredentialRequest
+): Promise<IssueOperatorCredentialResponse> {
+  const res = await post("/admin/operator-credentials", request);
+  if (!res.ok) return operatorCredentialError(res);
+  return res.json();
+}
+
+export async function revokeOperatorCredential(credentialId: number): Promise<void> {
+  const res = await post(`/admin/operator-credentials/${credentialId}/revoke`);
+  if (!res.ok) return operatorCredentialError(res);
 }

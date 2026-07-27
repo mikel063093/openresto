@@ -176,3 +176,35 @@ public class UpdateAdminUserRequest
     public AdminRole? Role { get; set; }
     public bool? IsActive { get; set; }
 }
+
+public class IssueOperatorCredentialRequestDto
+{
+    public string Identifier { get; set; } = null!;
+    public List<int> RestaurantIds { get; set; } = [];
+    public int? TtlHours { get; set; }
+    public string? Notes { get; set; }
+}
+
+public class OperatorCredentialScopeDto
+{
+    public int RestaurantId { get; set; }
+    public string RestaurantName { get; set; } = null!;
+}
+
+public class OperatorCredentialListItemDto
+{
+    public int CredentialId { get; set; }
+    public string Identifier { get; set; } = null!;
+    public string CredentialKeyId { get; set; } = null!;
+    public DateTime IssuedAtUtc { get; set; }
+    public DateTime ExpiresAtUtc { get; set; }
+    public DateTime? RevokedAtUtc { get; set; }
+    public DateTime? LastUsedAtUtc { get; set; }
+    public string? Notes { get; set; }
+    public List<OperatorCredentialScopeDto> Restaurants { get; set; } = [];
+}
+
+public class IssueOperatorCredentialResponseDto : OperatorCredentialListItemDto
+{
+    public string PlaintextToken { get; set; } = null!;
+}

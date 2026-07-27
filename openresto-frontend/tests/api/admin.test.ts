@@ -36,6 +36,9 @@ import {
   adminCreateSocialLink,
   adminUpdateSocialLink,
   adminDeleteSocialLink,
+  getOperatorCredentials,
+  issueOperatorCredential,
+  revokeOperatorCredential,
 } from "@/api/admin";
 
 // Admin API now uses credentials: "include" for cookie-based auth — no mock needed
@@ -70,6 +73,53 @@ describe("getAdminOverview", () => {
   it("returns null on network error", async () => {
     mockFetch.mockRejectedValueOnce(new Error("offline"));
     expect(await getAdminOverview()).toBeNull();
+  });
+});
+
+describe("operator credential admin API", () => {
+  it("fetches operator credentials list", async () => {
+    const credentials = [{ credentialId: 1, identifier: "op@test.com", restaurants: [] }];
+    mockFetch.mockResolvedValueOnce({ ok: true, json: async () => credentials });
+
+    const result = await getOperatorCredentials();
+
+    expect(result).toEqual(credentials);
+    expect(mockFetch.mock.calls[0][0]).toContain("/api/admin/operator-credentials");
+  });
+
+  it("posts issue operator credential request", async () => {
+    const issued = {
+      credentialId: 1,
+      identifier: "op@test.com",
+      credentialKeyId: "abc123",
+      issuedAtUtc: "2026-07-27T10:00:00Z",
+      expiresAtUtc: "2026-07-27T18:00:00Z",
+      revokedAtUtc: null,
+      lastUsedAtUtc: null,
+      restaurants: [],
+      plaintextToken: "ormcp.abc123.secret",
+    };
+    mockFetch.mockResolvedValueOnce({ ok: true, json: async () => issued });
+
+    const result = await issueOperatorCredential({
+      identifier: "op@test.com",
+      restaurantIds: [7],
+      ttlHours: 6,
+      notes: "Turno tarde",
+    });
+
+    expect(result).toEqual(issued);
+    expect(mockFetch.mock.calls[0][0]).toContain("/api/admin/operator-credentials");
+    expect(mockFetch.mock.calls[0][1].method).toBe("POST");
+  });
+
+  it("posts revoke operator credential request", async () => {
+    mockFetch.mockResolvedValueOnce({ ok: true, json: async () => ({}) });
+
+    await revokeOperatorCredential(9);
+
+    expect(mockFetch.mock.calls[0][0]).toContain("/api/admin/operator-credentials/9/revoke");
+    expect(mockFetch.mock.calls[0][1].method).toBe("POST");
   });
 });
 

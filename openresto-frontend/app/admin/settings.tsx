@@ -12,6 +12,7 @@ import { SecurityCard } from "@/components/admin/settings/SecurityCard";
 import { HighlightsCard } from "@/components/admin/settings/HighlightsCard";
 import { PushNotificationsCard } from "@/components/admin/settings/PushNotificationsCard";
 import { UsersRolesCard } from "@/components/admin/settings/UsersRolesCard";
+import { OperatorCredentialsCard } from "@/components/admin/settings/OperatorCredentialsCard";
 import { checkSession } from "@/api/auth";
 import { styles } from "@/components/admin/settings/settings.styles";
 
@@ -67,12 +68,24 @@ export default function AdminSettingsScreen() {
         <SecurityCard borderColor={borderColor} mutedColor={mutedColor} cardBg={cardBg} />
       </View>
       {role === "SuperAdmin" && (
-        <View style={styles.section}>
-          <ThemedText style={[styles.sectionHeading, { color: mutedColor }]}>
-            ACCESS MANAGEMENT
-          </ThemedText>
-          <UsersRolesCard borderColor={borderColor} mutedColor={mutedColor} cardBg={cardBg} />
-        </View>
+        <>
+          <View style={styles.section}>
+            <ThemedText style={[styles.sectionHeading, { color: mutedColor }]}>
+              ACCESS MANAGEMENT
+            </ThemedText>
+            <UsersRolesCard borderColor={borderColor} mutedColor={mutedColor} cardBg={cardBg} />
+          </View>
+          <View style={styles.section}>
+            <ThemedText style={[styles.sectionHeading, { color: mutedColor }]}>
+              ACCESO MCP INTERNO
+            </ThemedText>
+            <OperatorCredentialsCard
+              borderColor={borderColor}
+              mutedColor={mutedColor}
+              cardBg={cardBg}
+            />
+          </View>
+        </>
       )}
     </ScrollView>
   );

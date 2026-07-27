@@ -258,6 +258,17 @@ export const styles = StyleSheet.create({
   secRowSub: { ...theme.typography.caption, marginTop: 1 },
   secBtn: { ...theme.buttonSizes.secondary, borderWidth: 1, borderRadius: theme.borderRadius.md },
   secBtnText: { ...theme.typography.label },
+  chipsRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: theme.spacing.sm,
+  },
+  chip: {
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
+    borderRadius: theme.borderRadius.full,
+    borderWidth: 1,
+  },
   secForm: {
     paddingHorizontal: theme.spacing.lg,
     paddingBottom: theme.spacing.lg,
@@ -267,6 +278,19 @@ export const styles = StyleSheet.create({
   },
   errorText: { ...theme.typography.label, color: theme.colors.error },
   successText: { ...theme.typography.label, color: theme.colors.success },
+  noteBox: {
+    borderWidth: 1,
+    borderRadius: theme.borderRadius.md,
+    padding: theme.spacing.md,
+    gap: theme.spacing.sm,
+  },
+  monoValue: {
+    fontFamily: "monospace",
+    fontSize: 13,
+  },
+  helperText: {
+    ...theme.typography.caption,
+  },
   successBanner: {
     flexDirection: "row",
     alignItems: "center",
@@ -280,5 +304,27 @@ export const styles = StyleSheet.create({
     borderRadius: theme.borderRadius.md,
     paddingHorizontal: theme.spacing.sm,
     paddingVertical: theme.spacing.sm,
+  },
+  rowWrap: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: theme.spacing.sm,
+  },
+  statusPill: {
+    paddingHorizontal: theme.spacing.sm,
+    paddingVertical: theme.spacing.xs,
+    borderRadius: theme.borderRadius.full,
+  },
+  statusPillText: {
+    ...theme.typography.captionSmall,
+    fontWeight: "700",
+  },
+  stackedMeta: {
+    gap: 3,
+  },
+  inlineActions: {
+    flexDirection: "row",
+    gap: theme.spacing.sm,
+    alignItems: "center",
   },
 });

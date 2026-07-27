@@ -33,4 +33,17 @@ public class RoleAuthorizationTests(TestWebAppFactory factory) : IClassFixture<T
         Assert.Equal(HttpStatusCode.BadRequest, (await client.SendAsync(request)).StatusCode);
         Assert.Equal(HttpStatusCode.Forbidden, (await client.GetAsync("/api/admin/overview")).StatusCode);
     }
+
+    [Fact]
+    public async Task OperatorCredentialManagement_Is_SuperAdmin_Only()
+    {
+        HttpClient superAdmin = _factory.CreateAuthenticatedClient(AdminRole.SuperAdmin);
+        HttpClient bookingEditor = _factory.CreateAuthenticatedClient(AdminRole.BookingEditor);
+
+        HttpResponseMessage superAdminList = await superAdmin.GetAsync("/api/admin/operator-credentials");
+        HttpResponseMessage editorList = await bookingEditor.GetAsync("/api/admin/operator-credentials");
+
+        Assert.NotEqual(HttpStatusCode.Forbidden, superAdminList.StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, editorList.StatusCode);
+    }
 }

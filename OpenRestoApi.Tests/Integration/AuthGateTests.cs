@@ -143,6 +143,22 @@ public class AuthGateTests : IClassFixture<TestWebAppFactory>
         Assert.Equal(HttpStatusCode.Unauthorized,
             (await _client.PostAsync("/api/admin/email-settings/test", null)).StatusCode);
 
+    [Fact]
+    public async Task OperatorCredentials_List_Returns401() =>
+        Assert.Equal(HttpStatusCode.Unauthorized,
+            (await _client.GetAsync("/api/admin/operator-credentials")).StatusCode);
+
+    [Fact]
+    public async Task OperatorCredentials_Issue_Returns401() =>
+        Assert.Equal(HttpStatusCode.Unauthorized,
+            (await _client.PostAsync("/api/admin/operator-credentials",
+                Json(new { identifier = "op@test.com", restaurantIds = new[] { 1 } }))).StatusCode);
+
+    [Fact]
+    public async Task OperatorCredentials_Revoke_Returns401() =>
+        Assert.Equal(HttpStatusCode.Unauthorized,
+            (await _client.PostAsync("/api/admin/operator-credentials/1/revoke", null)).StatusCode);
+
     // ── BrandController (POST requires [Authorize], GET is public) ───────────
 
     [Fact]

@@ -248,6 +248,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<BookingService>();
         services.AddScoped<AdminService>();
         services.AddScoped<OperatorCredentialService>();
+        services.AddScoped<OperatorCredentialManagementService>();
         services.AddScoped<OperatorIdentityAccessor>();
         services.AddScoped<OperatorAvailabilityService>();
         services.AddScoped<OperatorReservationService>();

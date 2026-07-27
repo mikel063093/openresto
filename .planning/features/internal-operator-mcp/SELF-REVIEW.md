@@ -9,3 +9,9 @@
 
 ## Residual Limitation
 - The queue remains bounded with `DropOldest`, so older background notifications can still be displaced under sustained pressure. The reviewed fix closes the escalation correctness gap by persisting intent first and surfacing enqueue failure instead of silently reporting success.
+
+## 2026-07-27 Credential Management Slice Review
+- Kept the change migration-free because the existing `OperatorPrincipal`, `OperatorRestaurantScope`, and `OperatorAgentCredential` tables already cover issuance, scoping, revocation, notes, and `LastUsedAt`.
+- Isolated the admin management logic in a dedicated `OperatorCredentialManagementService` and `AdminOperatorCredentialsController` so the existing operator bearer validation path remained the single enforcement point for revocation and scope checks.
+- The only collateral code adjustment outside the new slice was a small `UsersRolesCard` `useEffect` fix so the requested frontend typecheck could pass under the real install.
+- Repo-wide frontend `npm run check` still fails because of pre-existing Prettier drift in five untouched files. Slice-local formatting/lint/typecheck/Jest checks passed.
