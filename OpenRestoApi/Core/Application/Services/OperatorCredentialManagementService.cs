@@ -68,11 +68,8 @@ public sealed class OperatorCredentialManagementService(
         principal.IsActive = true;
         principal.UpdatedAt = now;
 
-        HashSet<int> existingScopeIds = principal.RestaurantScopes
-            .Select(x => x.RestaurantId)
-            .ToHashSet();
-
-        foreach (Restaurant restaurant in restaurants.Where(x => !existingScopeIds.Contains(x.Id)))
+        principal.RestaurantScopes.Clear();
+        foreach (Restaurant restaurant in restaurants)
         {
             principal.RestaurantScopes.Add(new OperatorRestaurantScope
             {
@@ -94,11 +91,12 @@ public sealed class OperatorCredentialManagementService(
                 principal.Id,
                 TimeSpan.FromHours(ttlHours),
                 notes,
+                restaurantIds,
                 now);
 
             OperatorAgentCredential credential = await _db.OperatorAgentCredentials
                 .Include(x => x.OperatorPrincipal)
-                .ThenInclude(x => x.RestaurantScopes)
+                .Include(x => x.RestaurantScopes)
                 .ThenInclude(x => x.Restaurant)
                 .SingleAsync(x => x.Id == issued.CredentialId);
 
@@ -124,7 +122,7 @@ public sealed class OperatorCredentialManagementService(
         List<OperatorAgentCredential> credentials = await _db.OperatorAgentCredentials
             .AsNoTracking()
             .Include(x => x.OperatorPrincipal)
-            .ThenInclude(x => x.RestaurantScopes)
+            .Include(x => x.RestaurantScopes)
             .ThenInclude(x => x.Restaurant)
             .OrderByDescending(x => x.IssuedAt)
             .ToListAsync();
@@ -138,7 +136,7 @@ public sealed class OperatorCredentialManagementService(
         AdminActorSnapshot actor = await _adminActorAccessor.GetRequiredSnapshotAsync();
         OperatorAgentCredential credential = await _db.OperatorAgentCredentials
             .Include(x => x.OperatorPrincipal)
-            .ThenInclude(x => x.RestaurantScopes)
+            .Include(x => x.RestaurantScopes)
             .SingleOrDefaultAsync(x => x.Id == credentialId)
             ?? throw new NotFoundException("Credential not found.");
 
@@ -185,7 +183,7 @@ public sealed class OperatorCredentialManagementService(
             CredentialKeyIdSnapshot = credential.CredentialKeyId,
             TargetOperatorIdentifierSnapshot = targetOperatorIdentifier,
             ScopeRestaurantIdsSnapshot = string.Join(",",
-                credential.OperatorPrincipal.RestaurantScopes
+                credential.RestaurantScopes
                     .Select(x => x.RestaurantId)
                     .Distinct()
                     .OrderBy(x => x)),
@@ -266,7 +264,7 @@ public sealed class OperatorCredentialManagementService(
             RevokedAtUtc = credential.RevokedAt,
             LastUsedAtUtc = credential.LastUsedAt,
             Notes = credential.Notes,
-            Restaurants = credential.OperatorPrincipal.RestaurantScopes
+            Restaurants = credential.RestaurantScopes
                 .Where(x => x.Restaurant is not null)
                 .OrderBy(x => x.Restaurant.Name)
                 .Select(x => new OperatorCredentialScopeDto

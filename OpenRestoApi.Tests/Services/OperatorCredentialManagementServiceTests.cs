@@ -141,6 +141,54 @@ public sealed class OperatorCredentialManagementServiceTests
     }
 
     [Fact]
+    public async Task IssueAsync_PreservesExistingCredentialScope_WhenLaterCredentialForSameOperatorHasDifferentScope()
+    {
+        using AppDbContext db = TestDbFactory.Create(nameof(IssueAsync_PreservesExistingCredentialScope_WhenLaterCredentialForSameOperatorHasDifferentScope));
+        SeedRestaurant(db, 7, "Centro");
+        SeedRestaurant(db, 8, "Patio");
+        SeedAdmin(db, "boss@test.com");
+
+        var credentialService = new OperatorCredentialService(db);
+        var management = new OperatorCredentialManagementService(
+            db,
+            credentialService,
+            new StubAdminActorAccessor("boss@test.com", 17));
+
+        IssueOperatorCredentialResponseDto first = await management.IssueAsync(new IssueOperatorCredentialRequestDto
+        {
+            Identifier = "operator@test.com",
+            RestaurantIds = new List<int> { 7 },
+            TtlHours = 4,
+            Notes = "Centro"
+        }, DateTime.UtcNow);
+
+        IssueOperatorCredentialResponseDto second = await management.IssueAsync(new IssueOperatorCredentialRequestDto
+        {
+            Identifier = "operator@test.com",
+            RestaurantIds = new List<int> { 8 },
+            TtlHours = 6,
+            Notes = "Patio"
+        }, DateTime.UtcNow.AddMinutes(1));
+
+        OperatorCredentialValidationResult firstValidation = (await credentialService.ValidateAsync(first.PlaintextToken))!;
+        OperatorCredentialValidationResult secondValidation = (await credentialService.ValidateAsync(second.PlaintextToken))!;
+
+        Assert.Equal([7], firstValidation.RestaurantIds);
+        Assert.Equal([8], secondValidation.RestaurantIds);
+
+        IReadOnlyList<OperatorCredentialListItemDto> listed = await management.ListAsync();
+        OperatorCredentialListItemDto firstListed = Assert.Single(listed.Where(x => x.CredentialId == first.CredentialId));
+        OperatorCredentialListItemDto secondListed = Assert.Single(listed.Where(x => x.CredentialId == second.CredentialId));
+        Assert.Equal([7], firstListed.Restaurants.Select(x => x.RestaurantId));
+        Assert.Equal([8], secondListed.Restaurants.Select(x => x.RestaurantId));
+
+        List<AdminCredentialManagementAudit> audits = await db.AdminCredentialManagementAudits
+            .OrderBy(x => x.Id)
+            .ToListAsync();
+        Assert.Equal(["7", "8"], audits.Select(x => x.ScopeRestaurantIdsSnapshot));
+    }
+
+    [Fact]
     public async Task IssueAsync_RollsBackCredential_WhenAuditPersistenceFails()
     {
         using var connection = new SqliteConnection("Data Source=:memory:");
@@ -200,7 +248,7 @@ public sealed class OperatorCredentialManagementServiceTests
         db.SaveChanges();
     }
 
-    private sealed class StubAdminActorAccessor(string email, int? credentialId) : IAdminActorAccessor
+    private sealed class StubAdminActorAccessor(string email, int credentialId) : IAdminActorAccessor
     {
         public Task<AdminActorSnapshot> GetRequiredSnapshotAsync(CancellationToken cancellationToken = default) =>
             Task.FromResult(new AdminActorSnapshot(email.Trim().ToLowerInvariant(), credentialId));

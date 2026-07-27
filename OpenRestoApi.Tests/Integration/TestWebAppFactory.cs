@@ -9,6 +9,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Tokens;
 using OpenRestoApi.Core.Application.Interfaces;
 using OpenRestoApi.Core.Domain;
+using OpenRestoApi.Infrastructure.Auth;
 using OpenRestoApi.Infrastructure.Persistence;
 
 namespace OpenRestoApi.Tests.Integration;
@@ -84,7 +85,7 @@ public class TestWebAppFactory : WebApplicationFactory<Program>
     /// <summary>
     /// Generates a valid JWT token for the test admin user.
     /// </summary>
-    public static string GenerateTestJwt(AdminRole role = AdminRole.SuperAdmin)
+    public static string GenerateTestJwt(int adminCredentialId, string email = AdminEmail, AdminRole role = AdminRole.SuperAdmin)
     {
         byte[] keyBytes = Encoding.UTF8.GetBytes(JwtKey);
         var credentials = new SigningCredentials(
@@ -95,8 +96,9 @@ public class TestWebAppFactory : WebApplicationFactory<Program>
             audience: JwtAudience,
             claims: new[]
             {
-                new Claim(ClaimTypes.Email, AdminEmail),
-                new Claim(ClaimTypes.Role, role.ToString())
+                new Claim(ClaimTypes.Email, email),
+                new Claim(ClaimTypes.Role, role.ToString()),
+                new Claim(AdminAuthenticationDefaults.AdminCredentialIdClaim, adminCredentialId.ToString()),
             },
             expires: DateTime.UtcNow.AddDays(1),
             signingCredentials: credentials);
@@ -109,9 +111,16 @@ public class TestWebAppFactory : WebApplicationFactory<Program>
     /// </summary>
     public HttpClient CreateAuthenticatedClient(AdminRole role = AdminRole.SuperAdmin)
     {
+        int adminCredentialId;
+        using (IServiceScope scope = Services.CreateScope())
+        {
+            AppDbContext db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            adminCredentialId = db.AdminCredentials.AsNoTracking().OrderBy(x => x.Id).Select(x => x.Id).First();
+        }
+
         HttpClient client = CreateClient();
         client.DefaultRequestHeaders.Authorization =
-            new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", GenerateTestJwt(role));
+            new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", GenerateTestJwt(adminCredentialId, AdminEmail, role));
         return client;
     }
 

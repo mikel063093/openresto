@@ -4,6 +4,7 @@ using MailKit.Net.Smtp;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.IdentityModel.Tokens;
 using ModelContextProtocol.Server;
 using OpenRestoApi.Core.Application.Interfaces;
@@ -183,6 +184,8 @@ public static class ServiceCollectionExtensions
                 nameof(AdminRole.SuperAdmin), nameof(AdminRole.BookingViewer), nameof(AdminRole.BookingEditor)));
             options.AddPolicy("BookingsWrite", policy => policy.RequireRole(
                 nameof(AdminRole.SuperAdmin), nameof(AdminRole.BookingEditor)));
+            options.AddPolicy("CurrentSuperAdminManagement", policy =>
+                policy.Requirements.Add(new CurrentSuperAdminManagementRequirement()));
         });
 
         return services;
@@ -242,6 +245,8 @@ public static class ServiceCollectionExtensions
 
         services.AddScoped<IPasswordService, PasswordService>();
         services.AddScoped<IJwtTokenService, JwtTokenService>();
+        services.AddScoped<ICurrentSuperAdminManagementAuthorizer, CurrentSuperAdminManagementAuthorizer>();
+        services.AddScoped<IAuthorizationHandler, CurrentSuperAdminManagementRequirementHandler>();
         services.AddScoped<IAdminActorAccessor, AdminActorAccessor>();
         services.AddScoped<ISecurityQuestionsService, SecurityQuestionsService>();
         services.AddScoped<IAuthService, AuthService>();

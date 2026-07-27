@@ -81,3 +81,32 @@ Behavioral proof:
 - List flow returns only non-secret metadata (`identifier`, restaurant scopes, `credentialKeyId`, issue/expiry/revocation/last-used timestamps, notes).
 - Revoke flow immediately blocks reuse of the old bearer token through the existing operator bearer authentication path; verified by `AdminOperatorCredentialsControllerTests.SuperAdmin_Can_Issue_List_And_Revoke_OperatorCredential`.
 - No migration was added because the existing operator principal / scope / credential schema already supported the required slice.
+
+## 2026-07-27 Independent Security Remediation
+
+Commands:
+- `docker run --rm -v /tmp/openresto-internal-mcp-design:/src -w /src/OpenRestoApi mcr.microsoft.com/dotnet/sdk:10.0 bash -lc 'dotnet tool install -g dotnet-ef --version 10.* >/tmp/dotnet-ef-install.log && export PATH="$PATH:/root/.dotnet/tools" && dotnet ef migrations add AddOperatorCredentialScopes --output-dir Migrations'`
+- `docker run --rm -v /tmp/openresto-internal-mcp-design:/src -w /src mcr.microsoft.com/dotnet/sdk:10.0 dotnet test OpenRestoApi.Tests/OpenRestoApi.Tests.csproj --filter "FullyQualifiedName~OperatorCredentialManagementServiceTests|FullyQualifiedName~AdminOperatorCredentialsControllerTests|FullyQualifiedName~JwtTokenServiceTests|FullyQualifiedName~OperatorCredentialScopesMigrationTests"`
+- `docker run --rm -v /tmp/openresto-internal-mcp-design:/src -w /src mcr.microsoft.com/dotnet/sdk:10.0 dotnet test OpenRestoApi.Tests/OpenRestoApi.Tests.csproj`
+- `npx --prefix openresto-frontend tsc --noEmit`
+- `npm --prefix openresto-frontend test -- --runTestsByPath tests/components/admin/settings/OperatorCredentialsCard.test.tsx`
+- `npx --prefix openresto-frontend prettier --check openresto-frontend/components/admin/settings/OperatorCredentialsCard.tsx openresto-frontend/tests/components/admin/settings/OperatorCredentialsCard.test.tsx`
+- `npx --prefix openresto-frontend oxlint openresto-frontend/components/admin/settings/OperatorCredentialsCard.tsx openresto-frontend/tests/components/admin/settings/OperatorCredentialsCard.test.tsx`
+
+Results:
+- EF additive migration generated as `20260727150250_AddOperatorCredentialScopes`; migration backfills legacy credentials from principal scopes on upgrade.
+- Focused backend regression suite in `mcr.microsoft.com/dotnet/sdk:10.0`: passed, `21` passed, `0` failed, `0` skipped.
+- Full backend suite in `mcr.microsoft.com/dotnet/sdk:10.0`: passed, `1224` passed, `0` failed, `0` skipped, duration `31 s`.
+- Full backend coverage after remediation: line `96.5%`, branch `84.22%`, method `97.76%`.
+- Frontend typecheck: passed, exit code `0`.
+- Relevant frontend Jest slice: passed, `3` tests, `0` failed.
+- Slice-specific frontend formatting check: passed after applying Prettier to the two touched files.
+- Slice-specific frontend lint (`oxlint`) on changed frontend files: passed.
+
+Behavioral proof:
+- Credential scope is now attached to `OperatorAgentCredential` rows, not inferred from the mutable `OperatorPrincipal` scope set.
+- A second credential issued for the same operator no longer widens the first credential; list and audit snapshots report the exact scope issued to each credential.
+- Legacy issuance through `OperatorCredentialService.IssueAsync(operatorPrincipalId, ...)` remains compatible by snapshotting the principal's current restaurants onto the new credential.
+- Admin credential management routes now require both the immutable `admin_credential_id` claim and a DB-backed current-account verification of `IsActive`, `Role == SuperAdmin`, and unchanged normalized email.
+- Stale JWTs are denied after deactivation, demotion, and email rename; successful audit rows always record the verified `ActorAdminCredentialId`.
+- The plaintext operator bearer is only surfaced in a dedicated acknowledgement modal and is cleared on acknowledgement, collapse, and unmount.

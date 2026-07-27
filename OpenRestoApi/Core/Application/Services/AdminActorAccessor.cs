@@ -1,6 +1,5 @@
 using System.Security.Claims;
-using Microsoft.EntityFrameworkCore;
-using OpenRestoApi.Infrastructure.Persistence;
+using OpenRestoApi.Core.Domain;
 
 namespace OpenRestoApi.Core.Application.Services;
 
@@ -9,30 +8,26 @@ public interface IAdminActorAccessor
     Task<AdminActorSnapshot> GetRequiredSnapshotAsync(CancellationToken cancellationToken = default);
 }
 
-public sealed record AdminActorSnapshot(string NormalizedEmail, int? AdminCredentialId);
+public sealed record AdminActorSnapshot(string NormalizedEmail, int AdminCredentialId);
 
 public sealed class AdminActorAccessor(
     IHttpContextAccessor httpContextAccessor,
-    AppDbContext db) : IAdminActorAccessor
+    ICurrentSuperAdminManagementAuthorizer authorizer) : IAdminActorAccessor
 {
     private readonly IHttpContextAccessor _httpContextAccessor = httpContextAccessor;
-    private readonly AppDbContext _db = db;
+    private readonly ICurrentSuperAdminManagementAuthorizer _authorizer = authorizer;
 
     public async Task<AdminActorSnapshot> GetRequiredSnapshotAsync(CancellationToken cancellationToken = default)
     {
-        string? email = _httpContextAccessor.HttpContext?.User.FindFirst(ClaimTypes.Email)?.Value;
-        if (string.IsNullOrWhiteSpace(email))
+        ClaimsPrincipal? user = _httpContextAccessor.HttpContext?.User;
+        if (user is null)
         {
-            throw new UnauthorizedAccessException("Authenticated admin email is required.");
+            throw new UnauthorizedAccessException("Authenticated admin context is required.");
         }
 
-        string normalizedEmail = email.Trim().ToLowerInvariant();
-        int? adminCredentialId = await _db.AdminCredentials
-            .AsNoTracking()
-            .Where(x => x.Email == normalizedEmail)
-            .Select(x => (int?)x.Id)
-            .SingleOrDefaultAsync(cancellationToken);
+        AdminCredential verifiedAdmin = await _authorizer.TryAuthorizeAsync(user, cancellationToken)
+            ?? throw new UnauthorizedAccessException("Current SuperAdmin authorization is required.");
 
-        return new AdminActorSnapshot(normalizedEmail, adminCredentialId);
+        return new AdminActorSnapshot(verifiedAdmin.Email, verifiedAdmin.Id);
     }
 }

@@ -67,9 +67,26 @@ describe("OperatorCredentialsCard", () => {
       notes: "Turno tarde",
     });
 
-    await waitFor(() => expect(screen.getByText("Guarda este token ahora")).toBeTruthy());
-    expect(screen.getByText("ormcp.abc123.secret")).toBeTruthy();
-    expect(screen.getByText("operador@test.com")).toBeTruthy();
+    await waitFor(() => expect(screen.getByText(/Solo se muestra una vez\./)).toBeTruthy());
+    expect(screen.getByText(/ormcp\.abc123\.secret/)).toBeTruthy();
+    expect(screen.getByText(/operador@test\.com/)).toBeTruthy();
+  });
+
+  it("clears the plaintext token after acknowledgement", async () => {
+    render(<OperatorCredentialsCard {...baseProps} />);
+
+    await waitFor(() => expect(screen.getByText("Credenciales MCP internas")).toBeTruthy());
+    fireEvent.changeText(screen.getByPlaceholderText("operador@interno"), "operador@test.com");
+    fireEvent.press(screen.getByText("Centro"));
+
+    await act(async () => {
+      fireEvent.press(screen.getByText("Emitir credencial"));
+    });
+
+    expect(await screen.findByText(/ormcp\.abc123\.secret/)).toBeTruthy();
+    fireEvent.press(screen.getByText("Entendido"));
+
+    await waitFor(() => expect(screen.queryByText(/ormcp\.abc123\.secret/)).toBeNull());
   });
 
   it("confirms and revokes a listed credential", async () => {

@@ -12,4 +12,5 @@ public class OperatorAgentCredential
     public DateTime? RevokedAt { get; set; }
     public DateTime? LastUsedAt { get; set; }
     public string? Notes { get; set; }
+    public List<OperatorAgentCredentialScope> RestaurantScopes { get; set; } = [];
 }

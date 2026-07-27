@@ -8,6 +8,7 @@ namespace OpenRestoApi.Controllers;
 [ApiController]
 [Route("api/admin/operator-credentials")]
 [Authorize(Policy = "SuperAdminOnly")]
+[Authorize(Policy = "CurrentSuperAdminManagement")]
 public sealed class AdminOperatorCredentialsController(
     OperatorCredentialManagementService credentials) : ControllerBase
 {

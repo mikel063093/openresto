@@ -1,15 +1,35 @@
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using OpenRestoApi.Core.Domain;
 using OpenRestoApi.Infrastructure.Persistence;
 
 namespace OpenRestoApi.Tests.Integration;
 
-public sealed class AdminOperatorCredentialsControllerTests(TestWebAppFactory factory) : IClassFixture<TestWebAppFactory>
+public sealed class AdminOperatorCredentialsControllerTests(TestWebAppFactory factory) : IClassFixture<TestWebAppFactory>, IAsyncLifetime
 {
     private readonly TestWebAppFactory _factory = factory;
+
+    public async Task InitializeAsync()
+    {
+        using IServiceScope scope = _factory.Services.CreateScope();
+        AppDbContext db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+        await db.AdminCredentials.ExecuteDeleteAsync();
+        db.AdminCredentials.Add(new AdminCredential
+        {
+            Email = TestWebAppFactory.AdminEmail,
+            PasswordHash = "hash",
+            PasswordSalt = "salt",
+            Role = AdminRole.SuperAdmin,
+            IsActive = true,
+        });
+        await db.SaveChangesAsync();
+    }
+
+    public Task DisposeAsync() => Task.CompletedTask;
 
     [Fact]
     public async Task SuperAdmin_Can_Issue_List_And_Revoke_OperatorCredential()
@@ -107,6 +127,90 @@ public sealed class AdminOperatorCredentialsControllerTests(TestWebAppFactory fa
         Assert.Equal(HttpStatusCode.BadRequest, ttlResponse.StatusCode);
     }
 
+    [Fact]
+    public async Task TwoCredentials_ForSameOperator_AreScopedIndependently()
+    {
+        HttpClient client = _factory.CreateAuthenticatedClient();
+        int firstRestaurantId = await SeedRestaurantAsync();
+        int secondRestaurantId = await SeedRestaurantAsync();
+
+        IssueOperatorCredentialResponse first = await IssueAsync(client, "scope@test.com", firstRestaurantId, "First");
+        IssueOperatorCredentialResponse second = await IssueAsync(client, "scope@test.com", secondRestaurantId, "Second");
+
+        using (IServiceScope scope = _factory.Services.CreateScope())
+        {
+            AppDbContext db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            List<AdminCredentialManagementAudit> audits = await db.AdminCredentialManagementAudits
+                .OrderBy(x => x.Id)
+                .ToListAsync();
+            Assert.Equal(
+                [firstRestaurantId.ToString(), secondRestaurantId.ToString()],
+                audits
+                    .Where(x => x.Action == "ISSUE" && x.TargetOperatorIdentifierSnapshot == "scope@test.com")
+                    .Select(x => x.ScopeRestaurantIdsSnapshot));
+        }
+
+        string date = DateTime.UtcNow.AddDays(2).ToString("yyyy-MM-dd");
+        HttpClient firstOperator = CreateOperatorClient(first.PlaintextToken);
+        HttpClient secondOperator = CreateOperatorClient(second.PlaintextToken);
+
+        Assert.Equal(HttpStatusCode.OK, (await firstOperator.GetAsync($"/api/internal/operators/restaurants/{firstRestaurantId}/availability?date={date}&seats=2")).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await firstOperator.GetAsync($"/api/internal/operators/restaurants/{secondRestaurantId}/availability?date={date}&seats=2")).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await secondOperator.GetAsync($"/api/internal/operators/restaurants/{firstRestaurantId}/availability?date={date}&seats=2")).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await secondOperator.GetAsync($"/api/internal/operators/restaurants/{secondRestaurantId}/availability?date={date}&seats=2")).StatusCode);
+
+        HttpResponseMessage listResponse = await client.GetAsync("/api/admin/operator-credentials");
+        string body = await listResponse.Content.ReadAsStringAsync();
+        Assert.Contains(firstRestaurantId.ToString(), body, StringComparison.Ordinal);
+        Assert.Contains(secondRestaurantId.ToString(), body, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task StaleSuperAdminJwt_IsDenied_AfterDeactivation_Demotion_AndEmailRename()
+    {
+        HttpClient deactivatedClient = _factory.CreateAuthenticatedClient();
+        using (IServiceScope scope = _factory.Services.CreateScope())
+        {
+            AppDbContext db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            AdminCredential admin = await db.AdminCredentials.SingleAsync(x => x.Email == TestWebAppFactory.AdminEmail);
+            admin.IsActive = false;
+            await db.SaveChangesAsync();
+        }
+
+        Assert.Equal(HttpStatusCode.Forbidden, (await deactivatedClient.GetAsync("/api/admin/operator-credentials")).StatusCode);
+
+        HttpClient demotedClient = _factory.CreateAuthenticatedClient();
+        await ResetAdminAsync(admin =>
+        {
+            admin.IsActive = true;
+            admin.Role = AdminRole.BookingEditor;
+        });
+        Assert.Equal(HttpStatusCode.Forbidden, (await demotedClient.GetAsync("/api/admin/operator-credentials")).StatusCode);
+
+        HttpClient renamedClient = _factory.CreateAuthenticatedClient();
+        await ResetAdminAsync(admin =>
+        {
+            admin.Role = AdminRole.SuperAdmin;
+            admin.Email = "renamed@test.com";
+        });
+        Assert.Equal(HttpStatusCode.Forbidden, (await renamedClient.GetAsync("/api/admin/operator-credentials")).StatusCode);
+    }
+
+    [Fact]
+    public async Task SuccessfulManagementAudit_UsesVerifiedCurrentAdminCredentialId()
+    {
+        HttpClient client = _factory.CreateAuthenticatedClient();
+        int restaurantId = await SeedRestaurantAsync();
+
+        IssueOperatorCredentialResponse issued = await IssueAsync(client, "audit-actor@test.com", restaurantId, null);
+
+        using IServiceScope scope = _factory.Services.CreateScope();
+        AppDbContext db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        AdminCredential admin = await db.AdminCredentials.SingleAsync(x => x.Email == TestWebAppFactory.AdminEmail);
+        AdminCredentialManagementAudit audit = await db.AdminCredentialManagementAudits.SingleAsync(x => x.OperatorAgentCredentialId == issued.CredentialId);
+        Assert.Equal(admin.Id, audit.ActorAdminCredentialId);
+    }
+
     private async Task<int> SeedRestaurantAsync()
     {
         using IServiceScope scope = _factory.Services.CreateScope();
@@ -121,6 +225,35 @@ public sealed class AdminOperatorCredentialsControllerTests(TestWebAppFactory fa
         db.Restaurants.Add(restaurant);
         await db.SaveChangesAsync();
         return restaurant.Id;
+    }
+
+    private HttpClient CreateOperatorClient(string token)
+    {
+        HttpClient client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        return client;
+    }
+
+    private async Task<IssueOperatorCredentialResponse> IssueAsync(HttpClient client, string identifier, int restaurantId, string? notes)
+    {
+        HttpResponseMessage response = await client.PostAsJsonAsync("/api/admin/operator-credentials", new
+        {
+            identifier,
+            restaurantIds = new[] { restaurantId },
+            ttlHours = 6,
+            notes,
+        });
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        return (await response.Content.ReadFromJsonAsync<IssueOperatorCredentialResponse>())!;
+    }
+
+    private async Task ResetAdminAsync(Action<AdminCredential> mutate)
+    {
+        using IServiceScope scope = _factory.Services.CreateScope();
+        AppDbContext db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        AdminCredential admin = await db.AdminCredentials.SingleAsync();
+        mutate(admin);
+        await db.SaveChangesAsync();
     }
 
     private sealed class IssueOperatorCredentialResponse

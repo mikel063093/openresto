@@ -39,9 +39,15 @@ export function OperatorCredentialsCard({
   const [selectedRestaurantIds, setSelectedRestaurantIds] = useState<number[]>([]);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ text: string; ok: boolean } | null>(null);
-  const [issued, setIssued] = useState<IssueOperatorCredentialResponse | null>(null);
+  const [revealedCredential, setRevealedCredential] =
+    useState<IssueOperatorCredentialResponse | null>(null);
   const [pendingRevoke, setPendingRevoke] = useState<OperatorCredentialListItem | null>(null);
   const [copied, setCopied] = useState(false);
+
+  const clearRevealedCredential = () => {
+    setRevealedCredential(null);
+    setCopied(false);
+  };
 
   const load = async () => {
     const [restaurantList, credentialList] = await Promise.all([
@@ -60,6 +66,14 @@ export function OperatorCredentialsCard({
       });
     });
   }, []);
+
+  useEffect(() => {
+    if (!expanded) {
+      clearRevealedCredential();
+    }
+  }, [expanded]);
+
+  useEffect(() => () => clearRevealedCredential(), []);
 
   const selectedSet = useMemo(() => new Set(selectedRestaurantIds), [selectedRestaurantIds]);
 
@@ -82,7 +96,7 @@ export function OperatorCredentialsCard({
         ttlHours: ttlHours.trim() ? Number(ttlHours) : undefined,
         notes: notes.trim() || undefined,
       });
-      setIssued(created);
+      setRevealedCredential(created);
       setIdentifier("");
       setTtlHours("8");
       setNotes("");
@@ -100,14 +114,14 @@ export function OperatorCredentialsCard({
   };
 
   const handleCopy = async () => {
-    if (!issued?.plaintextToken) return;
+    if (!revealedCredential?.plaintextToken) return;
 
     if (
       Platform.OS === "web" &&
       typeof navigator !== "undefined" &&
       navigator.clipboard?.writeText
     ) {
-      await navigator.clipboard.writeText(issued.plaintextToken);
+      await navigator.clipboard.writeText(revealedCredential.plaintextToken);
       setCopied(true);
     }
   };
@@ -228,26 +242,6 @@ export function OperatorCredentialsCard({
             {saving ? "Emitiendo…" : "Emitir credencial"}
           </Button>
 
-          {issued && (
-            <View style={[styles.noteBox, { borderColor, backgroundColor: `${primaryColor}08` }]}>
-              <ThemedText style={styles.secRowTitle}>Guarda este token ahora</ThemedText>
-              <ThemedText style={[styles.helperText, { color: mutedColor }]}>
-                Solo se muestra una vez. Después solo verás metadatos.
-              </ThemedText>
-              <ThemedText selectable style={styles.monoValue}>
-                {issued.plaintextToken}
-              </ThemedText>
-              <View style={styles.inlineActions}>
-                <Button onPress={handleCopy} size="small">
-                  {copied ? "Copiado" : "Copiar"}
-                </Button>
-                <ThemedText style={[styles.helperText, { color: mutedColor }]}>
-                  {issued.identifier}
-                </ThemedText>
-              </View>
-            </View>
-          )}
-
           <ThemedText style={styles.secRowTitle}>Credenciales vigentes e históricas</ThemedText>
 
           {credentials.map((credential) => {
@@ -306,6 +300,30 @@ export function OperatorCredentialsCard({
           })}
         </View>
       </AnimatedAccordion>
+
+      <ConfirmModal
+        visible={!!revealedCredential}
+        title="Guarda este token ahora"
+        message={
+          revealedCredential
+            ? [
+                "Solo se muestra una vez. Después solo verás metadatos.",
+                "",
+                revealedCredential.identifier,
+                revealedCredential.plaintextToken,
+                copied ? "Copiado al portapapeles." : "Cópialo antes de continuar.",
+              ].join("\n")
+            : ""
+        }
+        confirmLabel="Entendido"
+        cancelLabel={copied ? "Copiar de nuevo" : "Copiar"}
+        onConfirm={clearRevealedCredential}
+        onCancel={() => {
+          handleCopy().catch(() => {
+            setCopied(false);
+          });
+        }}
+      />
 
       <ConfirmModal
         visible={!!pendingRevoke}

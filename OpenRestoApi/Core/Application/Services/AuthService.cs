@@ -25,7 +25,7 @@ public class AuthService(
             credential = await GetOrCreateCredentialAsync();
         if (credential == null || !credential.IsActive || !CredentialHelper.VerifyPassword(credential, password, _passwordService))
             return null;
-        return _jwtTokenService.Generate(credential.Email, credential.Role);
+        return _jwtTokenService.Generate(credential.Email, credential.Role, credential.Id);
     }
 
     public virtual async Task<bool> ChangePasswordAsync(string email, string currentPassword, string newPassword)
@@ -60,7 +60,7 @@ public class AuthService(
             throw new BusinessRuleException("An account with that email already exists.");
         credential.Email = normalizedEmail;
         await _credentialRepository.SaveChangesAsync();
-        return _jwtTokenService.Generate(credential.Email, credential.Role);
+        return _jwtTokenService.Generate(credential.Email, credential.Role, credential.Id);
     }
 
     public virtual async Task<string?> ChangeEmailAsync(string currentPassword, string newEmail)

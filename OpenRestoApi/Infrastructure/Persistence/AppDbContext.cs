@@ -21,6 +21,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<OperatorPrincipal> OperatorPrincipals { get; set; } = null!;
     public DbSet<OperatorRestaurantScope> OperatorRestaurantScopes { get; set; } = null!;
     public DbSet<OperatorAgentCredential> OperatorAgentCredentials { get; set; } = null!;
+    public DbSet<OperatorAgentCredentialScope> OperatorAgentCredentialScopes { get; set; } = null!;
     public DbSet<OperatorActionAudit> OperatorActionAudits { get; set; } = null!;
     public DbSet<AdminCredentialManagementAudit> AdminCredentialManagementAudits { get; set; } = null!;
 
@@ -172,6 +173,21 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
                 .OnDelete(DeleteBehavior.Cascade);
             cred.HasIndex(x => x.CredentialKeyId).IsUnique();
             cred.HasIndex(x => new { x.ExpiresAt, x.RevokedAt });
+        });
+
+        modelBuilder.Entity<OperatorAgentCredentialScope>(scope =>
+        {
+            scope.HasKey(x => x.Id);
+            scope.HasOne(x => x.OperatorAgentCredential)
+                .WithMany(x => x.RestaurantScopes)
+                .HasForeignKey(x => x.OperatorAgentCredentialId)
+                .OnDelete(DeleteBehavior.Cascade);
+            scope.HasOne(x => x.Restaurant)
+                .WithMany()
+                .HasForeignKey(x => x.RestaurantId)
+                .OnDelete(DeleteBehavior.Cascade);
+            scope.HasIndex(x => new { x.OperatorAgentCredentialId, x.RestaurantId }).IsUnique();
+            scope.HasIndex(x => x.RestaurantId);
         });
 
         modelBuilder.Entity<OperatorActionAudit>(audit =>

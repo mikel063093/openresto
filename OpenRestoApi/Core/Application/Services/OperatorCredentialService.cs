@@ -13,10 +13,13 @@ public sealed class OperatorCredentialService(AppDbContext db)
         int operatorPrincipalId,
         TimeSpan ttl,
         string? notes = null,
+        IReadOnlyCollection<int>? restaurantIds = null,
         DateTime? nowUtc = null)
     {
         DateTime issuedAt = nowUtc ?? DateTime.UtcNow;
-        OperatorPrincipal op = await _db.OperatorPrincipals.SingleAsync(x => x.Id == operatorPrincipalId);
+        OperatorPrincipal op = await _db.OperatorPrincipals
+            .Include(x => x.RestaurantScopes)
+            .SingleAsync(x => x.Id == operatorPrincipalId);
 
         string keyId = Convert.ToHexStringLower(RandomNumberGenerator.GetBytes(8));
         string secret = Convert.ToHexStringLower(RandomNumberGenerator.GetBytes(32));
@@ -35,6 +38,24 @@ public sealed class OperatorCredentialService(AppDbContext db)
         _db.OperatorAgentCredentials.Add(credential);
         await _db.SaveChangesAsync();
 
+        int[] scopedRestaurantIds = (restaurantIds ?? op.RestaurantScopes.Select(x => x.RestaurantId).ToArray())
+            .Distinct()
+            .OrderBy(x => x)
+            .ToArray();
+
+        if (scopedRestaurantIds.Length == 0)
+        {
+            throw new InvalidOperationException("Operator credentials must have at least one scoped restaurant.");
+        }
+
+        _db.OperatorAgentCredentialScopes.AddRange(scopedRestaurantIds.Select(restaurantId => new OperatorAgentCredentialScope
+        {
+            OperatorAgentCredentialId = credential.Id,
+            RestaurantId = restaurantId,
+            CreatedAt = issuedAt,
+        }));
+        await _db.SaveChangesAsync();
+
         return new IssuedOperatorCredential(credential.Id, keyId, token, credential.ExpiresAt);
     }
 
@@ -47,7 +68,7 @@ public sealed class OperatorCredentialService(AppDbContext db)
 
         OperatorAgentCredential? credential = await _db.OperatorAgentCredentials
             .Include(x => x.OperatorPrincipal)
-            .ThenInclude(x => x.RestaurantScopes)
+            .Include(x => x.RestaurantScopes)
             .SingleOrDefaultAsync(x => x.CredentialKeyId == keyId);
 
         if (credential is null)
@@ -66,7 +87,7 @@ public sealed class OperatorCredentialService(AppDbContext db)
             return null;
         }
 
-        int[] restaurantIds = credential.OperatorPrincipal.RestaurantScopes
+        int[] restaurantIds = credential.RestaurantScopes
             .Select(x => x.RestaurantId)
             .Distinct()
             .OrderBy(x => x)
