@@ -136,6 +136,6 @@ public class TestWebAppFactory : WebApplicationFactory<Program>
         public void EnqueueBookingCreated(Booking booking, string restaurantName) { }
         public void EnqueueBookingCancelled(Booking booking, string restaurantName) { }
         public void EnqueueCapacityCheck(int restaurantId, string restaurantName, DateTime bookingDate) { }
-        public void EnqueueOperatorEscalation(Booking booking, string restaurantName, string operatorIdentifier, string reason) { }
+        public bool EnqueueOperatorEscalation(Booking booking, string restaurantName, string operatorIdentifier, string reason, int? notificationId = null) => true;
     }
 }

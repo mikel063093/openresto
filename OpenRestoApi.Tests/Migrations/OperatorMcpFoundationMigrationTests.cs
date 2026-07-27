@@ -73,6 +73,47 @@ public sealed class OperatorMcpFoundationMigrationTests : IDisposable
         Assert.Equal(GetTableSchema(freshConnection, "Bookings"), GetTableSchema(_connection, "Bookings"));
     }
 
+    [Fact]
+    public async Task FreshInstall_OperatorActionAudits_RetainRows_WhenOperatorOrRestaurantDeleted()
+    {
+        using AppDbContext db = CreateContext();
+        await db.Database.MigrateAsync();
+
+        await SeedAuditGraphAsync(db);
+
+        var audit = await db.OperatorActionAudits.SingleAsync();
+        var principal = await db.OperatorPrincipals.SingleAsync();
+        var restaurant = await db.Restaurants.SingleAsync();
+
+        db.OperatorPrincipals.Remove(principal);
+        db.Restaurants.Remove(restaurant);
+        await db.SaveChangesAsync();
+
+        var retained = await db.OperatorActionAudits.SingleAsync();
+        Assert.Equal(audit.Id, retained.Id);
+        Assert.Null(retained.OperatorPrincipalId);
+        Assert.Null(retained.RestaurantId);
+    }
+
+    [Fact]
+    public async Task Upgrade_PreservesOperatorActionAuditDeleteSemantics_AsFreshInstall()
+    {
+        using var freshConnection = new SqliteConnection("Data Source=:memory:");
+        freshConnection.Open();
+        using (var freshDb = new AppDbContext(new DbContextOptionsBuilder<AppDbContext>().UseSqlite(freshConnection).Options))
+        {
+            await freshDb.Database.MigrateAsync();
+        }
+
+        using AppDbContext upgradeDb = CreateContext();
+        IMigrator migrator = upgradeDb.GetInfrastructure().GetRequiredService<IMigrator>();
+        await migrator.MigrateAsync(LastMigrationBeforeOperatorMcpFoundation);
+        await migrator.MigrateAsync();
+
+        Assert.Equal(GetForeignKeyDeleteBehavior(freshConnection, "OperatorActionAudits", "OperatorPrincipals"), GetForeignKeyDeleteBehavior(_connection, "OperatorActionAudits", "OperatorPrincipals"));
+        Assert.Equal(GetForeignKeyDeleteBehavior(freshConnection, "OperatorActionAudits", "Restaurants"), GetForeignKeyDeleteBehavior(_connection, "OperatorActionAudits", "Restaurants"));
+    }
+
     private async Task<string?> GetObjectTypeAsync(string name)
     {
         await using var cmd = _connection.CreateCommand();
@@ -102,5 +143,54 @@ public sealed class OperatorMcpFoundationMigrationTests : IDisposable
         cmd.CommandText = "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = $name;";
         cmd.Parameters.AddWithValue("$name", tableName);
         return (string)(cmd.ExecuteScalar() ?? throw new InvalidOperationException($"Table {tableName} not found."));
+    }
+
+    private static string GetForeignKeyDeleteBehavior(SqliteConnection connection, string tableName, string principalTable)
+    {
+        using var cmd = connection.CreateCommand();
+        cmd.CommandText = $"PRAGMA foreign_key_list({tableName});";
+        using var reader = cmd.ExecuteReader();
+
+        while (reader.Read())
+        {
+            if (string.Equals(reader.GetString(2), principalTable, StringComparison.Ordinal))
+            {
+                return reader.GetString(6);
+            }
+        }
+
+        throw new InvalidOperationException($"Foreign key from {tableName} to {principalTable} not found.");
+    }
+
+    private static async Task SeedAuditGraphAsync(AppDbContext db)
+    {
+        var restaurant = new OpenRestoApi.Core.Domain.Restaurant
+        {
+            Name = "Audit Restaurant",
+            OpenTime = "11:00",
+            CloseTime = "13:00",
+            Timezone = "UTC"
+        };
+        var principal = new OpenRestoApi.Core.Domain.OperatorPrincipal
+        {
+            Identifier = "operator@test.com",
+            NormalizedIdentifier = "operator@test.com",
+            IsActive = true,
+            CreatedAt = DateTime.UtcNow
+        };
+
+        db.Restaurants.Add(restaurant);
+        db.OperatorPrincipals.Add(principal);
+        await db.SaveChangesAsync();
+
+        db.OperatorActionAudits.Add(new OpenRestoApi.Core.Domain.OperatorActionAudit
+        {
+            OperatorPrincipalId = principal.Id,
+            RestaurantId = restaurant.Id,
+            Action = "reservation.list",
+            Outcome = "success",
+            CreatedAt = DateTime.UtcNow,
+        });
+        await db.SaveChangesAsync();
     }
 }

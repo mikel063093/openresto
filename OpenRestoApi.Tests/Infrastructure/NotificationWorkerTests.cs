@@ -188,17 +188,18 @@ public class NotificationWorkerTests
         (NotificationWorker worker, NotificationQueue queue, Mock<IBookingNotificationService> notify) = CreateWorker();
         var booking = new Booking { BookingRef = "ESC" };
         var tcs = new TaskCompletionSource();
-        notify.Setup(n => n.NotifyOperatorEscalationAsync(booking, "Resto", "operator@test.com", "Needs manager"))
+        notify.Setup(n => n.NotifyOperatorEscalationAsync(booking, "Resto", "operator@test.com", "Needs manager", null))
             .Callback(() => tcs.TrySetResult())
             .Returns(Task.CompletedTask);
 
         await worker.StartAsync(CancellationToken.None);
         try
         {
-            queue.EnqueueOperatorEscalation(booking, "Resto", "operator@test.com", "Needs manager");
+            bool enqueued = queue.EnqueueOperatorEscalation(booking, "Resto", "operator@test.com", "Needs manager");
+            Assert.True(enqueued);
             await Task.WhenAny(tcs.Task, Task.Delay(2000));
             Assert.True(tcs.Task.IsCompletedSuccessfully);
-            notify.Verify(n => n.NotifyOperatorEscalationAsync(booking, "Resto", "operator@test.com", "Needs manager"), Times.Once);
+            notify.Verify(n => n.NotifyOperatorEscalationAsync(booking, "Resto", "operator@test.com", "Needs manager", null), Times.Once);
         }
         finally
         {

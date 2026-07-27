@@ -154,10 +154,13 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             audit.HasKey(x => x.Id);
             audit.Property(x => x.Action).IsRequired();
             audit.Property(x => x.Outcome).IsRequired();
+            audit.Property(x => x.OperatorPrincipalIdSnapshot).IsRequired();
+            audit.Property(x => x.RestaurantIdSnapshot).IsRequired();
+            audit.Property(x => x.RestaurantNameSnapshot).IsRequired();
             audit.HasOne(x => x.OperatorPrincipal)
                 .WithMany()
                 .HasForeignKey(x => x.OperatorPrincipalId)
-                .OnDelete(DeleteBehavior.Cascade);
+                .OnDelete(DeleteBehavior.SetNull);
             audit.HasOne(x => x.OperatorAgentCredential)
                 .WithMany()
                 .HasForeignKey(x => x.OperatorAgentCredentialId)
@@ -165,7 +168,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             audit.HasOne(x => x.Restaurant)
                 .WithMany()
                 .HasForeignKey(x => x.RestaurantId)
-                .OnDelete(DeleteBehavior.Cascade);
+                .OnDelete(DeleteBehavior.SetNull);
             audit.HasOne(x => x.Booking)
                 .WithMany()
                 .HasForeignKey(x => x.BookingId)

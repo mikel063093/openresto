@@ -134,13 +134,132 @@ public sealed class OperatorReservationOwnershipIntegrationTests(TestWebAppFacto
         Assert.Contains(db.OperatorActionAudits.ToList(), x => x.BookingId == created.Id && x.Action == "reservation.escalate" && x.Outcome == "success");
     }
 
-    private async Task<(int restaurantId, int sectionId, int tableId)> SeedRestaurantGraphAsync()
+    [Fact]
+    public async Task ScopedOperatorCannotCreateReservation_WithCrossRestaurantTableOrSectionIds()
+    {
+        (int restaurantId, int sectionId, int tableId) scoped = await SeedRestaurantGraphAsync("Scoped");
+        (int restaurantId, int sectionId, int tableId) other = await SeedRestaurantGraphAsync("Other");
+        string scopedToken = await SeedOperatorTokenAsync("owner-cross-create@test.com", scoped.restaurantId);
+        string otherToken = await SeedOperatorTokenAsync("owner-cross-create-other@test.com", other.restaurantId);
+
+        HttpClient scopedClient = _factory.CreateClient();
+        scopedClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", scopedToken);
+
+        DateTime bookingDate = DateTime.UtcNow.AddDays(9).Date.AddHours(12);
+        HttpResponseMessage rejected = await scopedClient.PostAsJsonAsync(
+            $"/api/internal/operators/restaurants/{scoped.restaurantId}/reservations",
+            new
+            {
+                restaurantId = scoped.restaurantId,
+                sectionId = other.sectionId,
+                tableId = other.tableId,
+                date = bookingDate,
+                customerEmail = "guest@example.com",
+                customerName = "Guest",
+                seats = 2
+            });
+
+        Assert.Equal(HttpStatusCode.BadRequest, rejected.StatusCode);
+
+        using (IServiceScope scope = _factory.Services.CreateScope())
+        {
+            AppDbContext db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            Assert.DoesNotContain(db.Bookings.ToList(), x => x.TableId == other.tableId || x.SectionId == other.sectionId);
+        }
+
+        HttpClient otherClient = _factory.CreateClient();
+        otherClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", otherToken);
+
+        HttpResponseMessage validOtherCreate = await otherClient.PostAsJsonAsync(
+            $"/api/internal/operators/restaurants/{other.restaurantId}/reservations",
+            new
+            {
+                restaurantId = other.restaurantId,
+                sectionId = other.sectionId,
+                tableId = other.tableId,
+                date = bookingDate,
+                customerEmail = "other@example.com",
+                customerName = "Other Guest",
+                seats = 2
+            });
+
+        Assert.Equal(HttpStatusCode.Created, validOtherCreate.StatusCode);
+    }
+
+    [Fact]
+    public async Task ScopedOperatorCannotUpdateReservation_WithCrossRestaurantTableOrSectionIds()
+    {
+        (int restaurantId, int sectionId, int tableId) scoped = await SeedRestaurantGraphAsync("Scoped Update");
+        (int restaurantId, int sectionId, int tableId) other = await SeedRestaurantGraphAsync("Other Update");
+        string scopedToken = await SeedOperatorTokenAsync("owner-cross-update@test.com", scoped.restaurantId);
+        string otherToken = await SeedOperatorTokenAsync("owner-cross-update-other@test.com", other.restaurantId);
+
+        HttpClient scopedClient = _factory.CreateClient();
+        scopedClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", scopedToken);
+
+        DateTime bookingDate = DateTime.UtcNow.AddDays(10).Date.AddHours(12);
+        BookingDto created = (await (await scopedClient.PostAsJsonAsync(
+            $"/api/internal/operators/restaurants/{scoped.restaurantId}/reservations",
+            new
+            {
+                restaurantId = scoped.restaurantId,
+                sectionId = scoped.sectionId,
+                tableId = scoped.tableId,
+                date = bookingDate,
+                customerEmail = "guest@example.com",
+                customerName = "Guest",
+                seats = 2
+            })).Content.ReadFromJsonAsync<BookingDto>())!;
+
+        HttpResponseMessage rejected = await scopedClient.PutAsJsonAsync(
+            $"/api/internal/operators/reservations/{created.Id}",
+            new
+            {
+                sectionId = other.sectionId,
+                tableId = other.tableId,
+                date = bookingDate.AddHours(1),
+                customerEmail = "guest@example.com",
+                customerName = "Guest",
+                seats = 2
+            });
+
+        Assert.Equal(HttpStatusCode.BadRequest, rejected.StatusCode);
+
+        using (IServiceScope scope = _factory.Services.CreateScope())
+        {
+            AppDbContext db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            Booking unchanged = db.Bookings.Single(x => x.Id == created.Id);
+            Assert.Equal(scoped.tableId, unchanged.TableId);
+            Assert.Equal(scoped.sectionId, unchanged.SectionId);
+            Assert.DoesNotContain(db.Bookings.ToList(), x => x.Id == created.Id && (x.TableId == other.tableId || x.SectionId == other.sectionId));
+        }
+
+        HttpClient otherClient = _factory.CreateClient();
+        otherClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", otherToken);
+
+        HttpResponseMessage validOtherCreate = await otherClient.PostAsJsonAsync(
+            $"/api/internal/operators/restaurants/{other.restaurantId}/reservations",
+            new
+            {
+                restaurantId = other.restaurantId,
+                sectionId = other.sectionId,
+                tableId = other.tableId,
+                date = bookingDate.AddHours(1),
+                customerEmail = "other@example.com",
+                customerName = "Other Guest",
+                seats = 2
+            });
+
+        Assert.Equal(HttpStatusCode.Created, validOtherCreate.StatusCode);
+    }
+
+    private async Task<(int restaurantId, int sectionId, int tableId)> SeedRestaurantGraphAsync(string name = "Ownership Test")
     {
         using IServiceScope scope = _factory.Services.CreateScope();
         AppDbContext db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         var restaurant = new Restaurant
         {
-            Name = "Ownership Test",
+            Name = name,
             OpenTime = "11:00",
             CloseTime = "13:00",
             Timezone = "UTC",

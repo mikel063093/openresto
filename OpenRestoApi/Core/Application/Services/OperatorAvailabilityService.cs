@@ -23,7 +23,9 @@ public sealed class OperatorAvailabilityService(
             throw new NotFoundException("Restaurant not found.");
         }
 
-        return await _availabilityService.GetAvailabilityAsync(restaurantId, bookingDate, seats);
+        AvailabilityResponseDto response = await _availabilityService.GetAvailabilityAsync(restaurantId, bookingDate, seats);
+        await WriteAuditAsync(identity, restaurantId, null, "availability.read", "success", null);
+        return response;
     }
 
     private async Task WriteAuditAsync(
@@ -37,8 +39,11 @@ public sealed class OperatorAvailabilityService(
         _db.OperatorActionAudits.Add(new Core.Domain.OperatorActionAudit
         {
             OperatorPrincipalId = identity.OperatorId,
+            OperatorPrincipalIdSnapshot = identity.OperatorId,
             OperatorAgentCredentialId = identity.CredentialId,
             RestaurantId = restaurantId,
+            RestaurantIdSnapshot = restaurantId,
+            RestaurantNameSnapshot = (await _db.Restaurants.FindAsync(restaurantId))?.Name ?? string.Empty,
             BookingId = bookingId,
             Action = action,
             Outcome = outcome,

@@ -170,27 +170,36 @@ public sealed class BookingNotificationService(
             ));
     }
 
-    public async Task NotifyOperatorEscalationAsync(Booking booking, string restaurantName, string operatorIdentifier, string reason)
+    public async Task NotifyOperatorEscalationAsync(Booking booking, string restaurantName, string operatorIdentifier, string reason, int? notificationId = null)
     {
         _log.LogInformation("[Notif] OperatorEscalation: ref={Ref} restaurant={Restaurant} operator={Operator}",
             booking.BookingRef, restaurantName, operatorIdentifier);
 
-        var notification = new AdminNotification
+        AdminNotification notification;
+        if (notificationId.HasValue)
         {
-            RestaurantId = booking.RestaurantId,
-            BookingId = booking.Id,
-            BookingRef = booking.BookingRef,
-            Type = NotificationType.OperatorEscalation,
-            CustomerName = booking.CustomerName ?? "Guest",
-            BookingDate = booking.Date,
-            Seats = booking.Seats,
-            RestaurantName = restaurantName,
-            IsRead = false,
-            CreatedAt = DateTime.UtcNow,
-            PushError = null,
-        };
+            notification = await _notificationRepository.FindByIdAsync(notificationId.Value)
+                ?? throw new InvalidOperationException("Escalation notification intent not found.");
+        }
+        else
+        {
+            notification = new AdminNotification
+            {
+                RestaurantId = booking.RestaurantId,
+                BookingId = booking.Id,
+                BookingRef = booking.BookingRef,
+                Type = NotificationType.OperatorEscalation,
+                CustomerName = booking.CustomerName ?? "Guest",
+                BookingDate = booking.Date,
+                Seats = booking.Seats,
+                RestaurantName = restaurantName,
+                IsRead = false,
+                CreatedAt = DateTime.UtcNow,
+                PushError = null,
+            };
 
-        await _notificationRepository.AddAsync(notification);
+            await _notificationRepository.AddAsync(notification);
+        }
 
         string localTime = FormatUtcAsLocalTime(booking.Date);
         await SendPushAsync(

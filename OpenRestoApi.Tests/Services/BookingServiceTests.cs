@@ -184,7 +184,7 @@ public class BookingServiceTests
 
         var holdMock = new Mock<IHoldService>();
         holdMock
-            .Setup(h => h.IsTableHeld(It.IsAny<int>(), It.IsAny<DateTime>(), It.IsAny<string?>()))
+            .Setup(h => h.IsTableHeld(It.IsAny<int>(), It.IsAny<DateTime>(), It.IsAny<string?>(), It.IsAny<int>()))
             .Returns(true);
 
         BookingService svc = CreateService(db, holdMock.Object);
@@ -212,7 +212,7 @@ public class BookingServiceTests
 
         var holdMock = new Mock<IHoldService>();
         holdMock
-            .Setup(h => h.IsTableHeld(It.IsAny<int>(), It.IsAny<DateTime>(), "my-hold-id"))
+            .Setup(h => h.IsTableHeld(It.IsAny<int>(), It.IsAny<DateTime>(), "my-hold-id", It.IsAny<int>()))
             .Returns(false);
 
         BookingService svc = CreateService(db, holdMock.Object);
@@ -230,6 +230,79 @@ public class BookingServiceTests
         await svc.CreateBookingAsync(dto);
 
         holdMock.Verify(h => h.ReleaseHold("my-hold-id"), Times.Once);
+    }
+
+    [Fact]
+    public async Task CreateBookingAsync_Throws_WhenTableBelongsToDifferentRestaurant()
+    {
+        using AppDbContext db = TestDbFactory.Create(nameof(CreateBookingAsync_Throws_WhenTableBelongsToDifferentRestaurant));
+        TestSeed.BasicRestaurant(db);
+        db.Restaurants.Add(new Restaurant { Id = 2, Name = "Other Restaurant", Timezone = "UTC" });
+        db.Sections.Add(new Section { Id = 2, Name = "Other Section", RestaurantId = 2 });
+        db.Tables.Add(new Table { Id = 2, Name = "Other Table", Seats = 4, SectionId = 2 });
+        await db.SaveChangesAsync();
+
+        BookingService svc = CreateService(db);
+
+        ValidationException ex = await Assert.ThrowsAsync<ValidationException>(() =>
+            svc.CreateBookingAsync(new BookingDto
+            {
+                RestaurantId = 1,
+                SectionId = 2,
+                TableId = 2,
+                CustomerEmail = "guest@example.com",
+                Seats = 2,
+                Date = DateTime.UtcNow.AddDays(7)
+            }));
+
+        Assert.Contains("restaurant", ex.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Empty(db.Bookings);
+    }
+
+    [Fact]
+    public async Task UpdateBookingAsync_Throws_WhenTableAndSectionAreInconsistent()
+    {
+        using AppDbContext db = TestDbFactory.Create(nameof(UpdateBookingAsync_Throws_WhenTableAndSectionAreInconsistent));
+        TestSeed.BasicRestaurant(db);
+        DateTime bookingDate = DateTime.UtcNow.AddDays(7);
+        db.Sections.Add(new Section { Id = 2, Name = "Patio", RestaurantId = 1 });
+        db.Tables.Add(new Table { Id = 2, Name = "Patio Table", Seats = 4, SectionId = 2 });
+        db.Bookings.Add(new Booking
+        {
+            Id = 10,
+            BookingRef = "REF-UPDATE-1",
+            RestaurantId = 1,
+            SectionId = 1,
+            TableId = 1,
+            CustomerEmail = "guest@example.com",
+            CustomerName = "Guest",
+            Seats = 2,
+            Date = bookingDate,
+            EndTime = bookingDate.AddHours(1)
+        });
+        await db.SaveChangesAsync();
+
+        BookingService svc = CreateService(db);
+
+        ValidationException ex = await Assert.ThrowsAsync<ValidationException>(() =>
+            svc.UpdateBookingAsync(10, new BookingDto
+            {
+                Id = 10,
+                BookingRef = "REF-UPDATE-1",
+                RestaurantId = 1,
+                SectionId = 1,
+                TableId = 2,
+                CustomerEmail = "guest@example.com",
+                CustomerName = "Guest",
+                Seats = 2,
+                Date = bookingDate.AddDays(1)
+            }));
+
+        Assert.Contains("section", ex.Message, StringComparison.OrdinalIgnoreCase);
+
+        Booking unchanged = await db.Bookings.SingleAsync(x => x.Id == 10);
+        Assert.Equal(1, unchanged.TableId);
+        Assert.Equal(1, unchanged.SectionId);
     }
 
     // ── Configurable booking duration (#135) ────────────────────────────────

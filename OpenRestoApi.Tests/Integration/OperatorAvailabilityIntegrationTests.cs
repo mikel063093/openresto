@@ -32,6 +32,16 @@ public sealed class OperatorAvailabilityIntegrationTests(TestWebAppFactory facto
         Assert.NotNull(body);
         Assert.Equal(scopedRestaurantId, body!.RestaurantId);
 
+        using (IServiceScope auditScope = _factory.Services.CreateScope())
+        {
+            AppDbContext auditDb = auditScope.ServiceProvider.GetRequiredService<AppDbContext>();
+            Assert.Contains(auditDb.OperatorActionAudits.ToList(), x =>
+                x.RestaurantId == scopedRestaurantId &&
+                x.Action == "availability.read" &&
+                x.Outcome == "success" &&
+                x.Reason == null);
+        }
+
         HttpResponseMessage outOfScopeResponse = await operatorClient.GetAsync(
             $"/api/internal/operators/restaurants/{otherRestaurantId}/availability?date={date}&seats=2");
         Assert.Equal(HttpStatusCode.NotFound, outOfScopeResponse.StatusCode);

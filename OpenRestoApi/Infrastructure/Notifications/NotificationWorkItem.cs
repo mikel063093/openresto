@@ -11,4 +11,5 @@ public sealed record OperatorEscalationWork(
     Booking Booking,
     string RestaurantName,
     string OperatorIdentifier,
-    string Reason) : NotificationWorkItem;
+    string Reason,
+    int? NotificationId = null) : NotificationWorkItem;

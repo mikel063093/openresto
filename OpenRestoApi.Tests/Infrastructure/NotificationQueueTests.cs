@@ -71,8 +71,9 @@ public class NotificationQueueTests
         var queue = new NotificationQueue();
         Booking booking = CreateBooking();
 
-        queue.EnqueueOperatorEscalation(booking, "Test Resto", "operator@test.com", "Needs manager review");
+        bool enqueued = queue.EnqueueOperatorEscalation(booking, "Test Resto", "operator@test.com", "Needs manager review");
 
+        Assert.True(enqueued);
         Assert.True(queue.TryReadForTests(out NotificationWorkItem? item));
         var work = Assert.IsType<OperatorEscalationWork>(item);
         Assert.Same(booking, work.Booking);

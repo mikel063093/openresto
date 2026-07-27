@@ -16,6 +16,7 @@ public sealed class OperatorReservationService(
     AppDbContext db)
 {
     private const string OperatorChannel = "operator_mcp";
+    private const int MaxEscalationReasonLength = 1024;
 
     private readonly BookingService _bookingService = bookingService;
     private readonly IBookingRepository _bookingRepository = bookingRepository;
@@ -67,20 +68,29 @@ public sealed class OperatorReservationService(
     {
         OperatorIdentityContext identity = _operatorIdentityAccessor.GetCurrent();
         List<Booking> bookings = await _bookingRepository.GetByOperatorAsync(identity.OperatorId);
-        return _mapper.ToDtoList(bookings.Where(b => identity.RestaurantIds.Contains(b.RestaurantId))).ToList();
+        List<BookingDto> result = _mapper.ToDtoList(bookings.Where(b => identity.RestaurantIds.Contains(b.RestaurantId))).ToList();
+        await WriteAuditAsync(identity, identity.RestaurantIds.FirstOrDefault(), null, "reservation.list", "success", null);
+        return result;
     }
 
     public async Task<BookingDto?> GetOwnAsync(int id)
     {
         OperatorIdentityContext identity = _operatorIdentityAccessor.GetCurrent();
         Booking? booking = await TryGetOwnedScopedBookingAsync(id, identity, "reservation.read");
-        return booking is null ? null : _mapper.ToDto(booking);
+        if (booking is null)
+        {
+            return null;
+        }
+
+        await WriteAuditAsync(identity, booking.RestaurantId, booking.Id, "reservation.read", "success", null);
+        return _mapper.ToDto(booking);
     }
 
     public async Task<BookingDto> GetOwnOrThrowAsync(int id)
     {
         OperatorIdentityContext identity = _operatorIdentityAccessor.GetCurrent();
         Booking booking = await GetOwnedScopedBookingOrThrowAsync(id, identity, "reservation.read");
+        await WriteAuditAsync(identity, booking.RestaurantId, booking.Id, "reservation.read", "success", null);
         return _mapper.ToDto(booking);
     }
 
@@ -157,13 +167,54 @@ public sealed class OperatorReservationService(
             throw new ValidationException("Escalation reason is required.");
         }
 
-        _notificationQueue.EnqueueOperatorEscalation(
-            booking,
-            booking.Restaurant?.Name ?? string.Empty,
-            identity.OperatorIdentifier,
-            request.Reason.Trim());
+        string reason = request.Reason.Trim();
+        if (reason.Length > MaxEscalationReasonLength)
+        {
+            throw new ValidationException($"Escalation reason must be {MaxEscalationReasonLength} characters or fewer.");
+        }
 
-        await WriteAuditAsync(identity, booking.RestaurantId, booking.Id, "reservation.escalate", "success", request.Reason.Trim());
+        string restaurantName = booking.Restaurant?.Name ?? string.Empty;
+        var notification = new AdminNotification
+        {
+            RestaurantId = booking.RestaurantId,
+            BookingId = booking.Id,
+            BookingRef = booking.BookingRef,
+            Type = NotificationType.OperatorEscalation,
+            CustomerName = booking.CustomerName ?? "Guest",
+            BookingDate = booking.Date,
+            Seats = booking.Seats,
+            RestaurantName = restaurantName,
+            IsRead = false,
+            CreatedAt = DateTime.UtcNow,
+        };
+        _db.AdminNotifications.Add(notification);
+        await _db.SaveChangesAsync();
+
+        try
+        {
+            bool enqueued = _notificationQueue.EnqueueOperatorEscalation(
+                booking,
+                restaurantName,
+                identity.OperatorIdentifier,
+                reason,
+                notification.Id);
+
+            if (!enqueued)
+            {
+                notification.PushError = "Notification queue unavailable.";
+                await _db.SaveChangesAsync();
+                throw new InvalidOperationException("Failed to enqueue escalation notification.");
+            }
+        }
+        catch
+        {
+            notification.PushError ??= "Notification queue unavailable.";
+            await _db.SaveChangesAsync();
+            await WriteAuditAsync(identity, booking.RestaurantId, booking.Id, "reservation.escalate", "failed", "queue_enqueue_failed");
+            throw;
+        }
+
+        await WriteAuditAsync(identity, booking.RestaurantId, booking.Id, "reservation.escalate", "success", null);
         return new OperatorReservationActionResultDto(true, "Reservation escalated.", _mapper.ToDto(booking));
     }
 
@@ -207,8 +258,11 @@ public sealed class OperatorReservationService(
         _db.OperatorActionAudits.Add(new OperatorActionAudit
         {
             OperatorPrincipalId = identity.OperatorId,
+            OperatorPrincipalIdSnapshot = identity.OperatorId,
             OperatorAgentCredentialId = identity.CredentialId,
             RestaurantId = restaurantId == 0 ? identity.RestaurantIds.FirstOrDefault() : restaurantId,
+            RestaurantIdSnapshot = restaurantId == 0 ? identity.RestaurantIds.FirstOrDefault() : restaurantId,
+            RestaurantNameSnapshot = await ResolveRestaurantNameSnapshotAsync(restaurantId, bookingId),
             BookingId = bookingId,
             Action = action,
             Outcome = outcome,
@@ -225,5 +279,25 @@ public sealed class OperatorReservationService(
         {
             throw new NotFoundException("Restaurant not found.");
         }
+    }
+
+    private async Task<string> ResolveRestaurantNameSnapshotAsync(int restaurantId, int? bookingId)
+    {
+        if (bookingId.HasValue)
+        {
+            Booking? booking = await _bookingRepository.GetByIdAsync(bookingId.Value);
+            if (!string.IsNullOrWhiteSpace(booking?.Restaurant?.Name))
+            {
+                return booking.Restaurant.Name;
+            }
+        }
+
+        if (restaurantId == 0)
+        {
+            return string.Empty;
+        }
+
+        Restaurant? restaurant = await _db.Restaurants.FindAsync(restaurantId);
+        return restaurant?.Name ?? string.Empty;
     }
 }

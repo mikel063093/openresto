@@ -28,6 +28,8 @@ public class BookingService(
     private readonly IBookingConfirmationService? _confirmationService = confirmationService;
     private readonly INotificationQueue? _notificationQueue = notificationQueue;
 
+    private sealed record BookingScopeValidationResult(Table Table, Section Section);
+
     /// <summary>
     /// Creates a booking after validating:
     /// 1. No confirmed booking exists for the same table on the same date.
@@ -83,6 +85,7 @@ public class BookingService(
         // After auto-assign resolution (or an explicit selection) both ids are guaranteed set.
         int tableId = bookingDto.TableId!.Value;
         int sectionId = bookingDto.SectionId!.Value;
+        BookingScopeValidationResult scope = await ValidateBookingScopeAsync(bookingDto.RestaurantId, tableId, sectionId);
 
         // 1. Check DB for an existing confirmed booking on the same table+date
         bool alreadyBooked = await _bookingRepository.IsTableBookedOnDateAsync(
@@ -104,7 +107,7 @@ public class BookingService(
         }
 
         // 3. Check for seat capacity
-        Table? table = await _tableRepository.GetByIdAsync(tableId);
+        Table? table = scope.Table;
         if (table != null && bookingDto.Seats > table.Seats)
         {
             throw new ConflictException($"This table only has {table.Seats} seats, but {bookingDto.Seats} guests were requested.");
@@ -126,8 +129,8 @@ public class BookingService(
         booking.Date = bookingDate; // Use normalized date
         booking.BookingRef = BookingRefGenerator.Generate();
         booking.EndTime = bookingDate.AddMinutes(restaurant.DefaultBookingDurationMinutes);
-        booking.Table = table!;
-        booking.Section = (await _sectionRepository.GetByIdAsync(sectionId))!;
+        booking.Table = scope.Table;
+        booking.Section = scope.Section;
         booking.Restaurant = restaurant;
 
         Booking newBooking = await _bookingRepository.AddAsync(booking);
@@ -238,13 +241,24 @@ public class BookingService(
     public virtual async Task UpdateBookingAsync(int id, BookingDto bookingDto)
     {
         _ = id; // Required by REST convention (PUT /bookings/{id}) but entity ID comes from DTO
+        if (bookingDto.TableId is null ^ bookingDto.SectionId is null)
+        {
+            throw new ValidationException("Specify both TableId and SectionId, or neither.");
+        }
+
+        BookingScopeValidationResult? scope = null;
+        if (bookingDto.TableId.HasValue && bookingDto.SectionId.HasValue)
+        {
+            scope = await ValidateBookingScopeAsync(bookingDto.RestaurantId, bookingDto.TableId.Value, bookingDto.SectionId.Value);
+        }
+
         Booking booking = _mapper.ToEntity(bookingDto);
         Restaurant? restaurant = await _restaurantRepository.GetByIdAsync(booking.RestaurantId);
 
         // Check for seat capacity if seats are being updated
         if (bookingDto.Seats > 0)
         {
-            Table? table = booking.TableId.HasValue ? await _tableRepository.GetByIdAsync(booking.TableId.Value) : null;
+            Table? table = scope?.Table;
             if (table != null && bookingDto.Seats > table.Seats)
             {
                 throw new ConflictException($"This table only has {table.Seats} seats, but {bookingDto.Seats} guests were requested.");
@@ -267,6 +281,33 @@ public class BookingService(
         }
 
         await _bookingRepository.UpdateAsync(booking);
+    }
+
+    private async Task<BookingScopeValidationResult> ValidateBookingScopeAsync(int restaurantId, int tableId, int sectionId)
+    {
+        Section? section = await _sectionRepository.GetByIdAsync(sectionId);
+        if (section is null)
+        {
+            throw new ValidationException("Section not found.");
+        }
+
+        if (section.RestaurantId != restaurantId)
+        {
+            throw new ValidationException("Section does not belong to the specified restaurant.");
+        }
+
+        Table? table = await _tableRepository.GetByIdAsync(tableId);
+        if (table is null)
+        {
+            throw new ValidationException("Table not found.");
+        }
+
+        if (table.SectionId != sectionId)
+        {
+            throw new ValidationException("Table does not belong to the specified section.");
+        }
+
+        return new BookingScopeValidationResult(table, section);
     }
 
     public virtual async Task DeleteBookingAsync(int id)
