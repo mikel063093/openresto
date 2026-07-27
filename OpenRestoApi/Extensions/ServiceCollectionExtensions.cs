@@ -242,6 +242,7 @@ public static class ServiceCollectionExtensions
 
         services.AddScoped<IPasswordService, PasswordService>();
         services.AddScoped<IJwtTokenService, JwtTokenService>();
+        services.AddScoped<IAdminActorAccessor, AdminActorAccessor>();
         services.AddScoped<ISecurityQuestionsService, SecurityQuestionsService>();
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<AdminUserService>();

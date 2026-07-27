@@ -31,6 +31,25 @@ public sealed class AdminOperatorCredentialsControllerTests(TestWebAppFactory fa
         Assert.StartsWith("ormcp.", issued.PlaintextToken, StringComparison.Ordinal);
         Assert.Equal("Turno PM", issued.Notes);
 
+        using (IServiceScope auditScope = _factory.Services.CreateScope())
+        {
+            AppDbContext auditDb = auditScope.ServiceProvider.GetRequiredService<AppDbContext>();
+            AdminCredentialManagementAudit issueAudit = Assert.Single(auditDb.AdminCredentialManagementAudits);
+            OperatorAgentCredential persistedCredential = Assert.Single(auditDb.OperatorAgentCredentials);
+
+            Assert.Equal("ISSUE", issueAudit.Action);
+            Assert.Equal(TestWebAppFactory.AdminEmail, issueAudit.ActorEmailSnapshot);
+            Assert.Equal("operator.one@test.com", issueAudit.TargetOperatorIdentifierSnapshot);
+            Assert.Equal(issued.CredentialId, issueAudit.OperatorAgentCredentialId);
+            Assert.Equal(persistedCredential.CredentialKeyId, issueAudit.CredentialKeyIdSnapshot);
+            Assert.Equal(6, issueAudit.TtlHoursSnapshot);
+            Assert.Equal(restaurantId.ToString(), issueAudit.ScopeRestaurantIdsSnapshot);
+            Assert.DoesNotContain(issued.PlaintextToken, issueAudit.ActorEmailSnapshot, StringComparison.Ordinal);
+            Assert.DoesNotContain(issued.PlaintextToken, issueAudit.TargetOperatorIdentifierSnapshot, StringComparison.Ordinal);
+            Assert.DoesNotContain(persistedCredential.TokenDigest, issueAudit.ActorEmailSnapshot, StringComparison.Ordinal);
+            Assert.DoesNotContain(persistedCredential.TokenDigest, issueAudit.TargetOperatorIdentifierSnapshot, StringComparison.Ordinal);
+        }
+
         HttpResponseMessage listResponse = await client.GetAsync("/api/admin/operator-credentials");
         Assert.Equal(HttpStatusCode.OK, listResponse.StatusCode);
         string listBody = await listResponse.Content.ReadAsStringAsync();
@@ -49,6 +68,17 @@ public sealed class AdminOperatorCredentialsControllerTests(TestWebAppFactory fa
             $"/api/admin/operator-credentials/{issued.CredentialId}/revoke",
             content: null);
         Assert.Equal(HttpStatusCode.NoContent, revokeResponse.StatusCode);
+
+        using (IServiceScope auditScope = _factory.Services.CreateScope())
+        {
+            AppDbContext auditDb = auditScope.ServiceProvider.GetRequiredService<AppDbContext>();
+            List<AdminCredentialManagementAudit> audits = auditDb.AdminCredentialManagementAudits.OrderBy(x => x.Id).ToList();
+            Assert.Equal(2, audits.Count);
+            Assert.Equal("REVOKE", audits[1].Action);
+            Assert.Equal(TestWebAppFactory.AdminEmail, audits[1].ActorEmailSnapshot);
+            Assert.Equal(issued.CredentialId, audits[1].OperatorAgentCredentialId);
+            Assert.Equal("operator.one@test.com", audits[1].TargetOperatorIdentifierSnapshot);
+        }
 
         HttpResponseMessage afterRevoke = await operatorClient.GetAsync(
             $"/api/internal/operators/restaurants/{restaurantId}/availability?date={date}&seats=2");

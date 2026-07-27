@@ -22,6 +22,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<OperatorRestaurantScope> OperatorRestaurantScopes { get; set; } = null!;
     public DbSet<OperatorAgentCredential> OperatorAgentCredentials { get; set; } = null!;
     public DbSet<OperatorActionAudit> OperatorActionAudits { get; set; } = null!;
+    public DbSet<AdminCredentialManagementAudit> AdminCredentialManagementAudits { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -93,6 +94,30 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             a.HasKey(x => x.Id);
             a.HasIndex(x => x.Email).IsUnique();
             a.Property(x => x.IsActive).HasDefaultValue(true);
+        });
+
+        modelBuilder.Entity<AdminCredentialManagementAudit>(audit =>
+        {
+            audit.HasKey(x => x.Id);
+            audit.Property(x => x.ActorEmailSnapshot).IsRequired();
+            audit.Property(x => x.TargetOperatorIdentifierSnapshot).IsRequired();
+            audit.Property(x => x.ScopeRestaurantIdsSnapshot).IsRequired();
+            audit.Property(x => x.Action).IsRequired();
+            audit.HasOne(x => x.ActorAdminCredential)
+                .WithMany()
+                .HasForeignKey(x => x.ActorAdminCredentialId)
+                .OnDelete(DeleteBehavior.SetNull);
+            audit.HasOne(x => x.TargetOperatorPrincipal)
+                .WithMany()
+                .HasForeignKey(x => x.TargetOperatorPrincipalId)
+                .OnDelete(DeleteBehavior.SetNull);
+            audit.HasOne(x => x.OperatorAgentCredential)
+                .WithMany()
+                .HasForeignKey(x => x.OperatorAgentCredentialId)
+                .OnDelete(DeleteBehavior.SetNull);
+            audit.HasIndex(x => x.CreatedAtUtc);
+            audit.HasIndex(x => new { x.TargetOperatorPrincipalId, x.CreatedAtUtc });
+            audit.HasIndex(x => new { x.OperatorAgentCredentialId, x.CreatedAtUtc });
         });
 
         modelBuilder.Entity<AdminNotification>(n =>

@@ -1,4 +1,6 @@
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using OpenRestoApi.Core.Application.DTOs;
 using OpenRestoApi.Core.Application.Services;
 using OpenRestoApi.Core.Domain;
@@ -14,7 +16,12 @@ public sealed class OperatorCredentialManagementServiceTests
         using AppDbContext db = TestDbFactory.Create(nameof(IssueAsync_NormalizesIdentifier_AndPersistsNonSecretMetadataOnly));
         SeedRestaurant(db, 7, "Centro");
 
-        var management = new OperatorCredentialManagementService(db, new OperatorCredentialService(db));
+        SeedAdmin(db, "  Boss@Test.com ");
+
+        var management = new OperatorCredentialManagementService(
+            db,
+            new OperatorCredentialService(db),
+            new StubAdminActorAccessor("  Boss@Test.com ", 17));
 
         var issued = await management.IssueAsync(new IssueOperatorCredentialRequestDto
         {
@@ -29,6 +36,18 @@ public sealed class OperatorCredentialManagementServiceTests
 
         OperatorAgentCredential stored = await db.OperatorAgentCredentials.SingleAsync();
         Assert.NotEqual(issued.PlaintextToken, stored.TokenDigest);
+
+        AdminCredentialManagementAudit audit = await db.AdminCredentialManagementAudits.SingleAsync();
+        Assert.Equal("ISSUE", audit.Action);
+        Assert.Equal(17, audit.ActorAdminCredentialId);
+        Assert.Equal("boss@test.com", audit.ActorEmailSnapshot);
+        Assert.Equal(stored.Id, audit.OperatorAgentCredentialId);
+        Assert.Equal(stored.CredentialKeyId, audit.CredentialKeyIdSnapshot);
+        Assert.Equal("operator@test.com", audit.TargetOperatorIdentifierSnapshot);
+        Assert.Equal("7", audit.ScopeRestaurantIdsSnapshot);
+        Assert.Equal(8, audit.TtlHoursSnapshot);
+        AssertAuditDoesNotContainSecret(audit, issued.PlaintextToken);
+        AssertAuditDoesNotContainSecret(audit, stored.TokenDigest);
 
         OperatorPrincipal principal = await db.OperatorPrincipals.Include(x => x.RestaurantScopes).SingleAsync();
         Assert.Equal("operator@test.com", principal.NormalizedIdentifier);
@@ -47,7 +66,10 @@ public sealed class OperatorCredentialManagementServiceTests
         using AppDbContext db = TestDbFactory.Create(nameof(IssueAsync_Rejects_InvalidScope_And_BoundedFields));
         SeedRestaurant(db, 7, "Centro");
 
-        var management = new OperatorCredentialManagementService(db, new OperatorCredentialService(db));
+        var management = new OperatorCredentialManagementService(
+            db,
+            new OperatorCredentialService(db),
+            new StubAdminActorAccessor("boss@test.com", 17));
 
         await Assert.ThrowsAsync<OpenRestoApi.Core.Application.Exceptions.ValidationException>(() =>
             management.IssueAsync(new IssueOperatorCredentialRequestDto
@@ -87,7 +109,12 @@ public sealed class OperatorCredentialManagementServiceTests
         SeedRestaurant(db, 7, "Centro");
 
         var credentialService = new OperatorCredentialService(db);
-        var management = new OperatorCredentialManagementService(db, credentialService);
+        SeedAdmin(db, "boss@test.com");
+
+        var management = new OperatorCredentialManagementService(
+            db,
+            credentialService,
+            new StubAdminActorAccessor("boss@test.com", 17));
         var issued = await management.IssueAsync(new IssueOperatorCredentialRequestDto
         {
             Identifier = "operator@test.com",
@@ -99,6 +126,52 @@ public sealed class OperatorCredentialManagementServiceTests
         await management.RevokeAsync(issued.CredentialId, DateTime.UtcNow.AddMinutes(5));
 
         Assert.Null(await credentialService.ValidateAsync(issued.PlaintextToken, DateTime.UtcNow.AddMinutes(6)));
+
+        List<AdminCredentialManagementAudit> audits = await db.AdminCredentialManagementAudits
+            .OrderBy(x => x.Id)
+            .ToListAsync();
+
+        Assert.Equal(2, audits.Count);
+        Assert.Equal("ISSUE", audits[0].Action);
+        Assert.Equal("REVOKE", audits[1].Action);
+        Assert.Equal(issued.CredentialId, audits[1].OperatorAgentCredentialId);
+        Assert.Equal("operator@test.com", audits[1].TargetOperatorIdentifierSnapshot);
+        Assert.Equal("7", audits[1].ScopeRestaurantIdsSnapshot);
+        Assert.Equal(8, audits[1].TtlHoursSnapshot);
+    }
+
+    [Fact]
+    public async Task IssueAsync_RollsBackCredential_WhenAuditPersistenceFails()
+    {
+        using var connection = new SqliteConnection("Data Source=:memory:");
+        connection.Open();
+
+        DbContextOptions<AppDbContext> options = new DbContextOptionsBuilder<AppDbContext>()
+            .UseSqlite(connection)
+            .AddInterceptors(new ThrowOnAuditSaveInterceptor())
+            .Options;
+
+        using AppDbContext db = new(options);
+        await db.Database.EnsureCreatedAsync();
+
+        SeedRestaurant(db, 7, "Centro");
+        SeedAdmin(db, "boss@test.com");
+
+        var management = new OperatorCredentialManagementService(
+            db,
+            new OperatorCredentialService(db),
+            new StubAdminActorAccessor("boss@test.com", 17));
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            management.IssueAsync(new IssueOperatorCredentialRequestDto
+            {
+                Identifier = "operator@test.com",
+                RestaurantIds = new List<int> { 7 },
+                TtlHours = 6
+            }, DateTime.UtcNow));
+
+        Assert.Empty(db.OperatorAgentCredentials);
+        Assert.Empty(db.AdminCredentialManagementAudits);
     }
 
     private static void SeedRestaurant(AppDbContext db, int id, string name)
@@ -112,5 +185,65 @@ public sealed class OperatorCredentialManagementServiceTests
             Timezone = "UTC",
         });
         db.SaveChanges();
+    }
+
+    private static void SeedAdmin(AppDbContext db, string email)
+    {
+        db.AdminCredentials.Add(new AdminCredential
+        {
+            Email = email.Trim().ToLowerInvariant(),
+            PasswordHash = "hash",
+            PasswordSalt = "salt",
+            Role = AdminRole.SuperAdmin,
+            IsActive = true
+        });
+        db.SaveChanges();
+    }
+
+    private sealed class StubAdminActorAccessor(string email, int? credentialId) : IAdminActorAccessor
+    {
+        public Task<AdminActorSnapshot> GetRequiredSnapshotAsync(CancellationToken cancellationToken = default) =>
+            Task.FromResult(new AdminActorSnapshot(email.Trim().ToLowerInvariant(), credentialId));
+    }
+
+    private sealed class ThrowOnAuditSaveInterceptor : SaveChangesInterceptor
+    {
+        private static void ThrowIfAuditPending(DbContextEventData eventData)
+        {
+            if (eventData.Context?.ChangeTracker.Entries<AdminCredentialManagementAudit>()
+                .Any(x => x.State == EntityState.Added) == true)
+            {
+                throw new InvalidOperationException("Simulated audit persistence failure.");
+            }
+        }
+
+        public override InterceptionResult<int> SavingChanges(
+            DbContextEventData eventData,
+            InterceptionResult<int> result)
+        {
+            ThrowIfAuditPending(eventData);
+            return base.SavingChanges(eventData, result);
+        }
+
+        public override ValueTask<InterceptionResult<int>> SavingChangesAsync(
+            DbContextEventData eventData,
+            InterceptionResult<int> result,
+            CancellationToken cancellationToken = default)
+        {
+            ThrowIfAuditPending(eventData);
+            return base.SavingChangesAsync(eventData, result, cancellationToken);
+        }
+    }
+
+    private static void AssertAuditDoesNotContainSecret(AdminCredentialManagementAudit audit, string secret)
+    {
+        IEnumerable<string> persistedStrings = typeof(AdminCredentialManagementAudit)
+            .GetProperties()
+            .Where(x => x.PropertyType == typeof(string))
+            .Select(x => (string?)x.GetValue(audit))
+            .Where(x => !string.IsNullOrEmpty(x))!
+            .Cast<string>();
+
+        Assert.DoesNotContain(secret, string.Join("|", persistedStrings), StringComparison.Ordinal);
     }
 }

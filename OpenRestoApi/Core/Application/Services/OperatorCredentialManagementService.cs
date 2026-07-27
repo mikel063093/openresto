@@ -8,7 +8,8 @@ namespace OpenRestoApi.Core.Application.Services;
 
 public sealed class OperatorCredentialManagementService(
     AppDbContext db,
-    OperatorCredentialService credentialService)
+    OperatorCredentialService credentialService,
+    IAdminActorAccessor adminActorAccessor)
 {
     private const int DefaultTtlHours = 8;
     private const int MaxTtlHours = 24;
@@ -17,12 +18,14 @@ public sealed class OperatorCredentialManagementService(
 
     private readonly AppDbContext _db = db;
     private readonly OperatorCredentialService _credentialService = credentialService;
+    private readonly IAdminActorAccessor _adminActorAccessor = adminActorAccessor;
 
     public async Task<IssueOperatorCredentialResponseDto> IssueAsync(
         IssueOperatorCredentialRequestDto request,
         DateTime? nowUtc = null)
     {
         DateTime now = nowUtc ?? DateTime.UtcNow;
+        AdminActorSnapshot actor = await _adminActorAccessor.GetRequiredSnapshotAsync();
         string normalizedIdentifier = NormalizeIdentifier(request.Identifier);
         string? notes = NormalizeNotes(request.Notes);
         int ttlHours = request.TtlHours ?? DefaultTtlHours;
@@ -79,21 +82,41 @@ public sealed class OperatorCredentialManagementService(
             });
         }
 
-        await _db.SaveChangesAsync();
+        return await _db.Database.CreateExecutionStrategy().ExecuteAsync(async () =>
+        {
+            await using var transaction = _db.Database.IsRelational()
+                ? await _db.Database.BeginTransactionAsync()
+                : null;
 
-        IssuedOperatorCredential issued = await _credentialService.IssueAsync(
-            principal.Id,
-            TimeSpan.FromHours(ttlHours),
-            notes,
-            now);
+            await _db.SaveChangesAsync();
 
-        OperatorAgentCredential credential = await _db.OperatorAgentCredentials
-            .Include(x => x.OperatorPrincipal)
-            .ThenInclude(x => x.RestaurantScopes)
-            .ThenInclude(x => x.Restaurant)
-            .SingleAsync(x => x.Id == issued.CredentialId);
+            IssuedOperatorCredential issued = await _credentialService.IssueAsync(
+                principal.Id,
+                TimeSpan.FromHours(ttlHours),
+                notes,
+                now);
 
-        return ToIssueDto(credential, issued.PlaintextToken);
+            OperatorAgentCredential credential = await _db.OperatorAgentCredentials
+                .Include(x => x.OperatorPrincipal)
+                .ThenInclude(x => x.RestaurantScopes)
+                .ThenInclude(x => x.Restaurant)
+                .SingleAsync(x => x.Id == issued.CredentialId);
+
+            _db.AdminCredentialManagementAudits.Add(CreateAudit(
+                actor,
+                credential,
+                credential.OperatorPrincipal.NormalizedIdentifier,
+                "ISSUE",
+                now));
+            await _db.SaveChangesAsync();
+
+            if (transaction is not null)
+            {
+                await transaction.CommitAsync();
+            }
+
+            return ToIssueDto(credential, issued.PlaintextToken);
+        });
     }
 
     public async Task<IReadOnlyList<OperatorCredentialListItemDto>> ListAsync()
@@ -111,15 +134,65 @@ public sealed class OperatorCredentialManagementService(
 
     public async Task RevokeAsync(int credentialId, DateTime? nowUtc = null)
     {
+        DateTime now = nowUtc ?? DateTime.UtcNow;
+        AdminActorSnapshot actor = await _adminActorAccessor.GetRequiredSnapshotAsync();
         OperatorAgentCredential credential = await _db.OperatorAgentCredentials
+            .Include(x => x.OperatorPrincipal)
+            .ThenInclude(x => x.RestaurantScopes)
             .SingleOrDefaultAsync(x => x.Id == credentialId)
             ?? throw new NotFoundException("Credential not found.");
 
         if (!credential.RevokedAt.HasValue)
         {
-            credential.RevokedAt = nowUtc ?? DateTime.UtcNow;
-            await _db.SaveChangesAsync();
+            await _db.Database.CreateExecutionStrategy().ExecuteAsync(async () =>
+            {
+                await using var transaction = _db.Database.IsRelational()
+                    ? await _db.Database.BeginTransactionAsync()
+                    : null;
+
+                credential.RevokedAt = now;
+                _db.AdminCredentialManagementAudits.Add(CreateAudit(
+                    actor,
+                    credential,
+                    credential.OperatorPrincipal.NormalizedIdentifier,
+                    "REVOKE",
+                    now));
+                await _db.SaveChangesAsync();
+
+                if (transaction is not null)
+                {
+                    await transaction.CommitAsync();
+                }
+            });
         }
+    }
+
+    private static AdminCredentialManagementAudit CreateAudit(
+        AdminActorSnapshot actor,
+        OperatorAgentCredential credential,
+        string targetOperatorIdentifier,
+        string action,
+        DateTime createdAtUtc)
+    {
+        int ttlHours = (int)Math.Round((credential.ExpiresAt - credential.IssuedAt).TotalHours, MidpointRounding.AwayFromZero);
+
+        return new AdminCredentialManagementAudit
+        {
+            ActorAdminCredentialId = actor.AdminCredentialId,
+            ActorEmailSnapshot = actor.NormalizedEmail,
+            TargetOperatorPrincipalId = credential.OperatorPrincipalId,
+            OperatorAgentCredentialId = credential.Id,
+            CredentialKeyIdSnapshot = credential.CredentialKeyId,
+            TargetOperatorIdentifierSnapshot = targetOperatorIdentifier,
+            ScopeRestaurantIdsSnapshot = string.Join(",",
+                credential.OperatorPrincipal.RestaurantScopes
+                    .Select(x => x.RestaurantId)
+                    .Distinct()
+                    .OrderBy(x => x)),
+            TtlHoursSnapshot = ttlHours > 0 ? ttlHours : null,
+            Action = action,
+            CreatedAtUtc = createdAtUtc,
+        };
     }
 
     private static void ValidateRequest(
