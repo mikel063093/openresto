@@ -113,7 +113,7 @@ internal static class OperatorMcpDocumentation
     </p>
     <div class="callout">
       Use <code>POST /api/mcp/operator</code> only from an MCP client that can speak Streamable HTTP and send
-      <code>Authorization: Bearer ...</code>. Do not use Scalar REST "Try it" against this endpoint as if it were a normal JSON REST controller.
+      an <code>Authorization: Bearer [REDACTED]</code> header. Do not use Scalar REST "Try it" against this endpoint as if it were a normal JSON REST controller.
     </div>
   </header>
 
@@ -135,7 +135,7 @@ internal static class OperatorMcpDocumentation
       <li>Transport: Streamable HTTP</li>
       <li>Protocol: JSON-RPC carried over MCP HTTP transport</li>
       <li>Endpoint: <code>POST /api/mcp/operator</code></li>
-      <li>Auth: <code>Authorization: Bearer [REDACTED]</code>, with the redacted value sourced from <code>OPENRESTO_MCP_TOKEN</code></li>
+      <li>Auth: an <code>Authorization: Bearer [REDACTED]</code> header, with the redacted value sourced from <code>OPENRESTO_MCP_TOKEN</code>.</li>
       <li>Client syntax can change across releases. Follow your installed client documentation, but preserve the same URL and Bearer-header principle.</li>
     </ul>
   </section>
