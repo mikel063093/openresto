@@ -104,13 +104,14 @@ describe("operator credential admin API", () => {
     const result = await issueOperatorCredential({
       identifier: "op@test.com",
       restaurantIds: [7],
-      ttlHours: 6,
+      expirationPreset: "one_day",
       notes: "Turno tarde",
     });
 
     expect(result).toEqual(issued);
     expect(mockFetch.mock.calls[0][0]).toContain("/api/admin/operator-credentials");
     expect(mockFetch.mock.calls[0][1].method).toBe("POST");
+    expect(mockFetch.mock.calls[0][1].body).toContain('"expirationPreset":"one_day"');
   });
 
   it("posts revoke operator credential request", async () => {

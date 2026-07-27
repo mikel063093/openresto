@@ -11,7 +11,7 @@ public sealed class OperatorCredentialService(AppDbContext db)
 
     public async Task<IssuedOperatorCredential> IssueAsync(
         int operatorPrincipalId,
-        TimeSpan ttl,
+        OperatorCredentialExpirationPresetDefinition expirationPreset,
         string? notes = null,
         IReadOnlyCollection<int>? restaurantIds = null,
         DateTime? nowUtc = null)
@@ -31,7 +31,8 @@ public sealed class OperatorCredentialService(AppDbContext db)
             CredentialKeyId = keyId,
             TokenDigest = ComputeDigest(secret),
             IssuedAt = issuedAt,
-            ExpiresAt = issuedAt.Add(ttl),
+            ExpiresAt = expirationPreset.ResolveExpiresAtUtc(issuedAt),
+            ExpirationPreset = expirationPreset.Value,
             Notes = notes,
         };
 
@@ -56,7 +57,7 @@ public sealed class OperatorCredentialService(AppDbContext db)
         }));
         await _db.SaveChangesAsync();
 
-        return new IssuedOperatorCredential(credential.Id, keyId, token, credential.ExpiresAt);
+        return new IssuedOperatorCredential(credential.Id, keyId, token, credential.ExpiresAt, credential.ExpirationPreset);
     }
 
     public async Task<OperatorCredentialValidationResult?> ValidateAsync(string token, DateTime? nowUtc = null)
@@ -82,7 +83,12 @@ public sealed class OperatorCredentialService(AppDbContext db)
         }
 
         DateTime now = nowUtc ?? DateTime.UtcNow;
-        if (credential.RevokedAt.HasValue || credential.ExpiresAt <= now || !credential.OperatorPrincipal.IsActive)
+        if (credential.RevokedAt.HasValue || !credential.OperatorPrincipal.IsActive)
+        {
+            return null;
+        }
+
+        if (credential.ExpiresAt.HasValue && credential.ExpiresAt.Value <= now)
         {
             return null;
         }
@@ -138,7 +144,8 @@ public sealed record IssuedOperatorCredential(
     int CredentialId,
     string CredentialKeyId,
     string PlaintextToken,
-    DateTime ExpiresAtUtc);
+    DateTime? ExpiresAtUtc,
+    string? ExpirationPreset);
 
 public sealed record OperatorCredentialValidationResult(
     OperatorPrincipal Operator,

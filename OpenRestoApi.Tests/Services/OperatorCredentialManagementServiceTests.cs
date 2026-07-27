@@ -27,7 +27,7 @@ public sealed class OperatorCredentialManagementServiceTests
         {
             Identifier = "  OPERATOR@Test.com ",
             RestaurantIds = new List<int> { 7 },
-            TtlHours = 8,
+            ExpirationPreset = "eight_hours",
             Notes = "Soporte"
         }, DateTime.UtcNow);
 
@@ -46,6 +46,7 @@ public sealed class OperatorCredentialManagementServiceTests
         Assert.Equal("operator@test.com", audit.TargetOperatorIdentifierSnapshot);
         Assert.Equal("7", audit.ScopeRestaurantIdsSnapshot);
         Assert.Equal(8, audit.TtlHoursSnapshot);
+        Assert.Equal("eight_hours", audit.ExpirationPresetSnapshot);
         AssertAuditDoesNotContainSecret(audit, issued.PlaintextToken);
         AssertAuditDoesNotContainSecret(audit, stored.TokenDigest);
 
@@ -90,7 +91,7 @@ public sealed class OperatorCredentialManagementServiceTests
             {
                 Identifier = "operator@test.com",
                 RestaurantIds = new List<int> { 7 },
-                TtlHours = 25,
+                ExpirationPreset = "twenty_five_hours",
             }, DateTime.UtcNow));
 
         await Assert.ThrowsAsync<OpenRestoApi.Core.Application.Exceptions.ValidationException>(() =>
@@ -138,6 +139,65 @@ public sealed class OperatorCredentialManagementServiceTests
         Assert.Equal("operator@test.com", audits[1].TargetOperatorIdentifierSnapshot);
         Assert.Equal("7", audits[1].ScopeRestaurantIdsSnapshot);
         Assert.Equal(8, audits[1].TtlHoursSnapshot);
+        Assert.Equal("eight_hours", audits[1].ExpirationPresetSnapshot);
+    }
+
+    [Fact]
+    public async Task IssueAsync_UsesCalendarMonthSemantics_AndPersistsPresetSnapshot()
+    {
+        using AppDbContext db = TestDbFactory.Create(nameof(IssueAsync_UsesCalendarMonthSemantics_AndPersistsPresetSnapshot));
+        SeedRestaurant(db, 7, "Centro");
+        SeedAdmin(db, "boss@test.com");
+
+        var management = new OperatorCredentialManagementService(
+            db,
+            new OperatorCredentialService(db),
+            new StubAdminActorAccessor("boss@test.com", 17));
+
+        DateTime issuedAt = new(2026, 1, 31, 13, 45, 0, DateTimeKind.Utc);
+        IssueOperatorCredentialResponseDto issued = await management.IssueAsync(new IssueOperatorCredentialRequestDto
+        {
+            Identifier = "operator@test.com",
+            RestaurantIds = new List<int> { 7 },
+            ExpirationPreset = "one_month",
+        }, issuedAt);
+
+        Assert.Equal(new DateTime(2026, 2, 28, 13, 45, 0, DateTimeKind.Utc), issued.ExpiresAtUtc);
+
+        AdminCredentialManagementAudit audit = await db.AdminCredentialManagementAudits.SingleAsync();
+        Assert.Equal("one_month", audit.ExpirationPresetSnapshot);
+    }
+
+    [Fact]
+    public async Task IssueAsync_PersistsNeverExpiration_AsNull_AndDoesNotWriteFakeTtlAudit()
+    {
+        using AppDbContext db = TestDbFactory.Create(nameof(IssueAsync_PersistsNeverExpiration_AsNull_AndDoesNotWriteFakeTtlAudit));
+        SeedRestaurant(db, 7, "Centro");
+        SeedAdmin(db, "boss@test.com");
+
+        var management = new OperatorCredentialManagementService(
+            db,
+            new OperatorCredentialService(db),
+            new StubAdminActorAccessor("boss@test.com", 17));
+
+        IssueOperatorCredentialResponseDto issued = await management.IssueAsync(new IssueOperatorCredentialRequestDto
+        {
+            Identifier = "operator@test.com",
+            RestaurantIds = new List<int> { 7 },
+            ExpirationPreset = "never",
+        }, DateTime.UtcNow);
+
+        Assert.Null(issued.ExpiresAtUtc);
+
+        OperatorAgentCredential credential = await db.OperatorAgentCredentials.SingleAsync();
+        Assert.Null(credential.ExpiresAt);
+
+        AdminCredentialManagementAudit audit = await db.AdminCredentialManagementAudits.SingleAsync();
+        Assert.Null(audit.TtlHoursSnapshot);
+        Assert.Equal("never", audit.ExpirationPresetSnapshot);
+
+        OperatorCredentialListItemDto listed = Assert.Single(await management.ListAsync());
+        Assert.Null(listed.ExpiresAtUtc);
     }
 
     [Fact]
@@ -158,7 +218,7 @@ public sealed class OperatorCredentialManagementServiceTests
         {
             Identifier = "operator@test.com",
             RestaurantIds = new List<int> { 7 },
-            TtlHours = 4,
+            ExpirationPreset = "eight_hours",
             Notes = "Centro"
         }, DateTime.UtcNow);
 
@@ -166,7 +226,7 @@ public sealed class OperatorCredentialManagementServiceTests
         {
             Identifier = "operator@test.com",
             RestaurantIds = new List<int> { 8 },
-            TtlHours = 6,
+            ExpirationPreset = "one_day",
             Notes = "Patio"
         }, DateTime.UtcNow.AddMinutes(1));
 
@@ -215,7 +275,7 @@ public sealed class OperatorCredentialManagementServiceTests
             {
                 Identifier = "operator@test.com",
                 RestaurantIds = new List<int> { 7 },
-                TtlHours = 6
+                ExpirationPreset = "one_day"
             }, DateTime.UtcNow));
 
         Assert.Empty(db.OperatorAgentCredentials);

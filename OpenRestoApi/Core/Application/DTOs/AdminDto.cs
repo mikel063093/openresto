@@ -181,7 +181,7 @@ public class IssueOperatorCredentialRequestDto
 {
     public string Identifier { get; set; } = null!;
     public List<int> RestaurantIds { get; set; } = [];
-    public int? TtlHours { get; set; }
+    public string? ExpirationPreset { get; set; }
     public string? Notes { get; set; }
 }
 
@@ -197,7 +197,7 @@ public class OperatorCredentialListItemDto
     public string Identifier { get; set; } = null!;
     public string CredentialKeyId { get; set; } = null!;
     public DateTime IssuedAtUtc { get; set; }
-    public DateTime ExpiresAtUtc { get; set; }
+    public DateTime? ExpiresAtUtc { get; set; }
     public DateTime? RevokedAtUtc { get; set; }
     public DateTime? LastUsedAtUtc { get; set; }
     public string? Notes { get; set; }

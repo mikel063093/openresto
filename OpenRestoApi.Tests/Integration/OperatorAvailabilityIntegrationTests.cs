@@ -157,7 +157,11 @@ public sealed class OperatorAvailabilityIntegrationTests(TestWebAppFactory facto
         await db.SaveChangesAsync();
 
         var service = new OperatorCredentialService(db);
-        IssuedOperatorCredential issued = await service.IssueAsync(db.OperatorPrincipals.OrderByDescending(x => x.Id).First().Id, TimeSpan.FromHours(1));
+        IssuedOperatorCredential issued = await service.IssueAsync(
+            db.OperatorPrincipals.OrderByDescending(x => x.Id).First().Id,
+            OperatorCredentialExpirationPresetCatalog.TryResolve(OperatorCredentialExpirationPresetCatalog.EightHours, out var eightHours)
+                ? eightHours
+                : throw new InvalidOperationException());
         return issued.PlaintextToken;
     }
 }

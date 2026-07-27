@@ -127,3 +127,33 @@ Behavioral proof to capture after verification:
 - The protected guide under `/api-reference/operator-mcp` is routed through the existing `/api-reference` backend path and does not emit live secrets.
 - Production-style docs exposure remains `SuperAdminOnly` for `/openapi/v1.json`, `/api-reference`, and the new guide route.
 - The guide endpoint itself carries `SuperAdminOnly` authorization metadata plus the explicit JWT bearer scheme in production-style exposure, while anonymous production requests still receive `401`.
+
+## 2026-07-27 Credential Expiration Presets
+
+Commands:
+- `docker run --rm -v /tmp/openresto-internal-mcp-design:/src -w /src mcr.microsoft.com/dotnet/sdk:10.0 bash -lc 'dotnet tool install --tool-path /tmp/tools dotnet-ef --version 10.0.10 >/tmp/dotnet-ef-install.log && /tmp/tools/dotnet-ef migrations add AddOperatorCredentialExpirationPresets --project OpenRestoApi/OpenRestoApi.csproj --startup-project OpenRestoApi/OpenRestoApi.csproj'`
+- `docker run --rm -v /tmp/openresto-internal-mcp-design:/src -w /src mcr.microsoft.com/dotnet/sdk:10.0 dotnet test OpenRestoApi.Tests/OpenRestoApi.Tests.csproj --filter "FullyQualifiedName~OperatorCredentialManagementServiceTests|FullyQualifiedName~OperatorCredentialServiceTests|FullyQualifiedName~AdminOperatorCredentialsControllerTests|FullyQualifiedName~OperatorMcpFoundationMigrationTests|FullyQualifiedName~AdminCredentialManagementAuditMigrationTests|FullyQualifiedName~OperatorCredentialScopesMigrationTests|FullyQualifiedName~OperatorAvailabilityIntegrationTests|FullyQualifiedName~OperatorReservationOwnershipIntegrationTests|FullyQualifiedName~OperatorMcpIntegrationTests"`
+- `docker run --rm -v /tmp/openresto-internal-mcp-design:/src -w /src mcr.microsoft.com/dotnet/sdk:10.0 dotnet test OpenRestoApi.Tests/OpenRestoApi.Tests.csproj`
+- `cd /tmp/openresto-internal-mcp-design/openresto-frontend && npx tsc --noEmit -p tsconfig.json`
+- `cd /tmp/openresto-internal-mcp-design/openresto-frontend && npm test -- --runInBand tests/components/admin/settings/OperatorCredentialsCard.test.tsx tests/api/admin.test.ts`
+- `cd /tmp/openresto-internal-mcp-design/openresto-frontend && npx prettier --check api/admin.ts components/admin/settings/OperatorCredentialsCard.tsx tests/api/admin.test.ts tests/components/admin/settings/OperatorCredentialsCard.test.tsx`
+- `cd /tmp/openresto-internal-mcp-design/openresto-frontend && npx oxlint api/admin.ts components/admin/settings/OperatorCredentialsCard.tsx tests/api/admin.test.ts tests/components/admin/settings/OperatorCredentialsCard.test.tsx`
+- `git diff --check`
+
+Results:
+- New additive EF migration generated as `20260727181527_AddOperatorCredentialExpirationPresets`.
+- Focused backend regression suite in `mcr.microsoft.com/dotnet/sdk:10.0`: passed, `36` passed, `0` failed, `0` skipped, duration `9 s`.
+- Required full backend suite in `mcr.microsoft.com/dotnet/sdk:10.0`: passed, `1232` passed, `0` failed, `0` skipped, duration `38 s`.
+- Full-suite coverage after the slice: line `96.02%`, branch `83.3%`, method `97.69%`.
+- Frontend typecheck: passed, exit code `0`.
+- Relevant frontend Jest coverage: passed, `2` suites, `129` tests, `0` failed.
+- Slice-specific frontend formatting check: passed after applying Prettier to `components/admin/settings/OperatorCredentialsCard.tsx` and `tests/api/admin.test.ts`.
+- Slice-specific frontend lint (`oxlint`) on changed frontend files: passed.
+- `git diff --check`: passed.
+
+Behavioral proof:
+- The admin issue API now accepts only `expirationPreset` values from the fixed allowlist: `eight_hours`, `one_day`, `seven_days`, `one_month`, `three_months`, `six_months`, `one_year`, `two_years`, and `never`.
+- Backend issuance uses UTC calendar math for month/year presets and persists `never` as `NULL` `ExpiresAt` instead of a fake far-future date.
+- Operator bearer auth now allows `NULL` expiry credentials while still denying revoked credentials and inactive owners.
+- Admin audit rows keep the legacy `TtlHoursSnapshot` when meaningful and add durable `ExpirationPresetSnapshot` evidence for finite and no-expiry credentials.
+- SuperAdmin Settings now renders fixed es-CO chips, defaults to `8 horas`, shows explicit high-risk guidance for `No expira`, and renders `expiresAtUtc: null` as `No expira` instead of an invalid epoch date.

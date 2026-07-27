@@ -11,8 +11,6 @@ public sealed class OperatorCredentialManagementService(
     OperatorCredentialService credentialService,
     IAdminActorAccessor adminActorAccessor)
 {
-    private const int DefaultTtlHours = 8;
-    private const int MaxTtlHours = 24;
     private const int MaxIdentifierLength = 200;
     private const int MaxNotesLength = 200;
 
@@ -28,8 +26,9 @@ public sealed class OperatorCredentialManagementService(
         AdminActorSnapshot actor = await _adminActorAccessor.GetRequiredSnapshotAsync();
         string normalizedIdentifier = NormalizeIdentifier(request.Identifier);
         string? notes = NormalizeNotes(request.Notes);
-        int ttlHours = request.TtlHours ?? DefaultTtlHours;
-        ValidateRequest(normalizedIdentifier, request.RestaurantIds, ttlHours, notes);
+        string expirationPreset = NormalizeExpirationPreset(request.ExpirationPreset);
+        ValidateRequest(normalizedIdentifier, request.RestaurantIds, expirationPreset, notes);
+        OperatorCredentialExpirationPresetDefinition presetDefinition = ResolveExpirationPreset(expirationPreset);
 
         int[] restaurantIds = request.RestaurantIds
             .Distinct()
@@ -89,7 +88,7 @@ public sealed class OperatorCredentialManagementService(
 
             IssuedOperatorCredential issued = await _credentialService.IssueAsync(
                 principal.Id,
-                TimeSpan.FromHours(ttlHours),
+                presetDefinition,
                 notes,
                 restaurantIds,
                 now);
@@ -172,7 +171,7 @@ public sealed class OperatorCredentialManagementService(
         string action,
         DateTime createdAtUtc)
     {
-        int ttlHours = (int)Math.Round((credential.ExpiresAt - credential.IssuedAt).TotalHours, MidpointRounding.AwayFromZero);
+        int? ttlHours = CalculateTtlHoursSnapshot(credential);
 
         return new AdminCredentialManagementAudit
         {
@@ -187,7 +186,8 @@ public sealed class OperatorCredentialManagementService(
                     .Select(x => x.RestaurantId)
                     .Distinct()
                     .OrderBy(x => x)),
-            TtlHoursSnapshot = ttlHours > 0 ? ttlHours : null,
+            TtlHoursSnapshot = ttlHours,
+            ExpirationPresetSnapshot = credential.ExpirationPreset,
             Action = action,
             CreatedAtUtc = createdAtUtc,
         };
@@ -196,7 +196,7 @@ public sealed class OperatorCredentialManagementService(
     private static void ValidateRequest(
         string normalizedIdentifier,
         IReadOnlyCollection<int>? restaurantIds,
-        int ttlHours,
+        string expirationPreset,
         string? notes)
     {
         if (string.IsNullOrWhiteSpace(normalizedIdentifier))
@@ -214,9 +214,9 @@ public sealed class OperatorCredentialManagementService(
             throw new ValidationException("Selecciona al menos un restaurante válido.");
         }
 
-        if (ttlHours <= 0 || ttlHours > MaxTtlHours)
+        if (!OperatorCredentialExpirationPresetCatalog.TryResolve(expirationPreset, out _))
         {
-            throw new ValidationException($"La vigencia debe estar entre 1 y {MaxTtlHours} horas.");
+            throw new ValidationException("Selecciona una vigencia válida.");
         }
 
         if (notes is not null && notes.Length > MaxNotesLength)
@@ -228,8 +228,36 @@ public sealed class OperatorCredentialManagementService(
     private static string NormalizeIdentifier(string? identifier) =>
         identifier?.Trim().ToLowerInvariant() ?? string.Empty;
 
+    private static string NormalizeExpirationPreset(string? expirationPreset) =>
+        string.IsNullOrWhiteSpace(expirationPreset)
+            ? OperatorCredentialExpirationPresetCatalog.DefaultValue
+            : expirationPreset.Trim();
+
     private static string? NormalizeNotes(string? notes) =>
         string.IsNullOrWhiteSpace(notes) ? null : notes.Trim();
+
+    private static OperatorCredentialExpirationPresetDefinition ResolveExpirationPreset(string expirationPreset) =>
+        OperatorCredentialExpirationPresetCatalog.TryResolve(expirationPreset, out OperatorCredentialExpirationPresetDefinition definition)
+            ? definition
+            : throw new ValidationException("Selecciona una vigencia válida.");
+
+    private static int? CalculateTtlHoursSnapshot(OperatorAgentCredential credential)
+    {
+        if (!credential.ExpiresAt.HasValue)
+        {
+            return null;
+        }
+
+        if (OperatorCredentialExpirationPresetCatalog.TryResolve(credential.ExpirationPreset ?? string.Empty, out OperatorCredentialExpirationPresetDefinition definition)
+            && definition.FixedTtlHoursForCompatibility.HasValue)
+        {
+            return definition.FixedTtlHoursForCompatibility.Value;
+        }
+
+        double totalHours = (credential.ExpiresAt.Value - credential.IssuedAt).TotalHours;
+        int roundedHours = (int)Math.Round(totalHours, MidpointRounding.AwayFromZero);
+        return roundedHours > 0 ? roundedHours : null;
+    }
 
     private static IssueOperatorCredentialResponseDto ToIssueDto(
         OperatorAgentCredential credential,

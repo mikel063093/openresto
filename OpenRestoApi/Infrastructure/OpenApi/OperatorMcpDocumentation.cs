@@ -123,7 +123,8 @@ internal static class OperatorMcpDocumentation
       <li>Issue credentials in Settings as a SuperAdmin through the protected operator credential management flow.</li>
       <li>The plaintext token is displayed once, only at issuance time. Store it in your client secret manager immediately.</li>
       <li>Scope every credential to the specific restaurants it needs. A credential must have at least one restaurant scope.</li>
-      <li>Default lifetime is 8 hours. Maximum lifetime is 24 hours.</li>
+      <li>Available validity options are 8 hours, 1 day, 7 days, 1 month, 3 months, 6 months, 1 year, 2 years, or no expiry.</li>
+      <li>No-expiry credentials are high risk. Use them only when necessary and keep the immediate revoke action available to the responsible SuperAdmin.</li>
       <li>Revoke the credential immediately if it is lost, copied into the wrong system, or no longer required.</li>
       <li>Never paste or document a live bearer token. In examples, use only <code>OPENRESTO_MCP_TOKEN</code> and <code>[REDACTED]</code>.</li>
     </ul>
@@ -216,10 +217,10 @@ internal static class OperatorMcpDocumentation
     <div>
       <h2>Auth, Rate Limits, And Troubleshooting</h2>
       <ul>
-        <li><code>401 Unauthorized</code>: missing bearer token, malformed token, expired token, or revoked token.</li>
+        <li><code>401 Unauthorized</code>: missing bearer token, malformed token, expired token, revoked token, or a token whose operator owner is no longer active.</li>
         <li><code>404 Not Found</code>: restaurant outside the credential scope, reservation not owned by the operator, or resource does not exist.</li>
         <li><code>429 Too Many Requests</code>: production MCP traffic is rate-limited per credential, not only per IP.</li>
-        <li>If a previously working integration starts returning <code>401</code>, verify whether the token expired, was revoked, or was copied incorrectly.</li>
+        <li>If a previously working integration starts returning <code>401</code>, verify whether the token expired, was revoked, its owner was deactivated, or it was copied incorrectly.</li>
         <li>If only some restaurants fail with <code>404</code>, verify the credential was issued with those restaurant IDs selected.</li>
       </ul>
     </div>

@@ -8,7 +8,8 @@ public class OperatorAgentCredential
     public string CredentialKeyId { get; set; } = string.Empty;
     public string TokenDigest { get; set; } = string.Empty;
     public DateTime IssuedAt { get; set; }
-    public DateTime ExpiresAt { get; set; }
+    public DateTime? ExpiresAt { get; set; }
+    public string? ExpirationPreset { get; set; }
     public DateTime? RevokedAt { get; set; }
     public DateTime? LastUsedAt { get; set; }
     public string? Notes { get; set; }

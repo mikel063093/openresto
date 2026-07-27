@@ -20,6 +20,20 @@ import { styles } from "./settings.styles";
 
 type RestaurantOption = { id: number; name: string };
 
+const EXPIRATION_PRESETS = [
+  { value: "eight_hours", label: "8 horas" },
+  { value: "one_day", label: "1 día" },
+  { value: "seven_days", label: "7 días" },
+  { value: "one_month", label: "1 mes" },
+  { value: "three_months", label: "3 meses" },
+  { value: "six_months", label: "6 meses" },
+  { value: "one_year", label: "1 año" },
+  { value: "two_years", label: "2 años" },
+  { value: "never", label: "No expira" },
+] as const;
+
+const DEFAULT_EXPIRATION_PRESET = "eight_hours";
+
 export function OperatorCredentialsCard({
   borderColor,
   mutedColor,
@@ -34,7 +48,7 @@ export function OperatorCredentialsCard({
   const [restaurants, setRestaurants] = useState<RestaurantOption[]>([]);
   const [credentials, setCredentials] = useState<OperatorCredentialListItem[]>([]);
   const [identifier, setIdentifier] = useState("");
-  const [ttlHours, setTtlHours] = useState("8");
+  const [expirationPreset, setExpirationPreset] = useState<string>(DEFAULT_EXPIRATION_PRESET);
   const [notes, setNotes] = useState("");
   const [selectedRestaurantIds, setSelectedRestaurantIds] = useState<number[]>([]);
   const [saving, setSaving] = useState(false);
@@ -93,12 +107,12 @@ export function OperatorCredentialsCard({
       const created = await issueOperatorCredential({
         identifier: identifier.trim(),
         restaurantIds: selectedRestaurantIds,
-        ttlHours: ttlHours.trim() ? Number(ttlHours) : undefined,
+        expirationPreset,
         notes: notes.trim() || undefined,
       });
       setRevealedCredential(created);
       setIdentifier("");
-      setTtlHours("8");
+      setExpirationPreset(DEFAULT_EXPIRATION_PRESET);
       setNotes("");
       setSelectedRestaurantIds([]);
       await load();
@@ -207,16 +221,46 @@ export function OperatorCredentialsCard({
           </View>
 
           <View style={styles.field}>
-            <ThemedText style={styles.fieldLabel}>Vigencia (horas)</ThemedText>
-            <Input
-              value={ttlHours}
-              onChangeText={setTtlHours}
-              placeholder="8"
-              keyboardType="number-pad"
-            />
+            <ThemedText style={styles.fieldLabel}>Vigencia</ThemedText>
+            <View style={styles.chipsRow}>
+              {EXPIRATION_PRESETS.map((preset) => {
+                const selected = expirationPreset === preset.value;
+                return (
+                  <Pressable
+                    key={preset.value}
+                    accessibilityRole="button"
+                    onPress={() => setExpirationPreset(preset.value)}
+                    style={[
+                      styles.chip,
+                      {
+                        borderColor,
+                        backgroundColor: selected ? `${primaryColor}18` : "transparent",
+                      },
+                    ]}
+                  >
+                    <ThemedText style={{ color: selected ? primaryColor : mutedColor }}>
+                      {preset.label}
+                    </ThemedText>
+                  </Pressable>
+                );
+              })}
+            </View>
             <ThemedText style={[styles.helperText, { color: mutedColor }]}>
-              Valor por defecto: 8. Máximo: 24.
+              Selecciona una vigencia predefinida. La selección por defecto es 8 horas.
             </ThemedText>
+            {expirationPreset === "never" ? (
+              <View
+                style={[styles.noteBox, { borderColor: "#f59e0b", backgroundColor: "#fffbeb" }]}
+              >
+                <ThemedText style={styles.secRowTitle}>
+                  Alto riesgo: credencial sin vencimiento
+                </ThemedText>
+                <ThemedText style={[styles.helperText, { color: mutedColor }]}>
+                  Úsala solo cuando no exista una alternativa temporal viable y revoca de inmediato
+                  si cambia el responsable o el sistema destino.
+                </ThemedText>
+              </View>
+            ) : null}
           </View>
 
           <View style={styles.field}>
@@ -269,7 +313,7 @@ export function OperatorCredentialsCard({
                   </ThemedText>
                   <ThemedText style={[styles.secRowSub, { color: mutedColor }]}>
                     Emitida: {formatUtc(credential.issuedAtUtc)} · Expira:{" "}
-                    {formatUtc(credential.expiresAtUtc)}
+                    {formatExpirationUtc(credential.expiresAtUtc)}
                   </ThemedText>
                   <ThemedText style={[styles.secRowSub, { color: mutedColor }]}>
                     Último uso:{" "}
@@ -348,7 +392,7 @@ function getCredentialStatus(credential: OperatorCredentialListItem) {
     return { label: "Revocada", color: "#991b1b", background: "#fee2e2" };
   }
 
-  if (new Date(credential.expiresAtUtc).getTime() <= Date.now()) {
+  if (credential.expiresAtUtc && new Date(credential.expiresAtUtc).getTime() <= Date.now()) {
     return { label: "Expirada", color: "#92400e", background: "#fef3c7" };
   }
 
@@ -364,4 +408,8 @@ function formatUtc(value: string) {
     minute: "2-digit",
     timeZone: "UTC",
   });
+}
+
+function formatExpirationUtc(value: string | null) {
+  return value ? formatUtc(value) : "No expira";
 }

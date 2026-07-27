@@ -720,7 +720,7 @@ export interface OperatorCredentialListItem {
   identifier: string;
   credentialKeyId: string;
   issuedAtUtc: string;
-  expiresAtUtc: string;
+  expiresAtUtc: string | null;
   revokedAtUtc: string | null;
   lastUsedAtUtc: string | null;
   notes?: string | null;
@@ -730,7 +730,7 @@ export interface OperatorCredentialListItem {
 export interface IssueOperatorCredentialRequest {
   identifier: string;
   restaurantIds: number[];
-  ttlHours?: number;
+  expirationPreset?: string;
   notes?: string;
 }
 

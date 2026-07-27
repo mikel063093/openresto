@@ -50,9 +50,11 @@ public sealed class OperatorMcpFoundationMigrationTests : IDisposable
         Assert.Equal("table", await GetObjectTypeAsync("OperatorActionAudits"));
 
         var bookingColumns = await GetTableInfoAsync("Bookings");
+        var credentialColumns = await GetTableInfoAsync("OperatorAgentCredentials");
 
         Assert.Contains(bookingColumns, c => c.Name == "CreatedByOperatorId" && c.Type == "INTEGER" && c.NotNull == 0);
         Assert.Contains(bookingColumns, c => c.Name == "CreatedViaChannel" && c.Type == "TEXT" && c.NotNull == 0);
+        Assert.Contains(credentialColumns, c => c.Name == "ExpiresAt" && c.Type == "TEXT" && c.NotNull == 0);
     }
 
     [Fact]

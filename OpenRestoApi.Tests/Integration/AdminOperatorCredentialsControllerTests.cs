@@ -41,7 +41,7 @@ public sealed class AdminOperatorCredentialsControllerTests(TestWebAppFactory fa
         {
             identifier = "  Operator.One@Test.com  ",
             restaurantIds = new[] { restaurantId },
-            ttlHours = 6,
+            expirationPreset = "one_day",
             notes = "Turno PM"
         });
 
@@ -62,7 +62,8 @@ public sealed class AdminOperatorCredentialsControllerTests(TestWebAppFactory fa
             Assert.Equal("operator.one@test.com", issueAudit.TargetOperatorIdentifierSnapshot);
             Assert.Equal(issued.CredentialId, issueAudit.OperatorAgentCredentialId);
             Assert.Equal(persistedCredential.CredentialKeyId, issueAudit.CredentialKeyIdSnapshot);
-            Assert.Equal(6, issueAudit.TtlHoursSnapshot);
+            Assert.Equal(24, issueAudit.TtlHoursSnapshot);
+            Assert.Equal("one_day", issueAudit.ExpirationPresetSnapshot);
             Assert.Equal(restaurantId.ToString(), issueAudit.ScopeRestaurantIdsSnapshot);
             Assert.DoesNotContain(issued.PlaintextToken, issueAudit.ActorEmailSnapshot, StringComparison.Ordinal);
             Assert.DoesNotContain(issued.PlaintextToken, issueAudit.TargetOperatorIdentifierSnapshot, StringComparison.Ordinal);
@@ -106,7 +107,7 @@ public sealed class AdminOperatorCredentialsControllerTests(TestWebAppFactory fa
     }
 
     [Fact]
-    public async Task Issue_Rejects_MissingScope_And_TtlBeyondLimit()
+    public async Task Issue_Rejects_MissingScope_AndInvalidPreset()
     {
         HttpClient client = _factory.CreateAuthenticatedClient();
         int restaurantId = await SeedRestaurantAsync();
@@ -122,9 +123,41 @@ public sealed class AdminOperatorCredentialsControllerTests(TestWebAppFactory fa
         {
             identifier = "operator@test.com",
             restaurantIds = new[] { restaurantId },
-            ttlHours = 25
+            expirationPreset = "unexpected"
         });
         Assert.Equal(HttpStatusCode.BadRequest, ttlResponse.StatusCode);
+    }
+
+    [Fact]
+    public async Task Issue_AllowsNeverExpireCredential_AndListResponseKeepsNullExpiry()
+    {
+        HttpClient client = _factory.CreateAuthenticatedClient();
+        int restaurantId = await SeedRestaurantAsync();
+
+        HttpResponseMessage response = await client.PostAsJsonAsync("/api/admin/operator-credentials", new
+        {
+            identifier = "never@test.com",
+            restaurantIds = new[] { restaurantId },
+            expirationPreset = "never",
+        });
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        IssueOperatorCredentialResponse issued = (await response.Content.ReadFromJsonAsync<IssueOperatorCredentialResponse>())!;
+        Assert.Null(issued.ExpiresAtUtc);
+
+        using (IServiceScope scope = _factory.Services.CreateScope())
+        {
+            AppDbContext db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            OperatorAgentCredential credential = await db.OperatorAgentCredentials.SingleAsync(x => x.Id == issued.CredentialId);
+            AdminCredentialManagementAudit audit = await db.AdminCredentialManagementAudits.SingleAsync(x => x.OperatorAgentCredentialId == issued.CredentialId);
+            Assert.Null(credential.ExpiresAt);
+            Assert.Null(audit.TtlHoursSnapshot);
+            Assert.Equal("never", audit.ExpirationPresetSnapshot);
+        }
+
+        HttpResponseMessage listResponse = await client.GetAsync("/api/admin/operator-credentials");
+        string listBody = await listResponse.Content.ReadAsStringAsync();
+        Assert.Contains("\"expiresAtUtc\":null", listBody, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -240,7 +273,7 @@ public sealed class AdminOperatorCredentialsControllerTests(TestWebAppFactory fa
         {
             identifier,
             restaurantIds = new[] { restaurantId },
-            ttlHours = 6,
+            expirationPreset = "one_day",
             notes,
         });
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
@@ -260,6 +293,7 @@ public sealed class AdminOperatorCredentialsControllerTests(TestWebAppFactory fa
     {
         public int CredentialId { get; set; }
         public string Identifier { get; set; } = string.Empty;
+        public DateTime? ExpiresAtUtc { get; set; }
         public string PlaintextToken { get; set; } = string.Empty;
         public string? Notes { get; set; }
     }

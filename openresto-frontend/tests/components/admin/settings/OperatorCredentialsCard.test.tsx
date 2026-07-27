@@ -47,14 +47,26 @@ describe("OperatorCredentialsCard", () => {
     (adminApi.revokeOperatorCredential as jest.Mock).mockResolvedValue(undefined);
   });
 
-  it("shows one-time token reveal after issuing and then lists metadata without leaking old token state", async () => {
+  it("shows preset options, uses the default preset, and posts the fixed request payload", async () => {
     render(<OperatorCredentialsCard {...baseProps} />);
 
     await waitFor(() => expect(screen.getByText("Credenciales MCP internas")).toBeTruthy());
+    expect(screen.queryByPlaceholderText("8")).toBeNull();
+    expect(screen.queryByDisplayValue("8")).toBeNull();
+    expect(screen.getByText("8 horas")).toBeTruthy();
+    expect(screen.getByText("1 día")).toBeTruthy();
+    expect(screen.getByText("7 días")).toBeTruthy();
+    expect(screen.getByText("1 mes")).toBeTruthy();
+    expect(screen.getByText("3 meses")).toBeTruthy();
+    expect(screen.getByText("6 meses")).toBeTruthy();
+    expect(screen.getByText("1 año")).toBeTruthy();
+    expect(screen.getByText("2 años")).toBeTruthy();
+    expect(screen.getByText("No expira")).toBeTruthy();
+
     fireEvent.changeText(screen.getByPlaceholderText("operador@interno"), "operador@test.com");
-    fireEvent.changeText(screen.getByPlaceholderText("8"), "6");
     fireEvent.changeText(screen.getByPlaceholderText("Notas opcionales"), "Turno tarde");
     fireEvent.press(screen.getByText("Centro"));
+    fireEvent.press(screen.getByText("1 día"));
 
     await act(async () => {
       fireEvent.press(screen.getByText("Emitir credencial"));
@@ -63,7 +75,7 @@ describe("OperatorCredentialsCard", () => {
     expect(adminApi.issueOperatorCredential).toHaveBeenCalledWith({
       identifier: "operador@test.com",
       restaurantIds: [7],
-      ttlHours: 6,
+      expirationPreset: "one_day",
       notes: "Turno tarde",
     });
 
@@ -87,6 +99,51 @@ describe("OperatorCredentialsCard", () => {
     fireEvent.press(screen.getByText("Entendido"));
 
     await waitFor(() => expect(screen.queryByText(/ormcp\.abc123\.secret/)).toBeNull());
+  });
+
+  it("renders no-expiry credentials with clear label and active status", async () => {
+    (adminApi.getOperatorCredentials as jest.Mock).mockResolvedValue([
+      {
+        credentialId: 11,
+        identifier: "operador@test.com",
+        credentialKeyId: "abc123",
+        issuedAtUtc: "2026-07-27T10:00:00Z",
+        expiresAtUtc: null,
+        revokedAtUtc: null,
+        lastUsedAtUtc: null,
+        notes: null,
+        restaurants: [{ restaurantId: 7, restaurantName: "Centro" }],
+      },
+    ]);
+
+    render(<OperatorCredentialsCard {...baseProps} />);
+
+    await waitFor(() => expect(screen.getByText("operador@test.com")).toBeTruthy());
+    expect(screen.getByText(/Expira: No expira/)).toBeTruthy();
+    expect(screen.getByText("Activa")).toBeTruthy();
+  });
+
+  it("shows the no-expiry warning and posts the never preset", async () => {
+    render(<OperatorCredentialsCard {...baseProps} />);
+
+    await waitFor(() => expect(screen.getByText("Credenciales MCP internas")).toBeTruthy());
+    fireEvent.changeText(screen.getByPlaceholderText("operador@interno"), "operador@test.com");
+    fireEvent.press(screen.getByText("Centro"));
+    fireEvent.press(screen.getByText("No expira"));
+
+    expect(screen.getByText(/alto riesgo/i)).toBeTruthy();
+    expect(screen.getByText(/revoca de inmediato/i)).toBeTruthy();
+
+    await act(async () => {
+      fireEvent.press(screen.getByText("Emitir credencial"));
+    });
+
+    expect(adminApi.issueOperatorCredential).toHaveBeenCalledWith({
+      identifier: "operador@test.com",
+      restaurantIds: [7],
+      expirationPreset: "never",
+      notes: undefined,
+    });
   });
 
   it("confirms and revokes a listed credential", async () => {

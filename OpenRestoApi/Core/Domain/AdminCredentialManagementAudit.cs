@@ -14,6 +14,7 @@ public class AdminCredentialManagementAudit
     public string TargetOperatorIdentifierSnapshot { get; set; } = string.Empty;
     public string ScopeRestaurantIdsSnapshot { get; set; } = string.Empty;
     public int? TtlHoursSnapshot { get; set; }
+    public string? ExpirationPresetSnapshot { get; set; }
     public string Action { get; set; } = string.Empty;
     public DateTime CreatedAtUtc { get; set; }
 }

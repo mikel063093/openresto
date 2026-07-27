@@ -102,15 +102,12 @@ public sealed class OperatorCredentialScopesMigrationTests : IDisposable
         upgradeDb.OperatorPrincipals.Add(principal);
         await upgradeDb.SaveChangesAsync();
 
-        upgradeDb.OperatorAgentCredentials.Add(new OperatorAgentCredential
-        {
-            OperatorPrincipalId = principal.Id,
-            CredentialKeyId = "legacycred",
-            TokenDigest = new string('a', 64),
-            IssuedAt = DateTime.UtcNow,
-            ExpiresAt = DateTime.UtcNow.AddHours(1),
-        });
-        await upgradeDb.SaveChangesAsync();
+        DateTime issuedAt = DateTime.UtcNow;
+        DateTime expiresAt = issuedAt.AddHours(1);
+        await upgradeDb.Database.ExecuteSqlInterpolatedAsync($"""
+            INSERT INTO "OperatorAgentCredentials" ("OperatorPrincipalId", "CredentialKeyId", "TokenDigest", "IssuedAt", "ExpiresAt")
+            VALUES ({principal.Id}, {"legacycred"}, {new string('a', 64)}, {issuedAt}, {expiresAt});
+            """);
 
         await migrator.MigrateAsync();
 

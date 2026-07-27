@@ -14,7 +14,12 @@ public sealed class OperatorCredentialServiceTests
 
         var service = new OperatorCredentialService(db);
 
-        IssuedOperatorCredential issued = await service.IssueAsync(1, TimeSpan.FromHours(8), "test");
+        IssuedOperatorCredential issued = await service.IssueAsync(
+            1,
+            OperatorCredentialExpirationPresetCatalog.TryResolve(OperatorCredentialExpirationPresetCatalog.EightHours, out var eightHours)
+                ? eightHours
+                : throw new InvalidOperationException(),
+            "test");
         OperatorCredentialValidationResult? validated = await service.ValidateAsync(issued.PlaintextToken);
 
         Assert.NotNull(validated);
@@ -32,7 +37,11 @@ public sealed class OperatorCredentialServiceTests
         SeedOperator(db, isActive: true, expiresAt: DateTime.UtcNow.AddHours(1), revokedAt: null);
 
         var service = new OperatorCredentialService(db);
-        IssuedOperatorCredential issued = await service.IssueAsync(1, TimeSpan.FromHours(8));
+        IssuedOperatorCredential issued = await service.IssueAsync(
+            1,
+            OperatorCredentialExpirationPresetCatalog.TryResolve(OperatorCredentialExpirationPresetCatalog.EightHours, out var eightHours)
+                ? eightHours
+                : throw new InvalidOperationException());
 
         OperatorAgentCredential credential = db.OperatorAgentCredentials.Single();
 
@@ -52,13 +61,47 @@ public sealed class OperatorCredentialServiceTests
     }
 
     [Fact]
+    public async Task ValidateAsync_AllowsNeverExpireCredential_ButStillDeniesRevokedOrInactiveOperator()
+    {
+        using AppDbContext db = TestDbFactory.Create(nameof(ValidateAsync_AllowsNeverExpireCredential_ButStillDeniesRevokedOrInactiveOperator));
+        SeedOperator(db, isActive: true, expiresAt: DateTime.UtcNow.AddHours(1), revokedAt: null);
+
+        var service = new OperatorCredentialService(db);
+        IssuedOperatorCredential issued = await service.IssueAsync(
+            1,
+            OperatorCredentialExpirationPresetCatalog.TryResolve(OperatorCredentialExpirationPresetCatalog.Never, out var never)
+                ? never
+                : throw new InvalidOperationException(),
+            "never");
+
+        OperatorAgentCredential credential = db.OperatorAgentCredentials.Single();
+        credential.ExpiresAt = null;
+        await db.SaveChangesAsync();
+
+        Assert.NotNull(await service.ValidateAsync(issued.PlaintextToken, DateTime.UtcNow.AddYears(2)));
+
+        credential.RevokedAt = DateTime.UtcNow.AddDays(1);
+        await db.SaveChangesAsync();
+        Assert.Null(await service.ValidateAsync(issued.PlaintextToken, DateTime.UtcNow.AddYears(2)));
+
+        credential.RevokedAt = null;
+        db.OperatorPrincipals.Single().IsActive = false;
+        await db.SaveChangesAsync();
+        Assert.Null(await service.ValidateAsync(issued.PlaintextToken, DateTime.UtcNow.AddYears(2)));
+    }
+
+    [Fact]
     public async Task ValidateAsync_ReturnsNull_ForUnknownRestaurantScope()
     {
         using AppDbContext db = TestDbFactory.Create(nameof(ValidateAsync_ReturnsNull_ForUnknownRestaurantScope));
         SeedOperator(db, isActive: true, expiresAt: DateTime.UtcNow.AddHours(1), revokedAt: null);
 
         var service = new OperatorCredentialService(db);
-        IssuedOperatorCredential issued = await service.IssueAsync(1, TimeSpan.FromHours(8));
+        IssuedOperatorCredential issued = await service.IssueAsync(
+            1,
+            OperatorCredentialExpirationPresetCatalog.TryResolve(OperatorCredentialExpirationPresetCatalog.EightHours, out var eightHours)
+                ? eightHours
+                : throw new InvalidOperationException());
         OperatorCredentialValidationResult? validated = await service.ValidateAsync(issued.PlaintextToken);
 
         Assert.NotNull(validated);

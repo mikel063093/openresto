@@ -46,6 +46,7 @@ public sealed class AdminCredentialManagementAuditMigrationTests : IDisposable
         Assert.Contains(columns, c => c.Name == "TargetOperatorIdentifierSnapshot" && c.Type == "TEXT" && c.NotNull == 1);
         Assert.Contains(columns, c => c.Name == "ScopeRestaurantIdsSnapshot" && c.Type == "TEXT" && c.NotNull == 1);
         Assert.Contains(columns, c => c.Name == "TtlHoursSnapshot" && c.Type == "INTEGER" && c.NotNull == 0);
+        Assert.Contains(columns, c => c.Name == "ExpirationPresetSnapshot" && c.Type == "TEXT" && c.NotNull == 0);
         Assert.Contains(columns, c => c.Name == "CreatedAtUtc" && c.Type == "TEXT" && c.NotNull == 1);
     }
 

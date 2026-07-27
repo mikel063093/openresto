@@ -103,6 +103,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             audit.Property(x => x.ActorEmailSnapshot).IsRequired();
             audit.Property(x => x.TargetOperatorIdentifierSnapshot).IsRequired();
             audit.Property(x => x.ScopeRestaurantIdsSnapshot).IsRequired();
+            audit.Property(x => x.ExpirationPresetSnapshot);
             audit.Property(x => x.Action).IsRequired();
             audit.HasOne(x => x.ActorAdminCredential)
                 .WithMany()
@@ -167,6 +168,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             cred.HasKey(x => x.Id);
             cred.Property(x => x.CredentialKeyId).IsRequired();
             cred.Property(x => x.TokenDigest).IsRequired();
+            cred.Property(x => x.ExpirationPreset);
             cred.HasOne(x => x.OperatorPrincipal)
                 .WithMany(x => x.Credentials)
                 .HasForeignKey(x => x.OperatorPrincipalId)

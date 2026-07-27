@@ -209,7 +209,11 @@ public sealed class OperatorMcpIntegrationTests(TestWebAppFactory factory) : ICl
 
         var service = new OperatorCredentialService(db);
         int operatorId = db.OperatorPrincipals.Single(x => x.NormalizedIdentifier == email).Id;
-        IssuedOperatorCredential issued = await service.IssueAsync(operatorId, TimeSpan.FromHours(1));
+        IssuedOperatorCredential issued = await service.IssueAsync(
+            operatorId,
+            OperatorCredentialExpirationPresetCatalog.TryResolve(OperatorCredentialExpirationPresetCatalog.EightHours, out var eightHours)
+                ? eightHours
+                : throw new InvalidOperationException());
         return issued.PlaintextToken;
     }
 }
