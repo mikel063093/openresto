@@ -1,8 +1,15 @@
 using System.Security.Claims;
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.Encodings.Web;
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
+using Microsoft.IdentityModel.Tokens;
 using OpenRestoApi.Core.Application.Services;
+using OpenRestoApi.Core.Domain;
+using OpenRestoApi.Infrastructure.Persistence;
 
 namespace OpenRestoApi.Infrastructure.Auth;
 
@@ -10,49 +17,170 @@ public sealed class WhatsAppChannelAuthenticationHandler(
     IOptionsMonitor<AuthenticationSchemeOptions> options,
     ILoggerFactory logger,
     UrlEncoder encoder,
-    IConfiguration configuration) : AuthenticationHandler<AuthenticationSchemeOptions>(options, logger, encoder)
+    IConfiguration configuration,
+    AppDbContext db) : AuthenticationHandler<AuthenticationSchemeOptions>(options, logger, encoder)
 {
     private readonly IConfiguration _configuration = configuration;
+    private readonly AppDbContext _db = db;
 
-    protected override Task<AuthenticateResult> HandleAuthenticateAsync()
+    protected override async Task<AuthenticateResult> HandleAuthenticateAsync()
     {
         string? header = Request.Headers.Authorization;
         if (string.IsNullOrWhiteSpace(header) || !header.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
         {
-            return Task.FromResult(AuthenticateResult.NoResult());
+            return AuthenticateResult.NoResult();
         }
 
         string token = header["Bearer ".Length..].Trim();
-        string? configuredToken = _configuration["WhatsAppChannel:Token"];
-        if (string.IsNullOrWhiteSpace(configuredToken) ||
-            !string.Equals(token, configuredToken, StringComparison.Ordinal))
+        string? configuredToken = _configuration["WhatsAppChannel:InternalCallerCredential"];
+        if (!ConstantTimeEquals(token, configuredToken))
         {
-            return Task.FromResult(AuthenticateResult.Fail("Invalid WhatsApp channel credential."));
+            return AuthenticateResult.Fail("Invalid WhatsApp channel credential.");
         }
 
-        string? verifiedPhone = Request.Headers[WhatsAppChannelAuthenticationDefaults.VerifiedPhoneHeader];
-        if (string.IsNullOrWhiteSpace(verifiedPhone))
+        string? assertion = Request.Headers[WhatsAppChannelAuthenticationDefaults.AssertionHeader];
+        if (string.IsNullOrWhiteSpace(assertion))
         {
-            return Task.FromResult(AuthenticateResult.Fail("Missing verified WhatsApp phone header."));
+            return AuthenticateResult.Fail("Missing WhatsApp channel assertion.");
         }
 
         try
         {
-            (string e164, string normalized) = WhatsAppPhoneOwnershipService.Normalize(verifiedPhone);
+            JwtSecurityTokenHandler handler = new() { MapInboundClaims = false };
+            TokenValidationParameters validationParameters = BuildValidationParameters();
+            ClaimsPrincipal validatedPrincipal = handler.ValidateToken(assertion, validationParameters, out SecurityToken validatedToken);
+            if (validatedToken is not JwtSecurityToken jwt)
+            {
+                return AuthenticateResult.Fail("Invalid WhatsApp channel assertion.");
+            }
+
+            string? action = validatedPrincipal.FindFirstValue(WhatsAppChannelAuthenticationDefaults.ActionClaim);
+            string? scope = validatedPrincipal.FindFirstValue(WhatsAppChannelAuthenticationDefaults.ScopeClaim);
+            string? requiredScope = _configuration["WhatsAppChannel:Assertion:RequiredScope"];
+            string? requiredAction = ResolveRequiredAction(Request);
+
+            if (string.IsNullOrWhiteSpace(action) ||
+                string.IsNullOrWhiteSpace(scope) ||
+                string.IsNullOrWhiteSpace(requiredScope) ||
+                !string.Equals(action, requiredAction, StringComparison.Ordinal) ||
+                !ScopeContains(scope, requiredScope))
+            {
+                return AuthenticateResult.Fail("WhatsApp channel assertion scope is invalid.");
+            }
+
+            string? jwtId = jwt.Id;
+            if (string.IsNullOrWhiteSpace(jwtId) || await HasAssertionBeenReplayedAsync(jwtId))
+            {
+                return AuthenticateResult.Fail("WhatsApp channel assertion replay detected.");
+            }
+
+            string? verifiedPhone = jwt.Subject;
+            (string e164, string normalized) = WhatsAppPhoneOwnershipService.Normalize(verifiedPhone ?? string.Empty);
             var claims = new List<Claim>
             {
                 new(WhatsAppChannelAuthenticationDefaults.VerifiedPhoneClaim, e164),
-                new(WhatsAppChannelAuthenticationDefaults.VerifiedPhoneNormalizedClaim, normalized)
+                new(WhatsAppChannelAuthenticationDefaults.VerifiedPhoneNormalizedClaim, normalized),
+                new(WhatsAppChannelAuthenticationDefaults.ActionClaim, action),
             };
 
             var identity = new ClaimsIdentity(claims, WhatsAppChannelAuthenticationDefaults.SchemeName);
             var principal = new ClaimsPrincipal(identity);
             var ticket = new AuthenticationTicket(principal, WhatsAppChannelAuthenticationDefaults.SchemeName);
-            return Task.FromResult(AuthenticateResult.Success(ticket));
+            return AuthenticateResult.Success(ticket);
         }
-        catch (InvalidOperationException ex)
+        catch (InvalidOperationException)
         {
-            return Task.FromResult(AuthenticateResult.Fail(ex.Message));
+            return AuthenticateResult.Fail("Invalid WhatsApp channel assertion.");
         }
+        catch (SecurityTokenException)
+        {
+            return AuthenticateResult.Fail("Invalid WhatsApp channel assertion.");
+        }
+    }
+
+    private TokenValidationParameters BuildValidationParameters()
+    {
+        string signingKey = _configuration["WhatsAppChannel:Assertion:SigningKey"]
+            ?? throw new InvalidOperationException("Missing WhatsApp assertion signing key.");
+        string issuer = _configuration["WhatsAppChannel:Assertion:Issuer"]
+            ?? throw new InvalidOperationException("Missing WhatsApp assertion issuer.");
+        string audience = _configuration["WhatsAppChannel:Assertion:Audience"]
+            ?? throw new InvalidOperationException("Missing WhatsApp assertion audience.");
+
+        return new TokenValidationParameters
+        {
+            ValidateIssuerSigningKey = true,
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(signingKey)),
+            ValidateIssuer = true,
+            ValidIssuer = issuer,
+            ValidateAudience = true,
+            ValidAudience = audience,
+            ValidateLifetime = true,
+            ClockSkew = TimeSpan.Zero,
+            NameClaimType = JwtRegisteredClaimNames.Sub,
+            RoleClaimType = WhatsAppChannelAuthenticationDefaults.ActionClaim,
+        };
+    }
+
+    private async Task<bool> HasAssertionBeenReplayedAsync(string jwtId)
+    {
+        string requiredAction = ResolveRequiredAction(Request);
+        string replayFingerprint = $"{Request.Method}:{Request.Path}:{requiredAction}";
+
+        ChannelMutationIdempotencyRecord? existing = await _db.ChannelMutationIdempotencyRecords
+            .FirstOrDefaultAsync(x => x.Channel == "whatsapp_assertion" && x.ReplayKey == jwtId);
+        if (existing != null)
+        {
+            return true;
+        }
+
+        _db.ChannelMutationIdempotencyRecords.Add(new ChannelMutationIdempotencyRecord
+        {
+            Channel = "whatsapp_assertion",
+            MutationScope = requiredAction,
+            IdempotencyKey = jwtId,
+            ReplayKey = jwtId,
+            Fingerprint = replayFingerprint,
+            State = "consumed",
+            CreatedAtUtc = DateTime.UtcNow,
+            ExpiresAtUtc = DateTime.UtcNow.AddMinutes(5),
+            CompletedAtUtc = DateTime.UtcNow,
+        });
+
+        try
+        {
+            await _db.SaveChangesAsync();
+            return false;
+        }
+        catch (DbUpdateException)
+        {
+            return true;
+        }
+    }
+
+    private static bool ConstantTimeEquals(string candidate, string? configured)
+    {
+        if (string.IsNullOrEmpty(configured))
+        {
+            return false;
+        }
+
+        byte[] left = Encoding.UTF8.GetBytes(candidate);
+        byte[] right = Encoding.UTF8.GetBytes(configured);
+        return left.Length == right.Length && CryptographicOperations.FixedTimeEquals(left, right);
+    }
+
+    private static bool ScopeContains(string scope, string requiredScope)
+        => scope.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Contains(requiredScope, StringComparer.Ordinal);
+
+    private static string ResolveRequiredAction(HttpRequest request)
+    {
+        if (HttpMethods.IsGet(request.Method))
+        {
+            return "reservations.read";
+        }
+
+        return "reservations.mutate";
     }
 }

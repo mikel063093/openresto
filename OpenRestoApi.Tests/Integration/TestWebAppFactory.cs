@@ -20,7 +20,11 @@ public class TestWebAppFactory : WebApplicationFactory<Program>
     public const string JwtKey = "test-jwt-signing-key-for-integration-tests-minimum-32-chars!!";
     public const string JwtIssuer = "openresto-api";
     public const string JwtAudience = "openresto-admin";
-    public const string WhatsAppChannelToken = "test-whatsapp-channel-token";
+    public const string WhatsAppChannelInternalCallerCredential = "test-whatsapp-internal-caller-credential";
+    public const string WhatsAppChannelAssertionIssuer = "n8n-test";
+    public const string WhatsAppChannelAssertionAudience = "openresto-whatsapp-private-api";
+    public const string WhatsAppChannelAssertionSigningKey = "test-whatsapp-assertion-signing-key-minimum-32-chars!!";
+    public const string WhatsAppChannelAssertionScope = "openresto.whatsapp.identity";
 
     // Keep the connection open for the lifetime of the factory so the in-memory SQLite DB persists
     private readonly SqliteConnection _connection;
@@ -80,7 +84,12 @@ public class TestWebAppFactory : WebApplicationFactory<Program>
         builder.UseSetting("Admin:Email", AdminEmail);
         builder.UseSetting("Admin:Password", AdminPassword);
         builder.UseSetting("Cors:Origins", "http://localhost");
-        builder.UseSetting("WhatsAppChannel:Token", WhatsAppChannelToken);
+        builder.UseSetting("WhatsAppChannel:Enabled", "true");
+        builder.UseSetting("WhatsAppChannel:InternalCallerCredential", WhatsAppChannelInternalCallerCredential);
+        builder.UseSetting("WhatsAppChannel:Assertion:Issuer", WhatsAppChannelAssertionIssuer);
+        builder.UseSetting("WhatsAppChannel:Assertion:Audience", WhatsAppChannelAssertionAudience);
+        builder.UseSetting("WhatsAppChannel:Assertion:SigningKey", WhatsAppChannelAssertionSigningKey);
+        builder.UseSetting("WhatsAppChannel:Assertion:RequiredScope", WhatsAppChannelAssertionScope);
     }
 
     /// <summary>
@@ -115,6 +124,39 @@ public class TestWebAppFactory : WebApplicationFactory<Program>
         client.DefaultRequestHeaders.Authorization =
             new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", GenerateTestJwt(role));
         return client;
+    }
+
+    public static string GenerateWhatsAppAssertion(
+        string verifiedPhone,
+        string action = "reservations.read",
+        DateTime? expiresAtUtc = null,
+        string? issuer = null,
+        string? audience = null,
+        string? signingKey = null,
+        string? jwtId = null,
+        string? scope = null)
+    {
+        byte[] keyBytes = Encoding.UTF8.GetBytes(signingKey ?? WhatsAppChannelAssertionSigningKey);
+        var credentials = new SigningCredentials(
+            new SymmetricSecurityKey(keyBytes),
+            SecurityAlgorithms.HmacSha256);
+
+        var claims = new[]
+        {
+            new Claim(JwtRegisteredClaimNames.Sub, verifiedPhone),
+            new Claim(JwtRegisteredClaimNames.Jti, jwtId ?? Guid.NewGuid().ToString("N")),
+            new Claim("scope", scope ?? WhatsAppChannelAssertionScope),
+            new Claim("openresto:channel_action", action),
+        };
+
+        var token = new JwtSecurityToken(
+            issuer: issuer ?? WhatsAppChannelAssertionIssuer,
+            audience: audience ?? WhatsAppChannelAssertionAudience,
+            claims: claims,
+            expires: expiresAtUtc ?? DateTime.UtcNow.AddMinutes(2),
+            signingCredentials: credentials);
+
+        return new JwtSecurityTokenHandler().WriteToken(token);
     }
 
     protected override void Dispose(bool disposing)

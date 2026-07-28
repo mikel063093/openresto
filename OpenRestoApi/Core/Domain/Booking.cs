@@ -41,6 +41,7 @@ public class Booking
     public int? CreatedByOperatorId { get; set; }
     public OperatorPrincipal? CreatedByOperator { get; set; }
     public string? CreatedViaChannel { get; set; }
+    public int ConcurrencyToken { get; set; }
 
     /// <summary>
     /// True when this booking can still be cancelled — its start (<see cref="Date"/>) is

@@ -102,6 +102,12 @@ Set via environment variables or `appsettings.json`:
 | `CORS_ORIGINS`      | Comma-separated allowed origins | localhost ports              |
 | `Admin:Email`       | Default admin email             | Set in appsettings           |
 | `Admin:Password`    | Default admin password          | Set in appsettings           |
+| `WhatsAppChannel__Enabled` | Enables the internal WhatsApp private channel | disabled |
+| `WhatsAppChannel__InternalCallerCredential` | Static internal caller bearer secret | empty |
+| `WhatsAppChannel__Assertion__Issuer` | Required JWT issuer for signed channel identity assertions | empty |
+| `WhatsAppChannel__Assertion__Audience` | Required JWT audience for signed channel identity assertions | empty |
+| `WhatsAppChannel__Assertion__SigningKey` | Shared signing/verification key for signed channel identity assertions | empty |
+| `WhatsAppChannel__Assertion__RequiredScope` | Required scope claim for signed channel identity assertions | empty |
 
 ### Frontend
 
@@ -110,6 +116,10 @@ Set via environment variables or `appsettings.json`:
 | `EXPO_PUBLIC_API_URL` | Backend API base URL | `http://localhost:5062` |
 
 The VAPID key variables are also required for push notification support, but are optional for developing.
+
+### Internal WhatsApp routing
+
+`/api/private/channels/whatsapp/` is not a public internet route. Both public Nginx configs return `404` for that path. Only backend-internal callers on the container/network side should reach the ASP.NET app directly, authenticated with the internal caller bearer credential plus a short-lived signed identity assertion minted by the upstream verifier.
 
 ## Testing
 

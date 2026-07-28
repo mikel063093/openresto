@@ -8,6 +8,7 @@ public sealed class WhatsAppReservationUpdateRequestDto
     public int Seats { get; set; }
     public bool Confirmed { get; set; }
     public string IdempotencyKey { get; set; } = string.Empty;
+    public int ExpectedConcurrencyToken { get; set; }
 
     public int? RestaurantId { get; set; }
     public int? SectionId { get; set; }
@@ -24,6 +25,7 @@ public sealed class WhatsAppReservationCancelRequestDto
 {
     public bool Confirmed { get; set; }
     public string IdempotencyKey { get; set; } = string.Empty;
+    public int ExpectedConcurrencyToken { get; set; }
 
     public string? Reason { get; set; }
 }

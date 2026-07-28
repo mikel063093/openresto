@@ -12,15 +12,17 @@ internal sealed class ChannelMutationIdempotencyRepository(AppDbContext db) : IC
 {
     private readonly AppDbContext _db = db;
 
-    public Task<ChannelMutationIdempotencyRecord?> FindAsync(string channel, string mutationScope, string idempotencyKey)
+    public Task<ChannelMutationIdempotencyRecord?> FindByIdempotencyKeyAsync(string channel, string mutationScope, string idempotencyKey)
         => _db.ChannelMutationIdempotencyRecords.FirstOrDefaultAsync(x =>
             x.Channel == channel &&
             x.MutationScope == mutationScope &&
             x.IdempotencyKey == idempotencyKey);
 
-    public async Task AddAsync(ChannelMutationIdempotencyRecord record)
-    {
-        _db.ChannelMutationIdempotencyRecords.Add(record);
-        await _db.SaveChangesAsync();
-    }
+    public Task<ChannelMutationIdempotencyRecord?> FindByReplayKeyAsync(string channel, string replayKey)
+        => _db.ChannelMutationIdempotencyRecords.FirstOrDefaultAsync(x =>
+            x.Channel == channel &&
+            x.ReplayKey == replayKey);
+
+    public void Add(ChannelMutationIdempotencyRecord record)
+        => _db.ChannelMutationIdempotencyRecords.Add(record);
 }
