@@ -10,6 +10,7 @@ namespace OpenRestoApi.Tests.Migrations;
 public sealed class OccasionCatalogSnapshotMigrationTests : IDisposable
 {
     private const string LastMigrationBeforeOccasionCatalog = "20260728210202_AddWhatsAppCustomerChannelFoundation";
+    private const string LastMigrationBeforeOccasionSnapshotHardening = "20260728210525_AddOccasionCatalogAndBookingSnapshots";
 
     private readonly SqliteConnection _connection;
 
@@ -33,6 +34,9 @@ public sealed class OccasionCatalogSnapshotMigrationTests : IDisposable
 
         Assert.Equal("table", await GetObjectTypeAsync("RestaurantOccasionCatalogItems"));
         Assert.Equal("table", await GetObjectTypeAsync("BookingOccasionSnapshots"));
+        Assert.Equal(
+            "CREATE UNIQUE INDEX \"IX_BookingOccasionSnapshots_BookingId_RestaurantOccasionCatalogItemId\" ON \"BookingOccasionSnapshots\" (\"BookingId\", \"RestaurantOccasionCatalogItemId\")",
+            GetIndexSchema(_connection, "IX_BookingOccasionSnapshots_BookingId_RestaurantOccasionCatalogItemId"));
     }
 
     [Fact]
@@ -56,6 +60,25 @@ public sealed class OccasionCatalogSnapshotMigrationTests : IDisposable
         Assert.Equal(
             GetTableSchema(freshConnection, "BookingOccasionSnapshots"),
             GetTableSchema(_connection, "BookingOccasionSnapshots"));
+        Assert.Equal(
+            GetIndexSchema(freshConnection, "IX_BookingOccasionSnapshots_BookingId_RestaurantOccasionCatalogItemId"),
+            GetIndexSchema(_connection, "IX_BookingOccasionSnapshots_BookingId_RestaurantOccasionCatalogItemId"));
+    }
+
+    [Fact]
+    public async Task Upgrade_FromPreHardeningMigration_AddsSnapshotUniquenessIndex()
+    {
+        using AppDbContext db = CreateContext();
+        IMigrator migrator = db.GetInfrastructure().GetRequiredService<IMigrator>();
+
+        await migrator.MigrateAsync(LastMigrationBeforeOccasionSnapshotHardening);
+        Assert.Null(GetIndexSchema(_connection, "IX_BookingOccasionSnapshots_BookingId_RestaurantOccasionCatalogItemId"));
+
+        await migrator.MigrateAsync();
+
+        Assert.Equal(
+            "CREATE UNIQUE INDEX \"IX_BookingOccasionSnapshots_BookingId_RestaurantOccasionCatalogItemId\" ON \"BookingOccasionSnapshots\" (\"BookingId\", \"RestaurantOccasionCatalogItemId\")",
+            GetIndexSchema(_connection, "IX_BookingOccasionSnapshots_BookingId_RestaurantOccasionCatalogItemId"));
     }
 
     private AppDbContext CreateContext()
@@ -80,5 +103,13 @@ public sealed class OccasionCatalogSnapshotMigrationTests : IDisposable
         cmd.CommandText = "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = $name;";
         cmd.Parameters.AddWithValue("$name", tableName);
         return (string)(cmd.ExecuteScalar() ?? throw new InvalidOperationException($"Table {tableName} not found."));
+    }
+
+    private static string? GetIndexSchema(SqliteConnection connection, string indexName)
+    {
+        using var cmd = connection.CreateCommand();
+        cmd.CommandText = "SELECT sql FROM sqlite_master WHERE type = 'index' AND name = $name;";
+        cmd.Parameters.AddWithValue("$name", indexName);
+        return (string?)cmd.ExecuteScalar();
     }
 }

@@ -124,6 +124,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
                 .HasForeignKey(x => x.BookingId)
                 .OnDelete(DeleteBehavior.Cascade);
             snapshot.HasIndex(x => x.BookingId);
+            snapshot.HasIndex(x => new { x.BookingId, x.RestaurantOccasionCatalogItemId }).IsUnique();
         });
 
         modelBuilder.Entity<AdminCredential>(a =>
