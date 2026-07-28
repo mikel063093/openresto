@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using OpenRestoApi.Infrastructure.Persistence;
 
@@ -10,9 +11,11 @@ using OpenRestoApi.Infrastructure.Persistence;
 namespace OpenRestoApi.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260728210525_AddOccasionCatalogAndBookingSnapshots")]
+    partial class AddOccasionCatalogAndBookingSnapshots
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.10");
@@ -87,9 +90,6 @@ namespace OpenRestoApi.Migrations
                         .HasColumnType("TEXT");
 
                     b.Property<string>("CredentialKeyIdSnapshot")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("ExpirationPresetSnapshot")
                         .HasColumnType("TEXT");
 
                     b.Property<int?>("OperatorAgentCredentialId")
@@ -535,10 +535,7 @@ namespace OpenRestoApi.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
-                    b.Property<string>("ExpirationPreset")
-                        .HasColumnType("TEXT");
-
-                    b.Property<DateTime?>("ExpiresAt")
+                    b.Property<DateTime>("ExpiresAt")
                         .HasColumnType("TEXT");
 
                     b.Property<DateTime>("IssuedAt")
@@ -570,31 +567,6 @@ namespace OpenRestoApi.Migrations
                     b.HasIndex("ExpiresAt", "RevokedAt");
 
                     b.ToTable("OperatorAgentCredentials");
-                });
-
-            modelBuilder.Entity("OpenRestoApi.Core.Domain.OperatorAgentCredentialScope", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("TEXT");
-
-                    b.Property<int>("OperatorAgentCredentialId")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<int>("RestaurantId")
-                        .HasColumnType("INTEGER");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("RestaurantId");
-
-                    b.HasIndex("OperatorAgentCredentialId", "RestaurantId")
-                        .IsUnique();
-
-                    b.ToTable("OperatorAgentCredentialScopes");
                 });
 
             modelBuilder.Entity("OpenRestoApi.Core.Domain.OperatorPrincipal", b =>
@@ -1002,25 +974,6 @@ namespace OpenRestoApi.Migrations
                     b.Navigation("OperatorPrincipal");
                 });
 
-            modelBuilder.Entity("OpenRestoApi.Core.Domain.OperatorAgentCredentialScope", b =>
-                {
-                    b.HasOne("OpenRestoApi.Core.Domain.OperatorAgentCredential", "OperatorAgentCredential")
-                        .WithMany("RestaurantScopes")
-                        .HasForeignKey("OperatorAgentCredentialId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("OpenRestoApi.Core.Domain.Restaurant", "Restaurant")
-                        .WithMany()
-                        .HasForeignKey("RestaurantId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("OperatorAgentCredential");
-
-                    b.Navigation("Restaurant");
-                });
-
             modelBuilder.Entity("OpenRestoApi.Core.Domain.OperatorRestaurantScope", b =>
                 {
                     b.HasOne("OpenRestoApi.Core.Domain.OperatorPrincipal", "OperatorPrincipal")
@@ -1071,11 +1024,6 @@ namespace OpenRestoApi.Migrations
                         .IsRequired();
 
                     b.Navigation("Section");
-                });
-
-            modelBuilder.Entity("OpenRestoApi.Core.Domain.OperatorAgentCredential", b =>
-                {
-                    b.Navigation("RestaurantScopes");
                 });
 
             modelBuilder.Entity("OpenRestoApi.Core.Domain.OperatorPrincipal", b =>
