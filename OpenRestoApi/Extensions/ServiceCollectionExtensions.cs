@@ -177,6 +177,9 @@ public static class ServiceCollectionExtensions
             })
             .AddScheme<Microsoft.AspNetCore.Authentication.AuthenticationSchemeOptions, OperatorBearerAuthenticationHandler>(
                 OperatorAuthenticationDefaults.SchemeName,
+                _ => { })
+            .AddScheme<Microsoft.AspNetCore.Authentication.AuthenticationSchemeOptions, WhatsAppChannelAuthenticationHandler>(
+                WhatsAppChannelAuthenticationDefaults.SchemeName,
                 _ => { });
 
         services.AddAuthorization(options =>
@@ -284,6 +287,8 @@ public static class ServiceCollectionExtensions
         services.AddScoped<OperatorAvailabilityService>();
         services.AddScoped<OperatorReservationService>();
         services.AddScoped<RestaurantManagementService>();
+        services.AddScoped<WhatsAppChannelIdentityAccessor>();
+        services.AddScoped<WhatsAppReservationChannelService>();
         services.AddScoped<WhatsAppPhoneOwnershipService>();
         services.AddScoped<ChannelIdempotencyService>();
         services.AddScoped<OccasionCatalogService>();

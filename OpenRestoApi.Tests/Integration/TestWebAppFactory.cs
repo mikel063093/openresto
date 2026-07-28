@@ -21,6 +21,7 @@ public class TestWebAppFactory : WebApplicationFactory<Program>
     public const string JwtKey = "test-jwt-signing-key-for-integration-tests-minimum-32-chars!!";
     public const string JwtIssuer = "openresto-api";
     public const string JwtAudience = "openresto-admin";
+    public const string WhatsAppChannelToken = "test-whatsapp-channel-token";
     private readonly string _environmentName;
     private readonly bool _exposeOpenApiDocs;
 
@@ -89,6 +90,7 @@ public class TestWebAppFactory : WebApplicationFactory<Program>
         builder.UseSetting("Admin:Email", AdminEmail);
         builder.UseSetting("Admin:Password", AdminPassword);
         builder.UseSetting("Cors:Origins", "http://localhost");
+        builder.UseSetting("WhatsAppChannel:Token", WhatsAppChannelToken);
         if (_exposeOpenApiDocs)
         {
             builder.UseSetting("OpenApi:ExposeDocs", "true");
