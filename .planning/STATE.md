@@ -5,6 +5,8 @@
 - A verified codebase map exists at `.planning/codebase/CODEBASE_MAP.md`.
 - The binding design is captured at `.planning/features/internal-operator-mcp/SPEC.md`.
 - The implementation plan and recorded local verification are under `.planning/features/internal-operator-mcp/`.
+- A new Level-C planning set for the test-only WhatsApp reservation channel now exists under `.planning/features/whatsapp-reservations-test/`.
+- The current feature branch already contains partial OpenResto-side WhatsApp channel implementation work that has been assessed against `develop` and folded into the new planning baseline.
 
 ## Implemented Decisions
 - The remote Streamable HTTP MCP server lives in the existing ASP.NET Core backend at `/api/mcp/operator`.
@@ -18,4 +20,5 @@
 - No push, merge, or deployment was performed from this worktree.
 
 ## Next Recommended Step
-- Obtain independent review approval, then decide whether to deploy the feature branch to the isolated `test-rest` environment.
+- For `internal-operator-mcp`, obtain independent review approval, then decide whether to deploy the feature branch to the isolated `test-rest` environment.
+- For `whatsapp-reservations-test`, execute Phase 1 from `.planning/features/whatsapp-reservations-test/PLAN.md` and keep all work test-only with no production promotion path.
