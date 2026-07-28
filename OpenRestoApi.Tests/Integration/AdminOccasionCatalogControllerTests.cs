@@ -70,6 +70,55 @@ public sealed class AdminOccasionCatalogControllerTests(TestWebAppFactory factor
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
 
+    [Fact]
+    public async Task SuperAdmin_Create_ReturnsBadRequest_ForOutOfBoundsCatalogValues()
+    {
+        HttpClient client = _factory.CreateAuthenticatedClient();
+        int restaurantId = await SeedRestaurantAsync();
+
+        HttpResponseMessage response = await client.PostAsJsonAsync(
+            $"/api/admin/restaurants/{restaurantId}/occasion-catalog",
+            new
+            {
+                name = new string('N', 121),
+                description = new string('D', 501),
+                estimatedPriceCop = 50000001,
+                isActive = true
+            });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task SuperAdmin_Update_ReturnsBadRequest_ForOutOfBoundsCatalogValues()
+    {
+        HttpClient client = _factory.CreateAuthenticatedClient();
+        int restaurantId = await SeedRestaurantAsync();
+
+        HttpResponseMessage createResponse = await client.PostAsJsonAsync(
+            $"/api/admin/restaurants/{restaurantId}/occasion-catalog",
+            new
+            {
+                name = "Aniversario",
+                description = "Mesa decorada",
+                estimatedPriceCop = 95000,
+                isActive = true
+            });
+        CatalogItemResponse created = (await createResponse.Content.ReadFromJsonAsync<CatalogItemResponse>())!;
+
+        HttpResponseMessage response = await client.PutAsJsonAsync(
+            $"/api/admin/restaurants/{restaurantId}/occasion-catalog/{created.Id}",
+            new
+            {
+                name = new string('N', 121),
+                description = new string('D', 501),
+                estimatedPriceCop = 50000001,
+                isActive = true
+            });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
     private async Task<int> SeedRestaurantAsync()
     {
         using IServiceScope scope = _factory.Services.CreateScope();

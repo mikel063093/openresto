@@ -8,6 +8,10 @@ namespace OpenRestoApi.Core.Application.Services;
 
 public sealed class OccasionCatalogService(AppDbContext db)
 {
+    private const int MaxNameLength = 120;
+    private const int MaxDescriptionLength = 500;
+    private const int MaxEstimatedPriceCop = 50000000;
+
     private readonly AppDbContext _db = db;
 
     public async Task<IReadOnlyList<OccasionCatalogItemDto>> ListAsync(int restaurantId)
@@ -82,6 +86,22 @@ public sealed class OccasionCatalogService(AppDbContext db)
         Booking booking = await _db.Bookings.FirstOrDefaultAsync(x => x.Id == bookingId)
             ?? throw new NotFoundException("La reserva no existe.");
 
+        if (catalogItemIds.Count != catalogItemIds.Distinct().Count())
+        {
+            throw new ValidationException("La solicitud contiene ítems duplicados del catálogo.");
+        }
+
+        List<int> requestedIds = catalogItemIds.OrderBy(x => x).ToList();
+        List<BookingOccasionSnapshot> existingSnapshots = await _db.BookingOccasionSnapshots
+            .Where(x => x.BookingId == booking.Id)
+            .OrderBy(x => x.RestaurantOccasionCatalogItemId)
+            .ThenBy(x => x.Id)
+            .ToListAsync();
+        if (existingSnapshots.Count > 0)
+        {
+            return MatchExistingSnapshotsOrThrow(existingSnapshots, requestedIds);
+        }
+
         List<RestaurantOccasionCatalogItem> items = await _db.RestaurantOccasionCatalogItems
             .Where(x => x.RestaurantId == booking.RestaurantId && catalogItemIds.Contains(x.Id))
             .OrderBy(x => x.SortOrder)
@@ -104,8 +124,25 @@ public sealed class OccasionCatalogService(AppDbContext db)
         }).ToList();
 
         _db.BookingOccasionSnapshots.AddRange(snapshots);
-        await _db.SaveChangesAsync();
-        return snapshots;
+        try
+        {
+            await _db.SaveChangesAsync();
+            return snapshots;
+        }
+        catch (DbUpdateException)
+        {
+            List<BookingOccasionSnapshot> collidedSnapshots = await _db.BookingOccasionSnapshots
+                .Where(x => x.BookingId == booking.Id)
+                .OrderBy(x => x.RestaurantOccasionCatalogItemId)
+                .ThenBy(x => x.Id)
+                .ToListAsync();
+            if (collidedSnapshots.Count > 0)
+            {
+                return MatchExistingSnapshotsOrThrow(collidedSnapshots, requestedIds);
+            }
+
+            throw;
+        }
     }
 
     private async Task EnsureRestaurantExistsAsync(int restaurantId)
@@ -124,14 +161,46 @@ public sealed class OccasionCatalogService(AppDbContext db)
             throw new ValidationException("El nombre del ítem es obligatorio.");
         }
 
+        if (request.Name.Trim().Length > MaxNameLength)
+        {
+            throw new ValidationException($"El nombre del ítem no puede superar {MaxNameLength} caracteres.");
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.Description) && request.Description.Trim().Length > MaxDescriptionLength)
+        {
+            throw new ValidationException($"La descripción del ítem no puede superar {MaxDescriptionLength} caracteres.");
+        }
+
         if (request.EstimatedPriceCop < 0)
         {
             throw new ValidationException("El precio estimado en COP no puede ser negativo.");
+        }
+
+        if (request.EstimatedPriceCop > MaxEstimatedPriceCop)
+        {
+            throw new ValidationException($"El precio estimado en COP no puede superar {MaxEstimatedPriceCop}.");
         }
     }
 
     private static string? NormalizeDescription(string? description)
         => string.IsNullOrWhiteSpace(description) ? null : description.Trim();
+
+    private static IReadOnlyList<BookingOccasionSnapshot> MatchExistingSnapshotsOrThrow(
+        List<BookingOccasionSnapshot> existingSnapshots,
+        List<int> requestedIds)
+    {
+        List<int> existingIds = existingSnapshots
+            .Select(x => x.RestaurantOccasionCatalogItemId)
+            .OrderBy(x => x)
+            .ToList();
+
+        if (existingIds.SequenceEqual(requestedIds))
+        {
+            return existingSnapshots;
+        }
+
+        throw new ConflictException("The booking already has a different occasion snapshot set.");
+    }
 
     private static OccasionCatalogItemDto ToDto(RestaurantOccasionCatalogItem entity) => new()
     {
