@@ -57,6 +57,11 @@ server {
         log_not_found off;
     }
 
+    # Private channel routes are backend-internal only and must never traverse the public proxy.
+    location ^~ /api/private/channels/whatsapp/ {
+        return 404;
+    }
+
     location /api/ {
         limit_req zone=api burst=20 nodelay;
         include /etc/nginx/conf.d/security-headers.conf;

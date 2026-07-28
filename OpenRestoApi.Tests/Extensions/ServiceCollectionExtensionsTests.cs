@@ -89,6 +89,27 @@ public class ServiceCollectionExtensionsTests
     }
 
     [Fact]
+    public void AddCustomAuthentication_Throws_WhenWhatsAppChannelEnabledWithoutRequiredSecrets()
+    {
+        var services = new ServiceCollection();
+        var config = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["Jwt:Key"] = "test-jwt-signing-key-for-authentication-validation-1234",
+                ["WhatsAppChannel:Enabled"] = "true",
+                ["WhatsAppChannel:InternalCallerCredential"] = "",
+                ["WhatsAppChannel:Assertion:Issuer"] = "n8n-test",
+                ["WhatsAppChannel:Assertion:Audience"] = "openresto-whatsapp-private-api",
+                ["WhatsAppChannel:Assertion:SigningKey"] = "test-whatsapp-assertion-signing-key-minimum-32-chars!!",
+                ["WhatsAppChannel:Assertion:RequiredScope"] = "openresto.whatsapp.identity",
+            })
+            .Build();
+
+        InvalidOperationException ex = Assert.Throws<InvalidOperationException>(() => services.AddCustomAuthentication(config));
+        Assert.Contains("WhatsAppChannel", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public void AddProjectDependencies_RegistersExpectedServices()
     {
         var services = new ServiceCollection();

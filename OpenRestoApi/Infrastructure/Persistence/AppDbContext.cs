@@ -90,6 +90,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             bb.HasOne(b => b.Section).WithMany().HasForeignKey(b => b.SectionId).OnDelete(DeleteBehavior.SetNull);
             bb.HasOne(b => b.Restaurant).WithMany().HasForeignKey(b => b.RestaurantId);
             bb.HasOne(b => b.CreatedByOperator).WithMany().HasForeignKey(b => b.CreatedByOperatorId).OnDelete(DeleteBehavior.SetNull);
+            bb.Property(b => b.ConcurrencyToken).IsConcurrencyToken().HasDefaultValue(0);
             bb.HasIndex(b => new { b.CreatedByOperatorId, b.RestaurantId, b.Date });
             bb.HasIndex(b => new { b.CustomerPhoneNormalized, b.RestaurantId, b.Date });
         });
@@ -101,7 +102,9 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             record.Property(x => x.MutationScope).IsRequired();
             record.Property(x => x.IdempotencyKey).IsRequired();
             record.Property(x => x.Fingerprint).IsRequired();
+            record.Property(x => x.State).IsRequired();
             record.HasIndex(x => new { x.Channel, x.MutationScope, x.IdempotencyKey }).IsUnique();
+            record.HasIndex(x => new { x.Channel, x.ReplayKey }).IsUnique();
         });
 
         modelBuilder.Entity<RestaurantOccasionCatalogItem>(item =>

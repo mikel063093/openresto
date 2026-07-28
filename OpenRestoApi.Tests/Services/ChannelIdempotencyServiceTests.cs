@@ -24,54 +24,84 @@ public sealed class ChannelIdempotencyServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task RegisterMutationAsync_AllowsFirstAttempt_AndReplaysMatchingDuplicateKey()
+    public async Task ExecuteAsync_AllowsFirstAttempt_AndReplaysMatchingDuplicateKey()
     {
         await using AppDbContext db = CreateSqliteContext();
         var repository = new ChannelMutationIdempotencyRepository(db);
-        var service = new ChannelIdempotencyService(repository);
+        var service = new ChannelIdempotencyService(repository, db);
 
-        ChannelMutationRegistrationResult first = await service.RegisterMutationAsync(
+        ChannelMutationExecutionResult<string> first = await service.ExecuteAsync(
             channel: "whatsapp",
             mutationScope: "reservation.cancel",
             idempotencyKey: "wamid.123",
-            fingerprint: "booking:10");
+            fingerprint: "booking:10",
+            operation: () => Task.FromResult("ok"));
 
-        ChannelMutationRegistrationResult second = await service.RegisterMutationAsync(
+        ChannelMutationExecutionResult<string> second = await service.ExecuteAsync(
             channel: "whatsapp",
             mutationScope: "reservation.cancel",
             idempotencyKey: "wamid.123",
-            fingerprint: "booking:10");
+            fingerprint: "booking:10",
+            operation: () => Task.FromResult("unexpected"));
 
-        Assert.Equal(ChannelMutationRegistrationOutcome.Registered, first.Outcome);
-        Assert.Equal(ChannelMutationRegistrationOutcome.Replayed, second.Outcome);
-        Assert.Equal(first.Record.Id, second.Record.Id);
+        Assert.Equal(ChannelMutationExecutionOutcome.Executed, first.Outcome);
+        Assert.Equal(ChannelMutationExecutionOutcome.Replayed, second.Outcome);
+        Assert.Equal("ok", second.Result);
         Assert.Equal(1, await db.ChannelMutationIdempotencyRecords.CountAsync());
     }
 
     [Fact]
-    public async Task RegisterMutationAsync_RejectsFingerprintReuseMismatch()
+    public async Task ExecuteAsync_RejectsFingerprintReuseMismatch()
     {
         await using AppDbContext db = CreateSqliteContext();
         var repository = new ChannelMutationIdempotencyRepository(db);
-        var service = new ChannelIdempotencyService(repository);
+        var service = new ChannelIdempotencyService(repository, db);
 
-        await service.RegisterMutationAsync(
+        await service.ExecuteAsync(
             channel: "whatsapp",
             mutationScope: "reservation.cancel",
             idempotencyKey: "wamid.123",
-            fingerprint: "booking:10");
+            fingerprint: "booking:10",
+            operation: () => Task.FromResult("ok"));
 
-        ConflictException ex = await Assert.ThrowsAsync<ConflictException>(() => service.RegisterMutationAsync(
+        ConflictException ex = await Assert.ThrowsAsync<ConflictException>(() => service.ExecuteAsync(
             channel: "whatsapp",
             mutationScope: "reservation.cancel",
             idempotencyKey: "wamid.123",
-            fingerprint: "booking:11"));
+            fingerprint: "booking:11",
+            operation: () => Task.FromResult("bad")));
 
         Assert.Contains("idempotency", ex.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
-    public async Task RegisterMutationAsync_HandlesConcurrentInsertRaceAcrossSeparateDbContexts()
+    public async Task ExecuteAsync_RolledBackBusinessFailure_DoesNotConsumeKey()
+    {
+        await using AppDbContext db = CreateSqliteContext();
+        var repository = new ChannelMutationIdempotencyRepository(db);
+        var service = new ChannelIdempotencyService(repository, db);
+
+        await Assert.ThrowsAsync<ValidationException>(() => service.ExecuteAsync<string>(
+            channel: "whatsapp",
+            mutationScope: "reservation.update",
+            idempotencyKey: "validation-before-idempotency",
+            fingerprint: "booking:20",
+            operation: () => throw new ValidationException("bad request")));
+
+        ChannelMutationExecutionResult<string> retry = await service.ExecuteAsync(
+            channel: "whatsapp",
+            mutationScope: "reservation.update",
+            idempotencyKey: "validation-before-idempotency",
+            fingerprint: "booking:20",
+            operation: () => Task.FromResult("recovered"));
+
+        Assert.Equal(ChannelMutationExecutionOutcome.Executed, retry.Outcome);
+        Assert.Equal("recovered", retry.Result);
+        Assert.Equal(1, await db.ChannelMutationIdempotencyRecords.CountAsync());
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_HandlesConcurrentInsertRaceAcrossSeparateDbContexts()
     {
         await using AppDbContext setupDb = CreateSqliteContext();
         await setupDb.Database.EnsureCreatedAsync();
@@ -81,32 +111,36 @@ public sealed class ChannelIdempotencyServiceTests : IDisposable
         var gate = new Barrier(2);
 
         var firstService = new ChannelIdempotencyService(
-            new RacingRepository(new ChannelMutationIdempotencyRepository(firstDb), gate));
+            new RacingRepository(new ChannelMutationIdempotencyRepository(firstDb), gate),
+            firstDb);
         var secondService = new ChannelIdempotencyService(
-            new RacingRepository(new ChannelMutationIdempotencyRepository(secondDb), gate));
+            new RacingRepository(new ChannelMutationIdempotencyRepository(secondDb), gate),
+            secondDb);
 
-        Task<ChannelMutationRegistrationResult> firstTask = firstService.RegisterMutationAsync(
+        Task<ChannelMutationExecutionResult<string>> firstTask = firstService.ExecuteAsync(
             channel: "whatsapp",
             mutationScope: "reservation.update",
             idempotencyKey: "wamid.race",
-            fingerprint: "booking:20");
-        Task<ChannelMutationRegistrationResult> secondTask = secondService.RegisterMutationAsync(
+            fingerprint: "booking:20",
+            operation: () => Task.FromResult("winner"));
+        Task<ChannelMutationExecutionResult<string>> secondTask = secondService.ExecuteAsync(
             channel: "whatsapp",
             mutationScope: "reservation.update",
             idempotencyKey: "wamid.race",
-            fingerprint: "booking:20");
+            fingerprint: "booking:20",
+            operation: () => Task.FromResult("loser"));
 
-        ChannelMutationRegistrationResult[] results = await Task.WhenAll(firstTask, secondTask);
+        ChannelMutationExecutionResult<string>[] results = await Task.WhenAll(firstTask, secondTask);
 
-        Assert.Contains(results, x => x.Outcome == ChannelMutationRegistrationOutcome.Registered);
-        Assert.Contains(results, x => x.Outcome == ChannelMutationRegistrationOutcome.Replayed);
+        Assert.Contains(results, x => x.Outcome == ChannelMutationExecutionOutcome.Executed);
+        Assert.Contains(results, x => x.Outcome == ChannelMutationExecutionOutcome.Replayed);
 
         await using AppDbContext assertDb = CreateSqliteContext();
         Assert.Equal(1, await assertDb.ChannelMutationIdempotencyRecords.CountAsync());
     }
 
     [Fact]
-    public async Task RegisterMutationAsync_ReportsConflictAfterConcurrentInsertRace_WhenFingerprintDiffers()
+    public async Task ExecuteAsync_ReportsConflictAfterConcurrentInsertRace_WhenFingerprintDiffers()
     {
         await using AppDbContext setupDb = CreateSqliteContext();
         await setupDb.Database.EnsureCreatedAsync();
@@ -116,25 +150,29 @@ public sealed class ChannelIdempotencyServiceTests : IDisposable
         var gate = new Barrier(2);
 
         var firstService = new ChannelIdempotencyService(
-            new RacingRepository(new ChannelMutationIdempotencyRepository(firstDb), gate));
+            new RacingRepository(new ChannelMutationIdempotencyRepository(firstDb), gate),
+            firstDb);
         var secondService = new ChannelIdempotencyService(
-            new RacingRepository(new ChannelMutationIdempotencyRepository(secondDb), gate));
+            new RacingRepository(new ChannelMutationIdempotencyRepository(secondDb), gate),
+            secondDb);
 
-        Task<ChannelMutationRegistrationResult> firstTask = firstService.RegisterMutationAsync(
+        Task<ChannelMutationExecutionResult<string>> firstTask = firstService.ExecuteAsync(
             channel: "whatsapp",
             mutationScope: "reservation.update",
             idempotencyKey: "wamid.race-conflict",
-            fingerprint: "booking:20");
-        Task secondTask = secondService.RegisterMutationAsync(
+            fingerprint: "booking:20",
+            operation: () => Task.FromResult("winner"));
+        Task secondTask = secondService.ExecuteAsync(
             channel: "whatsapp",
             mutationScope: "reservation.update",
             idempotencyKey: "wamid.race-conflict",
-            fingerprint: "booking:21");
+            fingerprint: "booking:21",
+            operation: () => Task.FromResult("loser"));
 
-        ChannelMutationRegistrationResult firstResult = await firstTask;
+        ChannelMutationExecutionResult<string> firstResult = await firstTask;
         ConflictException ex = await Assert.ThrowsAsync<ConflictException>(async () => await secondTask);
 
-        Assert.Equal(ChannelMutationRegistrationOutcome.Registered, firstResult.Outcome);
+        Assert.Equal(ChannelMutationExecutionOutcome.Executed, firstResult.Outcome);
         Assert.Contains("idempotency", ex.Message, StringComparison.OrdinalIgnoreCase);
     }
 
@@ -144,7 +182,8 @@ public sealed class ChannelIdempotencyServiceTests : IDisposable
         connection.Open();
 
         DbContextOptions<AppDbContext> options = new DbContextOptionsBuilder<AppDbContext>()
-            .UseSqlite(connection)
+            .UseSqlite(connection, sqliteOptions =>
+                sqliteOptions.ExecutionStrategy(dependencies => new SqliteRetryingExecutionStrategy(dependencies)))
             .Options;
 
         var db = new AppDbContext(options);
@@ -157,15 +196,22 @@ public sealed class ChannelIdempotencyServiceTests : IDisposable
     {
         private readonly IChannelMutationIdempotencyRepository _inner = inner;
         private readonly Barrier _gate = gate;
+        private int _findCount;
 
-        public async Task<ChannelMutationIdempotencyRecord?> FindAsync(string channel, string mutationScope, string idempotencyKey)
+        public async Task<ChannelMutationIdempotencyRecord?> FindByIdempotencyKeyAsync(string channel, string mutationScope, string idempotencyKey)
         {
-            ChannelMutationIdempotencyRecord? record = await _inner.FindAsync(channel, mutationScope, idempotencyKey);
-            _gate.SignalAndWait(TimeSpan.FromSeconds(10));
+            ChannelMutationIdempotencyRecord? record = await _inner.FindByIdempotencyKeyAsync(channel, mutationScope, idempotencyKey);
+            if (Interlocked.Increment(ref _findCount) == 1)
+            {
+                _gate.SignalAndWait(TimeSpan.FromSeconds(10));
+            }
             return record;
         }
 
-        public Task AddAsync(ChannelMutationIdempotencyRecord record)
-            => _inner.AddAsync(record);
+        public Task<ChannelMutationIdempotencyRecord?> FindByReplayKeyAsync(string channel, string replayKey)
+            => _inner.FindByReplayKeyAsync(channel, replayKey);
+
+        public void Add(ChannelMutationIdempotencyRecord record)
+            => _inner.Add(record);
     }
 }

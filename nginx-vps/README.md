@@ -71,3 +71,7 @@ docker compose -f docker-compose.vps.yml up -d
 | `SSL_CERT_PATH`      | _(Optional)_ Path inside the container. Defaults to `/etc/nginx/ssl/server.crt` |
 | `SSL_KEY_PATH`       | _(Optional)_ Path inside the container. Defaults to `/etc/nginx/ssl/server.key` |
 | `CONNECTION_STRING`  | _(Optional)_ SQLite path. Defaults to `Data Source=/data/openresto.db`          |
+
+## Internal backend routing
+
+The WhatsApp private channel route `/api/private/channels/whatsapp/` is intentionally blocked at the public Nginx layer with `404`. Route it only on the backend-internal network path between the verifier/orchestrator and the ASP.NET service.

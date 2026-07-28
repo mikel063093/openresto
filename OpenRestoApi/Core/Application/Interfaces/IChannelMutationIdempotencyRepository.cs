@@ -4,6 +4,7 @@ namespace OpenRestoApi.Core.Application.Interfaces;
 
 public interface IChannelMutationIdempotencyRepository
 {
-    Task<ChannelMutationIdempotencyRecord?> FindAsync(string channel, string mutationScope, string idempotencyKey);
-    Task AddAsync(ChannelMutationIdempotencyRecord record);
+    Task<ChannelMutationIdempotencyRecord?> FindByIdempotencyKeyAsync(string channel, string mutationScope, string idempotencyKey);
+    Task<ChannelMutationIdempotencyRecord?> FindByReplayKeyAsync(string channel, string replayKey);
+    void Add(ChannelMutationIdempotencyRecord record);
 }

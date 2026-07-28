@@ -1,4 +1,5 @@
 using System.Text;
+using System.Security.Cryptography;
 using System.Threading.RateLimiting;
 using MailKit.Net.Smtp;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -146,6 +147,8 @@ public static class ServiceCollectionExtensions
                 "Generate one with: openssl rand -base64 48");
         }
 
+        ValidateWhatsAppChannelConfiguration(configuration);
+
         services
             .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             .AddJwtBearer(options =>
@@ -194,6 +197,31 @@ public static class ServiceCollectionExtensions
         });
 
         return services;
+    }
+
+    private static void ValidateWhatsAppChannelConfiguration(IConfiguration configuration)
+    {
+        if (!bool.TryParse(configuration["WhatsAppChannel:Enabled"], out bool enabled) || !enabled)
+        {
+            return;
+        }
+
+        string? internalCallerCredential = configuration["WhatsAppChannel:InternalCallerCredential"];
+        string? assertionIssuer = configuration["WhatsAppChannel:Assertion:Issuer"];
+        string? assertionAudience = configuration["WhatsAppChannel:Assertion:Audience"];
+        string? assertionSigningKey = configuration["WhatsAppChannel:Assertion:SigningKey"];
+        string? requiredScope = configuration["WhatsAppChannel:Assertion:RequiredScope"];
+
+        if (string.IsNullOrWhiteSpace(internalCallerCredential) ||
+            string.IsNullOrWhiteSpace(assertionIssuer) ||
+            string.IsNullOrWhiteSpace(assertionAudience) ||
+            string.IsNullOrWhiteSpace(requiredScope) ||
+            string.IsNullOrWhiteSpace(assertionSigningKey) ||
+            assertionSigningKey.Length < 32)
+        {
+            throw new InvalidOperationException(
+                "WhatsAppChannel is enabled but the internal caller credential and assertion verification settings are incomplete.");
+        }
     }
 
     public static IServiceCollection AddProjectDependencies(this IServiceCollection services)

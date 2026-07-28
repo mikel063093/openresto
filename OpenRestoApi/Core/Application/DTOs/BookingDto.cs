@@ -25,6 +25,7 @@ public class BookingDto
     public int? TableSeats { get; set; }
     public bool IsCancelled { get; set; }
     public DateTime? CancelledAt { get; set; }
+    public int ConcurrencyToken { get; set; }
 
     /// <summary>
     /// Optional hold ID obtained from POST /api/holds.

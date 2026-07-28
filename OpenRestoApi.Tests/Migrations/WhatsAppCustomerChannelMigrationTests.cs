@@ -32,11 +32,18 @@ public sealed class WhatsAppCustomerChannelMigrationTests : IDisposable
         await db.Database.MigrateAsync();
 
         var bookingColumns = await GetTableInfoAsync("Bookings");
+        var idempotencyColumns = await GetTableInfoAsync("ChannelMutationIdempotencyRecords");
 
         Assert.Contains(bookingColumns, c => c.Name == "CustomerPhoneE164" && c.Type == "TEXT" && c.NotNull == 0);
         Assert.Contains(bookingColumns, c => c.Name == "CustomerPhoneNormalized" && c.Type == "TEXT" && c.NotNull == 0);
+        Assert.Contains(bookingColumns, c => c.Name == "ConcurrencyToken" && c.Type == "INTEGER" && c.NotNull == 1);
 
         Assert.Equal("table", await GetObjectTypeAsync("ChannelMutationIdempotencyRecords"));
+        Assert.Contains(idempotencyColumns, c => c.Name == "State" && c.Type == "TEXT" && c.NotNull == 1);
+        Assert.Contains(idempotencyColumns, c => c.Name == "ResultJson" && c.Type == "TEXT" && c.NotNull == 0);
+        Assert.Contains(idempotencyColumns, c => c.Name == "CompletedAtUtc" && c.Type == "TEXT" && c.NotNull == 0);
+        Assert.Contains(idempotencyColumns, c => c.Name == "ReplayKey" && c.Type == "TEXT" && c.NotNull == 0);
+        Assert.Contains(idempotencyColumns, c => c.Name == "ExpiresAtUtc" && c.Type == "TEXT" && c.NotNull == 0);
         Assert.Contains(
             GetIndexes(_connection, "ChannelMutationIdempotencyRecords"),
             index => index.Name == "IX_ChannelMutationIdempotencyRecords_Channel_MutationScope_IdempotencyKey" && index.IsUnique);
