@@ -305,6 +305,63 @@ public class BookingServiceTests
         Assert.Equal(1, unchanged.SectionId);
     }
 
+    [Fact]
+    public async Task UpdateBookingAsync_Throws_WhenUpdatedTimeConflictsWithAnotherBooking()
+    {
+        using AppDbContext db = TestDbFactory.Create(nameof(UpdateBookingAsync_Throws_WhenUpdatedTimeConflictsWithAnotherBooking));
+        TestSeed.BasicRestaurant(db);
+        DateTime originalDate = DateTime.UtcNow.AddDays(7).Date.AddHours(12);
+        db.Bookings.Add(new Booking
+        {
+            Id = 10,
+            BookingRef = "REF-UPDATE-CONFLICT-1",
+            RestaurantId = 1,
+            SectionId = 1,
+            TableId = 1,
+            CustomerEmail = "guest@example.com",
+            CustomerName = "Guest",
+            Seats = 2,
+            Date = originalDate,
+            EndTime = originalDate.AddHours(1)
+        });
+        db.Bookings.Add(new Booking
+        {
+            Id = 11,
+            BookingRef = "REF-UPDATE-CONFLICT-2",
+            RestaurantId = 1,
+            SectionId = 1,
+            TableId = 1,
+            CustomerEmail = "other@example.com",
+            CustomerName = "Other",
+            Seats = 2,
+            Date = originalDate.AddHours(2),
+            EndTime = originalDate.AddHours(3)
+        });
+        await db.SaveChangesAsync();
+
+        BookingService svc = CreateService(db);
+
+        ConflictException ex = await Assert.ThrowsAsync<ConflictException>(() =>
+            svc.UpdateBookingAsync(10, new BookingDto
+            {
+                Id = 10,
+                BookingRef = "REF-UPDATE-CONFLICT-1",
+                RestaurantId = 1,
+                SectionId = 1,
+                TableId = 1,
+                CustomerEmail = "guest@example.com",
+                CustomerName = "Guest",
+                Seats = 2,
+                Date = originalDate.AddHours(2)
+            }));
+
+        Assert.Contains("already booked", ex.Message);
+
+        Booking unchanged = await db.Bookings.SingleAsync(x => x.Id == 10);
+        Assert.Equal(originalDate, unchanged.Date);
+        Assert.Equal(originalDate.AddHours(1), unchanged.EndTime);
+    }
+
     // ── Configurable booking duration (#135) ────────────────────────────────
 
     [Theory]

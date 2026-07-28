@@ -254,6 +254,28 @@ public class BookingService(
 
         Booking booking = _mapper.ToEntity(bookingDto);
         Restaurant? restaurant = await _restaurantRepository.GetByIdAsync(booking.RestaurantId);
+        if (restaurant is null)
+        {
+            throw new NotFoundException("Restaurant not found.");
+        }
+
+        DateTime bookingDate = TimeZoneHelper.ConvertLocalToUtc(bookingDto.Date, restaurant.Timezone);
+        if (restaurant.IsPaused())
+        {
+            throw new ConflictException("Bookings for this restaurant are currently paused. Please try again later.");
+        }
+
+        if (bookingDate < DateTime.UtcNow.AddMinutes(-Booking.CancellationGraceMinutes))
+        {
+            throw new ConflictException("Cannot create a booking in the past.");
+        }
+
+        if (restaurant.IsWalkInOnlyAt(bookingDate))
+        {
+            throw new ConflictException(restaurant.WalkInOnly
+                ? "This location accepts walk-ins only and does not take online bookings."
+                : "This location accepts walk-ins only on the selected day. Please choose another day or just come in.");
+        }
 
         // Check for seat capacity if seats are being updated
         if (bookingDto.Seats > 0)
@@ -275,9 +297,21 @@ public class BookingService(
         }
 
         // Ensure EndTime is valid if it's being updated or if Date changed
+        booking.Date = bookingDate;
         if (!booking.EndTime.HasValue || booking.EndTime.Value < booking.Date)
         {
-            booking.EndTime = booking.Date.AddMinutes(restaurant?.DefaultBookingDurationMinutes ?? 60);
+            booking.EndTime = booking.Date.AddMinutes(restaurant.DefaultBookingDurationMinutes);
+        }
+
+        bool hasConflict = await _bookingRepository.HasConflictAsync(
+            booking.TableId,
+            booking.Date,
+            booking.EndTime.Value,
+            restaurant.DefaultBookingDurationMinutes,
+            excludeBookingId: booking.Id);
+        if (hasConflict)
+        {
+            throw new ConflictException("This table is already booked for that time.");
         }
 
         await _bookingRepository.UpdateAsync(booking);
