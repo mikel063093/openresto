@@ -20,6 +20,7 @@ public class TestWebAppFactory : WebApplicationFactory<Program>
     public const string JwtKey = "test-jwt-signing-key-for-integration-tests-minimum-32-chars!!";
     public const string JwtIssuer = "openresto-api";
     public const string JwtAudience = "openresto-admin";
+    public const string WhatsAppChannelToken = "test-whatsapp-channel-token";
 
     // Keep the connection open for the lifetime of the factory so the in-memory SQLite DB persists
     private readonly SqliteConnection _connection;
@@ -79,6 +80,7 @@ public class TestWebAppFactory : WebApplicationFactory<Program>
         builder.UseSetting("Admin:Email", AdminEmail);
         builder.UseSetting("Admin:Password", AdminPassword);
         builder.UseSetting("Cors:Origins", "http://localhost");
+        builder.UseSetting("WhatsAppChannel:Token", WhatsAppChannelToken);
     }
 
     /// <summary>
