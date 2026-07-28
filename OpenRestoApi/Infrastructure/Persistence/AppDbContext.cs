@@ -23,6 +23,9 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<OperatorAgentCredential> OperatorAgentCredentials { get; set; } = null!;
     public DbSet<OperatorActionAudit> OperatorActionAudits { get; set; } = null!;
     public DbSet<AdminCredentialManagementAudit> AdminCredentialManagementAudits { get; set; } = null!;
+    public DbSet<ChannelMutationIdempotencyRecord> ChannelMutationIdempotencyRecords { get; set; } = null!;
+    public DbSet<RestaurantOccasionCatalogItem> RestaurantOccasionCatalogItems { get; set; } = null!;
+    public DbSet<BookingOccasionSnapshot> BookingOccasionSnapshots { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -87,6 +90,39 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             bb.HasOne(b => b.Restaurant).WithMany().HasForeignKey(b => b.RestaurantId);
             bb.HasOne(b => b.CreatedByOperator).WithMany().HasForeignKey(b => b.CreatedByOperatorId).OnDelete(DeleteBehavior.SetNull);
             bb.HasIndex(b => new { b.CreatedByOperatorId, b.RestaurantId, b.Date });
+            bb.HasIndex(b => new { b.CustomerPhoneNormalized, b.RestaurantId, b.Date });
+        });
+
+        modelBuilder.Entity<ChannelMutationIdempotencyRecord>(record =>
+        {
+            record.HasKey(x => x.Id);
+            record.Property(x => x.Channel).IsRequired();
+            record.Property(x => x.MutationScope).IsRequired();
+            record.Property(x => x.IdempotencyKey).IsRequired();
+            record.Property(x => x.Fingerprint).IsRequired();
+            record.HasIndex(x => new { x.Channel, x.MutationScope, x.IdempotencyKey }).IsUnique();
+        });
+
+        modelBuilder.Entity<RestaurantOccasionCatalogItem>(item =>
+        {
+            item.HasKey(x => x.Id);
+            item.Property(x => x.Name).IsRequired();
+            item.HasOne(x => x.Restaurant)
+                .WithMany()
+                .HasForeignKey(x => x.RestaurantId)
+                .OnDelete(DeleteBehavior.Cascade);
+            item.HasIndex(x => new { x.RestaurantId, x.SortOrder });
+        });
+
+        modelBuilder.Entity<BookingOccasionSnapshot>(snapshot =>
+        {
+            snapshot.HasKey(x => x.Id);
+            snapshot.Property(x => x.Name).IsRequired();
+            snapshot.HasOne(x => x.Booking)
+                .WithMany()
+                .HasForeignKey(x => x.BookingId)
+                .OnDelete(DeleteBehavior.Cascade);
+            snapshot.HasIndex(x => x.BookingId);
         });
 
         modelBuilder.Entity<AdminCredential>(a =>

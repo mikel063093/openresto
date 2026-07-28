@@ -239,6 +239,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IEmailFailureRepository, EmailFailureRepository>();
         services.AddScoped<IHighlightRepository, HighlightRepository>();
         services.AddScoped<ISocialLinkRepository, SocialLinkRepository>();
+        services.AddScoped<IChannelMutationIdempotencyRepository, ChannelMutationIdempotencyRepository>();
 
         services.AddScoped<IPasswordService, PasswordService>();
         services.AddScoped<IJwtTokenService, JwtTokenService>();
@@ -254,6 +255,9 @@ public static class ServiceCollectionExtensions
         services.AddScoped<OperatorAvailabilityService>();
         services.AddScoped<OperatorReservationService>();
         services.AddScoped<RestaurantManagementService>();
+        services.AddScoped<WhatsAppPhoneOwnershipService>();
+        services.AddScoped<ChannelIdempotencyService>();
+        services.AddScoped<OccasionCatalogService>();
         services.AddScoped<BrandService>();
         services.AddScoped<EmailSettingsService>();
         services.AddScoped<HighlightService>();

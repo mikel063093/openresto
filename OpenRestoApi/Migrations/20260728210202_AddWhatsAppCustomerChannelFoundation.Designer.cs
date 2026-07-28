@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using OpenRestoApi.Infrastructure.Persistence;
 
@@ -10,9 +11,11 @@ using OpenRestoApi.Infrastructure.Persistence;
 namespace OpenRestoApi.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260728210202_AddWhatsAppCustomerChannelFoundation")]
+    partial class AddWhatsAppCustomerChannelFoundation
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.10");
@@ -281,38 +284,6 @@ namespace OpenRestoApi.Migrations
                     b.HasIndex("CustomerPhoneNormalized", "RestaurantId", "Date");
 
                     b.ToTable("Bookings");
-                });
-
-            modelBuilder.Entity("OpenRestoApi.Core.Domain.BookingOccasionSnapshot", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER");
-
-                    b.Property<int>("BookingId")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<DateTime>("CreatedAtUtc")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Description")
-                        .HasColumnType("TEXT");
-
-                    b.Property<int>("EstimatedPriceCop")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<int>("RestaurantOccasionCatalogItemId")
-                        .HasColumnType("INTEGER");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("BookingId");
-
-                    b.ToTable("BookingOccasionSnapshots");
                 });
 
             modelBuilder.Entity("OpenRestoApi.Core.Domain.BrandSettings", b =>
@@ -724,44 +695,6 @@ namespace OpenRestoApi.Migrations
                     b.ToTable("Highlights");
                 });
 
-            modelBuilder.Entity("OpenRestoApi.Core.Domain.RestaurantOccasionCatalogItem", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER");
-
-                    b.Property<DateTime>("CreatedAtUtc")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Description")
-                        .HasColumnType("TEXT");
-
-                    b.Property<int>("EstimatedPriceCop")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<int>("RestaurantId")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<int>("SortOrder")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<DateTime>("UpdatedAtUtc")
-                        .HasColumnType("TEXT");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("RestaurantId", "SortOrder");
-
-                    b.ToTable("RestaurantOccasionCatalogItems");
-                });
-
             modelBuilder.Entity("OpenRestoApi.Core.Domain.Section", b =>
                 {
                     b.Property<int>("Id")
@@ -918,17 +851,6 @@ namespace OpenRestoApi.Migrations
                     b.Navigation("Table");
                 });
 
-            modelBuilder.Entity("OpenRestoApi.Core.Domain.BookingOccasionSnapshot", b =>
-                {
-                    b.HasOne("OpenRestoApi.Core.Domain.Booking", "Booking")
-                        .WithMany()
-                        .HasForeignKey("BookingId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Booking");
-                });
-
             modelBuilder.Entity("OpenRestoApi.Core.Domain.OperatorActionAudit", b =>
                 {
                     b.HasOne("OpenRestoApi.Core.Domain.Booking", "Booking")
@@ -986,17 +908,6 @@ namespace OpenRestoApi.Migrations
                         .IsRequired();
 
                     b.Navigation("OperatorPrincipal");
-
-                    b.Navigation("Restaurant");
-                });
-
-            modelBuilder.Entity("OpenRestoApi.Core.Domain.RestaurantOccasionCatalogItem", b =>
-                {
-                    b.HasOne("OpenRestoApi.Core.Domain.Restaurant", "Restaurant")
-                        .WithMany()
-                        .HasForeignKey("RestaurantId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
 
                     b.Navigation("Restaurant");
                 });

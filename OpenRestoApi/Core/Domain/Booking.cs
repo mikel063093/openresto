@@ -30,6 +30,8 @@ public class Booking
     public DateTime Date { get; set; }
     public string? CustomerEmail { get; set; }
     public string? CustomerName { get; set; }
+    public string? CustomerPhoneE164 { get; set; }
+    public string? CustomerPhoneNormalized { get; set; }
     public int Seats { get; set; }
     public string? SpecialRequests { get; set; }
     public string BookingRef { get; set; } = string.Empty;
