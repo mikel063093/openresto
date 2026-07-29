@@ -18,5 +18,9 @@ export function detectLocale({ storedLocale, browserLanguages }: LocaleDetection
 
 export function getBrowserLanguages(): readonly string[] {
   if (typeof navigator === "undefined") return [];
-  return navigator.languages?.length ? navigator.languages : navigator.language ? [navigator.language] : [];
+  return navigator.languages?.length
+    ? navigator.languages
+    : navigator.language
+      ? [navigator.language]
+      : [];
 }

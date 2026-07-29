@@ -25,7 +25,10 @@ jest.mock("@/context/ThemeContext", () => ({
   useTheme: () => ({ toggle: jest.fn() }),
 }));
 
-jest.mock("@/api/auth", () => ({ logout: jest.fn().mockResolvedValue(undefined) }));
+jest.mock("@/api/auth", () => ({
+  checkSession: jest.fn().mockResolvedValue({ email: "admin@test.com", role: "SuperAdmin" }),
+  logout: jest.fn().mockResolvedValue(undefined),
+}));
 
 jest.mock("@/api/restaurants", () => ({
   fetchRestaurants: jest.fn().mockResolvedValue([{ id: 1 }, { id: 2 }]),

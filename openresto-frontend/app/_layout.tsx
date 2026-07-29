@@ -34,7 +34,7 @@ if (Platform.OS === "web" && typeof document !== "undefined") {
 
 function AppWithTheme() {
   const brand = useBrand();
-  const { t } = useI18n();
+  useI18n();
   const pathname = usePathname();
   const segments = useSegments();
 

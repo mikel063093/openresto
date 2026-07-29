@@ -17,8 +17,8 @@ describe("locale resolution", () => {
   });
 
   it("uses the first supported browser language when no override exists", () => {
-    expect(detectLocale({ storedLocale: null, browserLanguages: ["fr-FR", "es-CO", "en-US"] })).toBe(
-      "es"
-    );
+    expect(
+      detectLocale({ storedLocale: null, browserLanguages: ["fr-FR", "es-CO", "en-US"] })
+    ).toBe("es");
   });
 });

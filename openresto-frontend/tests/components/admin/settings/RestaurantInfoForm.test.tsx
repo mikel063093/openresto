@@ -917,9 +917,8 @@ describe("RestaurantInfoForm", () => {
   });
 
   it("shows a size error when the selected file exceeds 10 MB", async () => {
-    const largeFile = new File(["x".repeat(11 * 1024 * 1024)], "big.pdf", {
-      type: "application/pdf",
-    });
+    const largeFile = new File(["pdf"], "big.pdf", { type: "application/pdf" });
+    Object.defineProperty(largeFile, "size", { value: 11 * 1024 * 1024 });
     const mockInput = {
       type: "",
       accept: "",

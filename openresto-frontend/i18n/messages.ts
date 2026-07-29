@@ -21,7 +21,8 @@ const en = {
   "common.loading": "Loading…",
   "common.cancel": "Cancel",
   "common.save": "Save",
-  "home.defaultSubtitle": "Choose a location, select a time, enter your email address, and you are all set.",
+  "home.defaultSubtitle":
+    "Choose a location, select a time, enter your email address, and you are all set.",
   "home.highlights": "Restaurant highlights",
   "home.curatedByOwner": "Curated by the owner",
   "home.ourLocations": "Our locations",
@@ -58,7 +59,8 @@ const es: Record<keyof typeof en, string> = {
   "common.loading": "Cargando…",
   "common.cancel": "Cancelar",
   "common.save": "Guardar",
-  "home.defaultSubtitle": "Elige una ubicación, selecciona una hora, ingresa tu correo electrónico y listo.",
+  "home.defaultSubtitle":
+    "Elige una ubicación, selecciona una hora, ingresa tu correo electrónico y listo.",
   "home.highlights": "Lo mejor del restaurante",
   "home.curatedByOwner": "Selección del restaurante",
   "home.ourLocations": "Nuestras ubicaciones",
@@ -68,7 +70,8 @@ const es: Record<keyof typeof en, string> = {
   "admin.notifications": "Notificaciones",
   "admin.settings": "Configuración",
   "admin.panel": "Panel de administración",
-  "admin.managingLocations": "Administras {count} {count, plural, one {ubicación} other {ubicaciones}}",
+  "admin.managingLocations":
+    "Administras {count} {count, plural, one {ubicación} other {ubicaciones}}",
   "admin.lookupBooking": "Buscar una reserva",
   "admin.emailOrReference": "Correo o referencia…",
   "admin.noBookingFound": "No se encontró ninguna reserva.",
@@ -88,5 +91,7 @@ function pluralize(template: string, values: MessageValues): string {
 
 export function translate(locale: Locale, key: MessageKey, values: MessageValues = {}): string {
   const template = catalogs[locale][key] ?? catalogs.en[key];
-  return pluralize(template, values).replace(/\{(\w+)\}/g, (_match, name: string) => String(values[name] ?? `{${name}}`));
+  return pluralize(template, values).replace(/\{(\w+)\}/g, (_match, name: string) =>
+    String(values[name] ?? `{${name}}`)
+  );
 }

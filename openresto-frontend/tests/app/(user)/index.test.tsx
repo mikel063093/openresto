@@ -161,7 +161,7 @@ describe("HomeScreen", () => {
     await waitFor(() => expect(screen.queryByTestId("loading-screen")).toBeNull());
     expect(
       screen.getByText(
-        "Scroll down to pick a location below, choose a time, enter your email address, and you're booked!"
+        "Choose a location, select a time, enter your email address, and you are all set."
       )
     ).toBeTruthy();
   });

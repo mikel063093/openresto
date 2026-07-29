@@ -23,7 +23,10 @@ function Consumer() {
 describe("I18nContext", () => {
   beforeEach(() => {
     localStorage.clear();
-    Object.defineProperty(navigator, "languages", { configurable: true, value: ["es-CO", "en-US"] });
+    Object.defineProperty(navigator, "languages", {
+      configurable: true,
+      value: ["es-CO", "en-US"],
+    });
   });
 
   it("defaults to the browser's Spanish preference and persists an explicit language choice", () => {
