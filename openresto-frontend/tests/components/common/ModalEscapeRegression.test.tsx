@@ -45,10 +45,16 @@ jest.mock("@/hooks/use-color-scheme", () => ({
 }));
 
 describe("Existing modals wire onRequestClose (precondition for web Escape-to-close)", () => {
-  it("wires ConfirmModal's onRequestClose to its onCancel handler", () => {
+  let tree: TestRenderer.ReactTestRenderer | undefined;
+
+  afterEach(() => {
+    TestRenderer.act(() => tree?.unmount());
+    tree = undefined;
+  });
+
+  it("wires ConfirmModal's onRequestClose to its onCancel handler", async () => {
     const onCancel = jest.fn();
-    let tree!: TestRenderer.ReactTestRenderer;
-    TestRenderer.act(() => {
+    await TestRenderer.act(async () => {
       tree = TestRenderer.create(
         <BrandProvider>
           <ConfirmModal
@@ -59,30 +65,31 @@ describe("Existing modals wire onRequestClose (precondition for web Escape-to-cl
           />
         </BrandProvider>
       );
+      await Promise.resolve();
     });
 
-    const modal = tree.root.findByType(Modal);
+    const modal = tree!.root.findByType(Modal);
     expect(modal.props.onRequestClose).toBe(onCancel);
 
-    modal.props.onRequestClose();
+    TestRenderer.act(() => modal.props.onRequestClose());
     expect(onCancel).toHaveBeenCalledTimes(1);
   });
 
-  it("wires AlertModal's onRequestClose to its onClose handler", () => {
+  it("wires AlertModal's onRequestClose to its onClose handler", async () => {
     const onClose = jest.fn();
-    let tree!: TestRenderer.ReactTestRenderer;
-    TestRenderer.act(() => {
+    await TestRenderer.act(async () => {
       tree = TestRenderer.create(
         <BrandProvider>
           <AlertModal visible message="Something happened" onClose={onClose} />
         </BrandProvider>
       );
+      await Promise.resolve();
     });
 
-    const modal = tree.root.findByType(Modal);
+    const modal = tree!.root.findByType(Modal);
     expect(modal.props.onRequestClose).toBe(onClose);
 
-    modal.props.onRequestClose();
+    TestRenderer.act(() => modal.props.onRequestClose());
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 });
