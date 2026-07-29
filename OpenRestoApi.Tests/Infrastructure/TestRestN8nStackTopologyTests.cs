@@ -10,7 +10,16 @@ public sealed class TestRestN8nStackTopologyTests
         Assert.Contains("reservation-bot-test:", text, StringComparison.Ordinal);
         Assert.Contains("n8n-test-postgres:", text, StringComparison.Ordinal);
         Assert.Contains("n8n-test-volume-init:", text, StringComparison.Ordinal);
+        Assert.Contains("n8n-test-workflow-init:", text, StringComparison.Ordinal);
         Assert.Contains("n8n-test:", text, StringComparison.Ordinal);
+        Assert.Contains("N8N_TEST_IMAGE_TAG:?Set N8N_TEST_IMAGE_TAG to an audited n8n release or digest", text, StringComparison.Ordinal);
+        Assert.DoesNotContain("N8N_TEST_IMAGE_TAG:-latest", text, StringComparison.Ordinal);
+        Assert.Contains("import:workflow", text, StringComparison.Ordinal);
+        Assert.Contains("--input=/workflows", text, StringComparison.Ordinal);
+        Assert.Contains("n8n list:workflow", text, StringComparison.Ordinal);
+        Assert.Contains("OpenResto WhatsApp Meta Verification v1", text, StringComparison.Ordinal);
+        Assert.Contains("OpenResto WhatsApp Inbound Router v1", text, StringComparison.Ordinal);
+        Assert.Contains("update:workflow --id=\"$$workflow_id\" --active=true", text, StringComparison.Ordinal);
         Assert.Contains("DB_TYPE: postgresdb", text, StringComparison.Ordinal);
         Assert.Contains("N8N_DEFAULT_BINARY_DATA_MODE: filesystem", text, StringComparison.Ordinal);
         Assert.Contains("n8n_test_sessions_data:/data/channel-state/sessions", text, StringComparison.Ordinal);
@@ -77,6 +86,8 @@ public sealed class TestRestN8nStackTopologyTests
         string docText = ReadRepoFile("n8n/test/docs/phase6-topology.md");
 
         Assert.Contains("N8N_TEST_WEBHOOK_BASE_URL=", envText, StringComparison.Ordinal);
+        Assert.Contains("N8N_TEST_IMAGE_TAG=", envText, StringComparison.Ordinal);
+        Assert.DoesNotContain("N8N_TEST_IMAGE_TAG=latest", envText, StringComparison.Ordinal);
         Assert.Contains("N8N_TEST_META_VERIFY_TOKEN=", envText, StringComparison.Ordinal);
         Assert.Contains("N8N_TEST_META_APP_SECRET=", envText, StringComparison.Ordinal);
         Assert.Contains("N8N_TEST_META_ACCESS_TOKEN=", envText, StringComparison.Ordinal);

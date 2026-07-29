@@ -26,6 +26,10 @@
   - Conserva artefactos de sesión/dedupe/orden/replay/outbound en volúmenes dedicados.
   - Mantiene editor/UI/API en red privada.
   - En Fase 6 recibe solo el host público de webhook `n8n-test.joypaw.tech` por Traefik para `/webhook*`.
+- `n8n-test-workflow-init`
+  - Importa los exports versionados antes de que arranque `n8n-test`.
+  - n8n importa todos los exports inicialmente inactivos y después publica únicamente los workflows de verificación GET y recepción POST; los demás permanecen inactivos.
+  - Si la importación falla, `n8n-test` no arranca y no se debe registrar el callback en Meta.
 
 ## Frontera de red
 - Flujo permitido en esta fase:
@@ -69,6 +73,8 @@ docker compose -f docker-compose.test-rest.yml up -d --build backend reservation
 docker compose -f docker-compose.test-rest.yml ps
 docker compose -f docker-compose.test-rest.yml down
 ```
+
+`N8N_TEST_IMAGE_TAG` es obligatorio y debe contener una versión o digest auditado; el compose rechaza `latest` por omisión. Después del arranque, comprobar que `n8n-test-workflow-init` terminó en estado `exited (0)` antes de verificar o registrar el webhook Meta.
 
 ## Referencia de topología
 - La prueba estática y las fronteras públicas/privadas de Fase 6 se documentan en [n8n/test/docs/phase6-topology.md](/tmp/openresto-whatsapp-delivery/n8n/test/docs/phase6-topology.md).

@@ -106,6 +106,13 @@ public sealed class N8nPhase4WorkflowContractTests
         Assert.Contains("el bot y la API privada de OpenResto permanecen privados", text, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void MetaWebhookWorkflows_AreInactiveInExports_BecauseBootstrapPublishesOnlyTheWebhookPair()
+    {
+        Assert.False(LoadWorkflow("whatsapp-meta-verification.json").RootElement.GetProperty("active").GetBoolean());
+        Assert.False(LoadWorkflow("whatsapp-inbound-router.json").RootElement.GetProperty("active").GetBoolean());
+    }
+
     private static JsonDocument LoadWorkflow(string fileName)
         => JsonDocument.Parse(File.ReadAllText(Path.Combine(WorkflowDirectory, fileName)));
 

@@ -59,6 +59,8 @@ Los nombres están documentados en `.env.example`; los valores reales continúan
 
 ## 4. Registro del webhook en Meta
 
+- [ ] `USER/AWAITING` Fijar `N8N_TEST_IMAGE_TAG` a una versión o digest auditado; no usar `latest`.
+- [ ] `USER/AWAITING` Después del despliegue, comprobar que `n8n-test-workflow-init` terminó correctamente y que los workflows `OpenResto WhatsApp Meta Verification v1` y `OpenResto WhatsApp Inbound Router v1` están activos antes de registrar el callback. Si falta alguno, detenerse y no registrar Meta.
 - [ ] `USER/AWAITING` Cargar `N8N_TEST_META_VERIFY_TOKEN` en el almacén de secretos de `n8n-test`.
 - [ ] `USER/AWAITING` Registrar en Meta la URL exacta `https://n8n-test.joypaw.tech/webhook/<ruta-versionada-del-workflow>`; no usar el editor n8n, `/rest`, el bot ni una URL productiva.
 - [ ] `USER/AWAITING` Introducir en Meta el mismo verify token sin copiarlo a documentación o salida de terminal.
