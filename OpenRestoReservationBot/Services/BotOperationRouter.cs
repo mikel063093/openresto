@@ -27,7 +27,7 @@ public sealed class BotOperationRouter(
                 Operation = request.Operation,
                 Availability = new AvailabilityLookupResponse
                 {
-                    Result = await _availabilityClient.LookupAsync(request.Availability!, context.CorrelationId, cancellationToken)
+                    Result = await _availabilityClient.LookupAsync(request.Availability!, context, cancellationToken)
                 }
             },
             ReservationBotOperation.Create => new BotOperationResponse

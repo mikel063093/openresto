@@ -6,7 +6,7 @@ namespace OpenRestoReservationBot.Services;
 
 public interface IOpenRestoAvailabilityClient
 {
-    Task<OpenRestoAvailabilityDto> LookupAsync(AvailabilityLookupRequest request, string correlationId, CancellationToken cancellationToken);
+    Task<OpenRestoAvailabilityDto> LookupAsync(AvailabilityLookupRequest request, BotRequestContext context, CancellationToken cancellationToken);
 }
 
 public sealed class OpenRestoAvailabilityClient(IHttpClientFactory httpClientFactory) : IOpenRestoAvailabilityClient
@@ -17,7 +17,7 @@ public sealed class OpenRestoAvailabilityClient(IHttpClientFactory httpClientFac
 
     public async Task<OpenRestoAvailabilityDto> LookupAsync(
         AvailabilityLookupRequest request,
-        string correlationId,
+        BotRequestContext context,
         CancellationToken cancellationToken)
     {
         HttpClient client = _httpClientFactory.CreateClient(ClientName);
@@ -25,7 +25,8 @@ public sealed class OpenRestoAvailabilityClient(IHttpClientFactory httpClientFac
         string path = $"/api/restaurants/{request.RestaurantId}/availability?date={date}&seats={request.Seats}";
 
         using var httpRequest = new HttpRequestMessage(HttpMethod.Get, path);
-        httpRequest.Headers.TryAddWithoutValidation(BotRequestContextAccessor.CorrelationHeaderName, correlationId);
+        httpRequest.Headers.TryAddWithoutValidation(BotRequestContextAccessor.AssertionHeaderName, context.Assertion);
+        httpRequest.Headers.TryAddWithoutValidation(BotRequestContextAccessor.CorrelationHeaderName, context.CorrelationId);
 
         using HttpResponseMessage response = await client.SendAsync(httpRequest, cancellationToken);
         return await ReadRequiredContentAsync<OpenRestoAvailabilityDto>(response, cancellationToken);

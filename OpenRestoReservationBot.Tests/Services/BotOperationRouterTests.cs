@@ -191,7 +191,7 @@ public sealed class BotOperationRouterTests
     {
         public int LookupCalls { get; private set; }
 
-        public Task<OpenRestoAvailabilityDto> LookupAsync(AvailabilityLookupRequest request, string correlationId, CancellationToken cancellationToken)
+        public Task<OpenRestoAvailabilityDto> LookupAsync(AvailabilityLookupRequest request, BotRequestContext context, CancellationToken cancellationToken)
         {
             LookupCalls++;
             return Task.FromResult(new OpenRestoAvailabilityDto { RestaurantId = request.RestaurantId, Date = request.Date, Slots = [] });

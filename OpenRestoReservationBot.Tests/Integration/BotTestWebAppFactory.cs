@@ -59,20 +59,20 @@ public sealed class RecordingAvailabilityClient : IOpenRestoAvailabilityClient
 {
     public int CallCount { get; private set; }
     public AvailabilityLookupRequest? LastRequest { get; private set; }
-    public string? LastCorrelationId { get; private set; }
+    public BotRequestContext? LastContext { get; private set; }
 
     public void Reset()
     {
         CallCount = 0;
         LastRequest = null;
-        LastCorrelationId = null;
+        LastContext = null;
     }
 
-    public Task<OpenRestoAvailabilityDto> LookupAsync(AvailabilityLookupRequest request, string correlationId, CancellationToken cancellationToken)
+    public Task<OpenRestoAvailabilityDto> LookupAsync(AvailabilityLookupRequest request, BotRequestContext context, CancellationToken cancellationToken)
     {
         CallCount++;
         LastRequest = request;
-        LastCorrelationId = correlationId;
+        LastContext = context;
 
         return Task.FromResult(new OpenRestoAvailabilityDto
         {
