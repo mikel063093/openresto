@@ -7,7 +7,7 @@
 - The implementation plan and recorded local verification are under `.planning/features/internal-operator-mcp/`.
 - A new Level-C planning set for the test-only WhatsApp reservation channel now exists under `.planning/features/whatsapp-reservations-test/`.
 - The current feature branch already contains partial OpenResto-side WhatsApp channel implementation work that has been assessed against `develop` and folded into the new planning baseline.
-- Phases 3 through 6 for `whatsapp-reservations-test` have now been executed in-worktree with a durable `n8n-test` foundation, explicit state storage, versioned workflow exports, contract documentation, SuperAdmin-only admin settings APIs, Expo WhatsApp settings cards, and a webhook-only test edge topology with placeholder-only secret injection. No test deployment, DNS mutation, or external webhook activation has occurred.
+- Phases 3 through 7 for `whatsapp-reservations-test` have now been executed in-worktree with a durable `n8n-test` foundation, explicit state storage, versioned workflow exports, contract documentation, SuperAdmin-only admin settings APIs, Expo WhatsApp settings cards, a webhook-only test edge topology, and a Meta/WABA operator runbook that marks all external work `USER/AWAITING`. No test deployment, DNS mutation, or external webhook activation has occurred.
 
 ## Implemented Decisions
 - The remote Streamable HTTP MCP server lives in the existing ASP.NET Core backend at `/api/mcp/operator`.
@@ -24,4 +24,4 @@
 
 ## Next Recommended Step
 - For `internal-operator-mcp`, obtain independent review approval, then decide whether to deploy the feature branch to the isolated `test-rest` environment.
-- For `whatsapp-reservations-test`, Phase 7 is the next recommended step: write the Meta/WABA provisioning and operator runbook, retaining every external action as `USER/AWAITING` and not attempting deployment or activation.
+- For `whatsapp-reservations-test`, Phase 8 is next once the external prerequisites and a test-deployment authorization exist; until then it is blocked on Meta/WABA, test-number, DNS/TLS, secret injection, webhook registration, and applicable template approval.

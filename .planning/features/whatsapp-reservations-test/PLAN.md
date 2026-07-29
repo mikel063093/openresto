@@ -407,6 +407,11 @@ Add the deployment-ready but test-only topology definition for `n8n-test` and `r
 
 ### Phase 7. Write Meta/WABA provisioning and operator runbook
 
+#### Execution status
+- Completed locally on Wednesday, July 29, 2026.
+- The runbook identifies every external Meta/WABA, DNS, secret-injection, webhook, and rotation step as `USER/AWAITING`; no activation was attempted.
+- Verification captured in `.planning/features/whatsapp-reservations-test/VERIFICATION.md`.
+
 #### Objective
 Create the external prerequisite runbook and mark all user-owned steps explicitly.
 

@@ -72,3 +72,4 @@ docker compose -f docker-compose.test-rest.yml down
 
 ## Referencia de topología
 - La prueba estática y las fronteras públicas/privadas de Fase 6 se documentan en [n8n/test/docs/phase6-topology.md](/tmp/openresto-whatsapp-delivery/n8n/test/docs/phase6-topology.md).
+- Los prerrequisitos de Meta/WABA, DNS, inyección de secretos, rotación `kid` y la puerta de activación externa están en [docs/runbooks/whatsapp-test-provisioning.md](/tmp/openresto-whatsapp-delivery/docs/runbooks/whatsapp-test-provisioning.md). Todos los pasos externos permanecen `USER/AWAITING`.

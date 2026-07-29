@@ -182,6 +182,12 @@ Define the mandatory verification gates for executing `.planning/features/whatsa
 - Scope executed: test-only webhook edge definition, private bot/backend topology boundary, and placeholder-only secret-injection documentation.
 - No deployment, DNS mutation, push, secret creation, external Meta configuration, or production change was performed.
 
+### Phase 7 status
+- Phase 7 completed locally on Wednesday, July 29, 2026.
+- Scope executed: `docs/runbooks/whatsapp-test-provisioning.md` plus the n8n README reference.
+- The runbook covers Business Manager/WABA/test-number preparation, test DNS/TLS, secret placement by boundary, Meta webhook registration, templates, `kid` rotation, asymmetric migration note, and sandbox activation gate. Every external action is explicitly `USER/AWAITING`.
+- No deployment, DNS mutation, push, secret creation, external Meta configuration, or production change was performed.
+
 ### Commands run on Wednesday, July 29, 2026
 - `docker run --rm -v /tmp/openresto-whatsapp-delivery:/src -w /src mcr.microsoft.com/dotnet/sdk:10.0 dotnet test OpenRestoApi.Tests/OpenRestoApi.Tests.csproj --filter "FullyQualifiedName~WhatsAppChannelReservationsIntegrationTests|FullyQualifiedName~WhatsAppAuthorityBaselineMigrationTests|FullyQualifiedName~OpenApiDocumentationTests"`
 - `docker run --rm -v /tmp/openresto-whatsapp-delivery:/src -w /src mcr.microsoft.com/dotnet/sdk:10.0 dotnet test OpenRestoApi.Tests/OpenRestoApi.Tests.csproj`
@@ -240,6 +246,7 @@ Define the mandatory verification gates for executing `.planning/features/whatsa
 - Phase 6 focused topology and Nginx denial suite: passed, `6` passed, `0` failed, `0` skipped, duration `25 ms`, executed in `mcr.microsoft.com/dotnet/sdk:10.0`. Restore emitted the existing `Microsoft.OpenApi` and `SQLitePCLRaw.lib.e_sqlite3` high-severity dependency advisories.
 - Phase 6 compose validation: passed with temporary non-secret `.invalid` values injected only for the command; `docker compose -f docker-compose.test-rest.yml config --quiet` exited `0`.
 - Phase 6 n8n secret scan: passed; `gitleaks dir /repo/n8n --no-banner --redact` reported `no leaks found`.
+- Phase 7 runbook review: passed. The runbook has `USER/AWAITING` markers for every external action, forbids public bot exposure and production changes, and is linked from `n8n/test/README.md`.
 
 ### Phase 1 criteria confirmed
 - Atomic private WhatsApp create endpoint implemented with authority-side availability validation, idempotency, trusted phone ownership stamping, and immutable extras snapshot persistence.
@@ -287,13 +294,13 @@ Define the mandatory verification gates for executing `.planning/features/whatsa
 
 ### Residual risks
 - The Phase 6 topology is repository-defined and locally validated only. It has not been deployed to the test environment and no DNS/router or external webhook has been activated.
-- The exported workflows were validated by import and static contract inspection, but not by live Meta/WABA execution because real secrets, webhook registration, and public test domains remain `USER/AWAITING` and Phase 6-scoped.
+- The exported workflows were validated by import and static contract inspection, but not by live Meta/WABA execution because real secrets, webhook registration, public test DNS/TLS, Meta/WABA/test-number provisioning, and applicable template approval remain `USER/AWAITING`.
 - Existing package-vulnerability restore warnings for `Microsoft.OpenApi` and `SQLitePCLRaw.lib.e_sqlite3` remain in the baseline and were not changed by this phase.
 - Existing analyzer warnings in the baseline solution remain outside the Phase 5 scope.
 - `gitleaks` flags two pre-existing redacted test fixtures in frontend tests as generic-api-key false positives.
 - Full `openresto-frontend` `npm run check` still reports pre-existing Prettier drift in unrelated files under `components/layout/` and `i18n/`; the changed Phase 5 files themselves pass scoped Prettier and oxlint checks.
 
 ### Final verification statement
-- Test-only Phases 1 through 6 are complete locally on Wednesday, July 29, 2026.
+- Test-only Phases 1 through 7 are complete locally on Wednesday, July 29, 2026.
 - Phase 6 provides only a test-stack definition: Traefik exposes `n8n-test` webhook paths while the bot, n8n editor/API, and OpenResto private WhatsApp API remain non-public. External activation remains `USER/AWAITING`.
 - No production promotion performed.
