@@ -54,6 +54,13 @@ public sealed class N8nPhase4WorkflowContractTests
         Assert.DoesNotContain("n8n-test.joypaw.tech", workflowJson, StringComparison.Ordinal);
         Assert.DoesNotContain("reservation-bot-test.joypaw.tech", workflowJson, StringComparison.Ordinal);
         Assert.Contains("tools: []", workflowJson, StringComparison.Ordinal);
+        Assert.Contains("isSha256Hex", workflowJson, StringComparison.Ordinal);
+        Assert.Contains("Route Parsed Envelope", workflowJson, StringComparison.Ordinal);
+        Assert.Contains("Route Dedupe Result", workflowJson, StringComparison.Ordinal);
+        Assert.Contains("$(\\\"Parse Meta Envelope\\\").first().json", workflowJson, StringComparison.Ordinal);
+        Assert.Contains("missing-required-whatsapp-assertion-configuration", workflowJson, StringComparison.Ordinal);
+        Assert.Contains("crypto.randomUUID()", workflowJson, StringComparison.Ordinal);
+        Assert.DoesNotContain("placeholder-signing-key", workflowJson, StringComparison.Ordinal);
     }
 
     [Fact]

@@ -136,7 +136,7 @@ const inboundNodes = [
     [-1260, 0],
     {
       mode: "runOnceForAllItems",
-      jsCode: `const crypto = require("crypto");\nconst appSecret = $env.N8N_TEST_META_APP_SECRET ?? "";\nconst signatureHeader = String($json.headers["x-hub-signature-256"] ?? "");\nconst signature = signatureHeader.startsWith("sha256=") ? signatureHeader.slice(7) : "";\nconst expected = crypto.createHmac("sha256", appSecret).update($json.rawBody, "utf8").digest("hex");\nconst valid = Boolean(appSecret) && Boolean(signature) && crypto.timingSafeEqual(Buffer.from(expected, "hex"), Buffer.from(signature || "00", "hex"));\nreturn [{\n  json: {\n    ...$json,\n    metaSignatureValid: valid,\n    signatureAlgorithm: "sha256",\n    invalidReason: valid ? null : "invalid-meta-signature"\n  }\n}];`,
+      jsCode: `const crypto = require("crypto");\nconst appSecret = $env.N8N_TEST_META_APP_SECRET ?? "";\nconst signatureHeader = String($json.headers["x-hub-signature-256"] ?? "");\nconst signature = signatureHeader.startsWith("sha256=") ? signatureHeader.slice(7) : "";\nconst expected = crypto.createHmac("sha256", appSecret).update($json.rawBody, "utf8").digest("hex");\nconst isSha256Hex = /^[a-f0-9]{64}$/i.test(signature);\nconst valid = Boolean(appSecret) && isSha256Hex && crypto.timingSafeEqual(Buffer.from(expected, "hex"), Buffer.from(signature, "hex"));\nreturn [{\n  json: {\n    ...$json,\n    metaSignatureValid: valid,\n    signatureAlgorithm: "sha256",\n    invalidReason: valid ? null : "invalid-meta-signature"\n  }\n}];`,
     },
     { typeVersion: 2 },
   ),
@@ -147,6 +147,16 @@ const inboundNodes = [
     {
       mode: "runOnceForAllItems",
       jsCode: `if (!$json.metaSignatureValid) {\n  return [{ json: { ...$json, shouldStop: true, responseCode: 401, responseBody: "invalid signature" } }];\n}\nconst envelope = JSON.parse($json.rawBody);\nconst entry = envelope.entry?.[0] ?? {};\nconst change = entry.changes?.[0] ?? {};\nconst message = change.value?.messages?.[0] ?? null;\nconst contact = change.value?.contacts?.[0] ?? null;\nconst waId = String(contact?.wa_id ?? message?.from ?? "").trim();\nconst normalized = waId.replace(/\\D/g, "");\nconst correlationId = [message?.id ?? "meta", normalized || "unknown", change.value?.metadata?.phone_number_id ?? "phone"].join(":").slice(0, 64);\nreturn [{\n  json: {\n    ...$json,\n    shouldStop: !message || !normalized,\n    responseCode: !message || !normalized ? 200 : 202,\n    responseBody: !message || !normalized ? "ignored" : "accepted",\n    envelope,\n    message,\n    verifiedSender: {\n      waId,\n      normalized,\n      displayName: contact?.profile?.name ?? null\n    },\n    conversation: {\n      eventId: message?.id ?? correlationId,\n      eventTimestamp: Number(message?.timestamp ?? 0),\n      phoneNumberId: change.value?.metadata?.phone_number_id ?? "",\n      correlationId\n    },\n    inboundText: message?.text?.body ?? "",\n    inboundType: message?.type ?? "unsupported"\n  }\n}];`,
+    },
+    { typeVersion: 2 },
+  ),
+  node(
+    "Route Parsed Envelope",
+    "n8n-nodes-base.code",
+    [-840, 0],
+    {
+      mode: "runOnceForAllItems",
+      jsCode: `return [$json.shouldStop ? [] : [{ json: $json }], $json.shouldStop ? [{ json: $json }] : []];`,
     },
     { typeVersion: 2 },
   ),
@@ -174,7 +184,17 @@ const inboundNodes = [
     [-420, 0],
     {
       mode: "runOnceForAllItems",
-      jsCode: `const commandStdout = String($json.stdout ?? "{}").trim();\nconst gate = JSON.parse(commandStdout || "{}");\nconst duplicate = Boolean(gate.duplicate);\nconst outOfOrder = Boolean(gate.outOfOrder);\nreturn [{\n  json: {\n    ...$json,\n    duplicate,\n    outOfOrder,\n    shouldStop: $json.shouldStop || duplicate || outOfOrder,\n    responseCode: $json.shouldStop ? $json.responseCode : 200,\n    responseBody: $json.shouldStop ? $json.responseBody : "EVENT_RECEIVED"\n  }\n}];`,
+      jsCode: `const original = $("Parse Meta Envelope").first().json;\nconst commandStdout = String($json.stdout ?? "{}").trim();\nconst gate = JSON.parse(commandStdout || "{}");\nconst duplicate = Boolean(gate.duplicate);\nconst outOfOrder = Boolean(gate.outOfOrder);\nreturn [{\n  json: {\n    ...original,\n    duplicate,\n    outOfOrder,\n    shouldStop: duplicate || outOfOrder,\n    responseCode: 200,\n    responseBody: "EVENT_RECEIVED"\n  }\n}];`,
+    },
+    { typeVersion: 2 },
+  ),
+  node(
+    "Route Dedupe Result",
+    "n8n-nodes-base.code",
+    [-280, 0],
+    {
+      mode: "runOnceForAllItems",
+      jsCode: `return [$json.shouldStop ? [] : [{ json: $json }], $json.shouldStop ? [{ json: $json }] : []];`,
     },
     { typeVersion: 2 },
   ),
@@ -266,7 +286,7 @@ const inboundNodes = [
     [980, 0],
     {
       mode: "runOnceForAllItems",
-      jsCode: `const crypto = require("crypto");\nconst activeKid = $env.N8N_TEST_WHATSAPP_ASSERTION_ACTIVE_KID ?? "active-placeholder";\nconst header = Buffer.from(JSON.stringify({ alg: "HS256", typ: "JWT", kid: activeKid })).toString("base64url");\nconst now = Math.floor(Date.now() / 1000);\nconst action = $json.botRequest?.operation === "availability" || $json.botRequest?.operation === "list" || $json.botRequest?.operation === "detail" || $json.botRequest?.operation === "occasionCatalog"\n  ? "reservations.read"\n  : "reservations.mutate";\nconst payload = {\n  iss: $env.N8N_TEST_WHATSAPP_ASSERTION_ISSUER ?? "n8n-test",\n  aud: $env.N8N_TEST_WHATSAPP_ASSERTION_AUDIENCE ?? "openresto-whatsapp-private-api",\n  sub: $json.verifiedSender.waId,\n  jti: String($json.conversation.correlationId) + ":" + String(now),\n  scope: "openresto.whatsapp reservations",\n  'openresto:channel_action': action,\n  iat: now,\n  exp: now + 120\n};\nconst encodedPayload = Buffer.from(JSON.stringify(payload)).toString("base64url");\nconst signingInput = header + "." + encodedPayload;\nconst signature = crypto.createHmac("sha256", $env.N8N_TEST_WHATSAPP_ASSERTION_ACTIVE_KEY ?? "placeholder-signing-key").update(signingInput).digest("base64url");\nreturn [{ json: { ...$json, issuedAssertion: signingInput + "." + signature, assertionKid: activeKid } }];`,
+      jsCode: `const crypto = require("crypto");\nconst activeKid = $env.N8N_TEST_WHATSAPP_ASSERTION_ACTIVE_KID;\nconst issuer = $env.N8N_TEST_WHATSAPP_ASSERTION_ISSUER;\nconst audience = $env.N8N_TEST_WHATSAPP_ASSERTION_AUDIENCE;\nconst signingKey = $env.N8N_TEST_WHATSAPP_ASSERTION_ACTIVE_KEY;\nif (!activeKid || !issuer || !audience || !signingKey) {\n  throw new Error("missing-required-whatsapp-assertion-configuration");\n}\nconst header = Buffer.from(JSON.stringify({ alg: "HS256", typ: "JWT", kid: activeKid })).toString("base64url");\nconst now = Math.floor(Date.now() / 1000);\nconst action = $json.botRequest?.operation === "availability" || $json.botRequest?.operation === "list" || $json.botRequest?.operation === "detail" || $json.botRequest?.operation === "occasionCatalog"\n  ? "reservations.read"\n  : "reservations.mutate";\nconst payload = {\n  iss: issuer,\n  aud: audience,\n  sub: $json.verifiedSender.waId,\n  jti: crypto.randomUUID(),\n  scope: "openresto.whatsapp reservations",\n  'openresto:channel_action': action,\n  iat: now,\n  exp: now + 120\n};\nconst encodedPayload = Buffer.from(JSON.stringify(payload)).toString("base64url");\nconst signingInput = header + "." + encodedPayload;\nconst signature = crypto.createHmac("sha256", signingKey).update(signingInput).digest("base64url");\nreturn [{ json: { ...$json, issuedAssertion: signingInput + "." + signature, assertionKid: activeKid } }];`,
     },
     { typeVersion: 2 },
   ),
@@ -367,13 +387,25 @@ const inboundConnections = {
     main: [[{ node: "Parse Meta Envelope", type: "main", index: 0 }]],
   },
   "Parse Meta Envelope": {
-    main: [[{ node: "Dedupe And Ordering Gate", type: "main", index: 0 }]],
+    main: [[{ node: "Route Parsed Envelope", type: "main", index: 0 }]],
+  },
+  "Route Parsed Envelope": {
+    main: [
+      [{ node: "Dedupe And Ordering Gate", type: "main", index: 0 }],
+      [{ node: "Respond To Meta", type: "main", index: 0 }],
+    ],
   },
   "Dedupe And Ordering Gate": {
     main: [[{ node: "Interpret Dedupe Gate", type: "main", index: 0 }]],
   },
   "Interpret Dedupe Gate": {
-    main: [[{ node: "Build LLM Request", type: "main", index: 0 }]],
+    main: [[{ node: "Route Dedupe Result", type: "main", index: 0 }]],
+  },
+  "Route Dedupe Result": {
+    main: [
+      [{ node: "Build LLM Request", type: "main", index: 0 }],
+      [{ node: "Respond To Meta", type: "main", index: 0 }],
+    ],
   },
   "Build LLM Request": {
     main: [[{ node: "LLM Provider Abstraction", type: "main", index: 0 }]],
