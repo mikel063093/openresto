@@ -329,3 +329,10 @@ Define the mandatory verification gates for executing `.planning/features/whatsa
 - Test-only Phases 1 through 7 are complete locally on Wednesday, July 29, 2026.
 - Phase 6 provides only a test-stack definition: Traefik exposes `n8n-test` webhook paths while the bot, n8n editor/API, and OpenResto private WhatsApp API remain non-public. External activation remains `USER/AWAITING`.
 - No production promotion performed.
+
+### Scheduled Phase 8 revalidation — Wednesday, July 29, 2026 23:30 UTC
+- `docker run --rm -v /tmp/openresto-whatsapp-delivery:/src -w /src mcr.microsoft.com/dotnet/sdk:10.0 dotnet test openresto.sln` passed: `OpenRestoApi.Tests` `1299` passed, `0` failed, `0` skipped (`1 m 24 s`); `OpenRestoReservationBot.Tests` `19` passed, `0` failed, `0` skipped (`966 ms`). Restore repeated the existing high-severity advisories for `Microsoft.OpenApi` and `SQLitePCLRaw.lib.e_sqlite3`.
+- `docker compose -f docker-compose.test-rest.yml config --quiet` passed with only local, non-secret validation sentinels and `N8N_TEST_IMAGE_TAG=1.123.0`; no containers were started.
+- Targeted `gitleaks` scans of `n8n/` and `docs/runbooks/` both passed with `no leaks found`.
+- External discovery remains blocked: `n8n-test.joypaw.tech` does not resolve; `test-rest.joypaw.tech/api/health` and the public private-route probe both returned `502`. A `404` boundary result cannot be established until the existing test-rest edge is healthy. `reservation-bot-test` remains intentionally non-public.
+- No deployment, DNS/router mutation, secret creation, push, or production action was attempted.
