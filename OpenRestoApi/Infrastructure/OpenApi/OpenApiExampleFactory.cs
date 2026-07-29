@@ -183,6 +183,27 @@ internal static class OpenApiExampleFactory
             return JsonSerializer.SerializeToNode(CreateBooking());
         }
 
+        if (targetType == typeof(OccasionCatalogItemDto))
+        {
+            return JsonSerializer.SerializeToNode(new OccasionCatalogItemDto
+            {
+                Id = 31,
+                Name = "Decoración de cumpleaños",
+                Description = "Globos y mensaje personalizado.",
+                EstimatedPriceCop = 85000,
+                IsActive = true,
+                SortOrder = 1
+            });
+        }
+
+        if (targetType == typeof(OperatorReservationActionResultDto))
+        {
+            return JsonSerializer.SerializeToNode(new OperatorReservationActionResultDto(
+                Success: true,
+                Message: "Reserva cancelada.",
+                Reservation: CreateBooking()));
+        }
+
         if (targetType == typeof(BookingDetailDto))
         {
             return JsonSerializer.SerializeToNode(CreateBookingDetail());
