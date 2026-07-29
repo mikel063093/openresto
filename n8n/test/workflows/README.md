@@ -1,8 +1,20 @@
-# Workflows pendientes
+# Workflows de la Fase 4
 
 ## Estado
-- La Fase 3 no crea workflows funcionales.
-- Esta carpeta queda reservada para los exports JSON de la Fase 4.
+- Esta carpeta ya contiene los exports JSON versionados de la Fase 4.
+- Los archivos se regeneran con `node scripts/generate-phase4-n8n-workflows.cjs`.
+- El alcance sigue siendo test-only: no se activan dominios públicos, DNS ni despliegues.
 
-## Restricción
-- No agregar aquí lógica de Meta, LLM, confirmaciones ni handoff mientras el alcance siga limitado a la Fase 3.
+## Archivos
+- `whatsapp-meta-verification.json`
+- `whatsapp-inbound-router.json`
+- `whatsapp-confirmation-state-machine.json`
+- `whatsapp-handoff.json`
+- `whatsapp-observability.json`
+- `whatsapp-template-messages.json`
+
+## Restricciones vigentes
+- Usar solo credenciales placeholder por nombre.
+- Mantener el único contrato de aplicación en `POST /api/internal/reservation-bot/operations`.
+- No introducir llamadas directas a `/api/private/channels/whatsapp/*`.
+- Mantener toda persistencia fuera de OpenResto con PII redaccionada.

@@ -1,9 +1,9 @@
-# Base durable de n8n para WhatsApp en prueba
+# n8n de WhatsApp en prueba
 
-## Alcance de esta fase
-- Esta carpeta deja lista la base durable de `n8n-test` para la Fase 3.
-- No agrega workflows funcionales de Meta, LLM, confirmaciones ni handoff.
-- No crea secretos reales, no hace despliegues y no publica topología ni DNS; eso queda diferido a la Fase 6.
+## Alcance actual
+- La Fase 3 dejó lista la base durable de `n8n-test`.
+- La Fase 4 ahora agrega workflows versionados de Meta, LLM, confirmaciones, observabilidad y handoff en `n8n/test/workflows/`.
+- No crea secretos reales, no hace despliegues y no publica topología ni DNS; eso sigue diferido a la Fase 6.
 
 ## Decisión de persistencia
 - Backend durable principal de `n8n`: `Postgres` en el servicio `n8n-test-postgres`.
@@ -64,5 +64,5 @@ docker compose -f docker-compose.test-rest.yml down
 ```
 
 ## Siguiente fase
-- La Fase 4 debe importar/exportar workflows reales dentro de `n8n/test/workflows/` y consumir únicamente estos puntos de persistencia ya definidos.
-- La Fase 6, no la Fase 3, debe definir Traefik, DNS y cualquier webhook público de Meta.
+- La Fase 5 aborda el surface administrativo para catálogo y configuración de WhatsApp/handoff.
+- La Fase 6, no la Fase 4, debe definir Traefik, DNS y cualquier webhook público de Meta.

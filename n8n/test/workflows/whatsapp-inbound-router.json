@@ -1,0 +1,478 @@
+{
+  "name": "OpenResto WhatsApp Inbound Router v1",
+  "nodes": [
+    {
+      "id": "5ffadace8a696d2a",
+      "name": "Meta Inbound Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -1820,
+        0
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "whatsapp/meta",
+        "responseMode": "responseNode",
+        "options": {
+          "rawBody": true
+        }
+      },
+      "webhookId": "35061d92350466f9"
+    },
+    {
+      "id": "14a3520da2ccaa10",
+      "name": "Extract Raw Envelope",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1540,
+        0
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const headerBag = Object.fromEntries(Object.entries($json.headers ?? {}).map(([key, value]) => [String(key).toLowerCase(), value]));\nconst rawBody = $json.bodyRaw ?? $json.rawBody ?? JSON.stringify($json.body ?? $json);\nreturn [{\n  json: {\n    headers: headerBag,\n    rawBody,\n    receivedAtUtc: new Date().toISOString(),\n    contractVersion: \"phase-4-v1\"\n  }\n}];"
+      }
+    },
+    {
+      "id": "b6c772200c53a8ea",
+      "name": "Verify Meta HMAC Before Parse",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1260,
+        0
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const crypto = require(\"crypto\");\nconst appSecret = $env.N8N_TEST_META_APP_SECRET ?? \"\";\nconst signatureHeader = String($json.headers[\"x-hub-signature-256\"] ?? \"\");\nconst signature = signatureHeader.startsWith(\"sha256=\") ? signatureHeader.slice(7) : \"\";\nconst expected = crypto.createHmac(\"sha256\", appSecret).update($json.rawBody, \"utf8\").digest(\"hex\");\nconst valid = Boolean(appSecret) && Boolean(signature) && crypto.timingSafeEqual(Buffer.from(expected, \"hex\"), Buffer.from(signature || \"00\", \"hex\"));\nreturn [{\n  json: {\n    ...$json,\n    metaSignatureValid: valid,\n    signatureAlgorithm: \"sha256\",\n    invalidReason: valid ? null : \"invalid-meta-signature\"\n  }\n}];"
+      }
+    },
+    {
+      "id": "832eb1ff8e23c478",
+      "name": "Parse Meta Envelope",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -980,
+        0
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "if (!$json.metaSignatureValid) {\n  return [{ json: { ...$json, shouldStop: true, responseCode: 401, responseBody: \"invalid signature\" } }];\n}\nconst envelope = JSON.parse($json.rawBody);\nconst entry = envelope.entry?.[0] ?? {};\nconst change = entry.changes?.[0] ?? {};\nconst message = change.value?.messages?.[0] ?? null;\nconst contact = change.value?.contacts?.[0] ?? null;\nconst waId = String(contact?.wa_id ?? message?.from ?? \"\").trim();\nconst normalized = waId.replace(/\\D/g, \"\");\nconst correlationId = [message?.id ?? \"meta\", normalized || \"unknown\", change.value?.metadata?.phone_number_id ?? \"phone\"].join(\":\").slice(0, 64);\nreturn [{\n  json: {\n    ...$json,\n    shouldStop: !message || !normalized,\n    responseCode: !message || !normalized ? 200 : 202,\n    responseBody: !message || !normalized ? \"ignored\" : \"accepted\",\n    envelope,\n    message,\n    verifiedSender: {\n      waId,\n      normalized,\n      displayName: contact?.profile?.name ?? null\n    },\n    conversation: {\n      eventId: message?.id ?? correlationId,\n      eventTimestamp: Number(message?.timestamp ?? 0),\n      phoneNumberId: change.value?.metadata?.phone_number_id ?? \"\",\n      correlationId\n    },\n    inboundText: message?.text?.body ?? \"\",\n    inboundType: message?.type ?? \"unsupported\"\n  }\n}];"
+      }
+    },
+    {
+      "id": "22b157cf9ba1f385",
+      "name": "Dedupe And Ordering Gate",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        -700,
+        0
+      ],
+      "parameters": {
+        "command": "node -e \"const fs=require('fs'); const path=require('path'); const payload=JSON.parse(process.env.STATE_PAYLOAD); const dedupeDir='/data/channel-state/dedupe'; const orderingDir='/data/channel-state/ordering'; fs.mkdirSync(dedupeDir,{recursive:true}); fs.mkdirSync(orderingDir,{recursive:true}); const dedupeKey=payload.eventId.replace(/[^a-zA-Z0-9._-]/g,'_'); const orderKey=payload.verifiedSenderNormalized.replace(/[^a-zA-Z0-9._-]/g,'_') || 'unknown'; const dedupePath=path.join(dedupeDir,dedupeKey + '.json'); const orderingPath=path.join(orderingDir,orderKey + '.json'); const duplicate=fs.existsSync(dedupePath); let outOfOrder=false; const nextTs=Number(payload.eventTimestamp || 0); if (fs.existsSync(orderingPath)) { const previous=JSON.parse(fs.readFileSync(orderingPath,'utf8')); outOfOrder=nextTs > 0 && Number(previous.lastTimestamp || 0) > nextTs; } if (!duplicate) { fs.writeFileSync(dedupePath, JSON.stringify({ eventId: payload.eventId, correlationId: payload.correlationId, storedAtUtc: new Date().toISOString() })); } if (!outOfOrder && nextTs > 0) { fs.writeFileSync(orderingPath, JSON.stringify({ sender: payload.verifiedSenderNormalized, lastTimestamp: nextTs, correlationId: payload.correlationId, storedAtUtc: new Date().toISOString() })); } console.log(JSON.stringify({ duplicate, outOfOrder }));\"",
+        "environmentVariablesUi": {
+          "parameter": [
+            {
+              "name": "STATE_PAYLOAD",
+              "value": "={{ JSON.stringify({ eventId: $json.conversation.eventId, eventTimestamp: $json.conversation.eventTimestamp, verifiedSenderNormalized: $json.verifiedSender.normalized, correlationId: $json.conversation.correlationId }) }}"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "6bdabf3e68962d07",
+      "name": "Interpret Dedupe Gate",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -420,
+        0
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const commandStdout = String($json.stdout ?? \"{}\").trim();\nconst gate = JSON.parse(commandStdout || \"{}\");\nconst duplicate = Boolean(gate.duplicate);\nconst outOfOrder = Boolean(gate.outOfOrder);\nreturn [{\n  json: {\n    ...$json,\n    duplicate,\n    outOfOrder,\n    shouldStop: $json.shouldStop || duplicate || outOfOrder,\n    responseCode: $json.shouldStop ? $json.responseCode : 200,\n    responseBody: $json.shouldStop ? $json.responseBody : \"EVENT_RECEIVED\"\n  }\n}];"
+      }
+    },
+    {
+      "id": "edbcde0f738472da",
+      "name": "Build LLM Request",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -140,
+        0
+      ],
+      "parameters": {
+        "keepOnlySet": false,
+        "values": {
+          "string": [
+            {
+              "name": "llmSystemPrompt",
+              "value": "Eres un clasificador de intenciones de reservas por WhatsApp para OpenResto. Responde solo JSON válido en español colombiano y nunca llames herramientas."
+            },
+            {
+              "name": "llmUserPrompt",
+              "value": "={{ 'Mensaje del cliente: ' + $json.inboundText + '\\nTipo de mensaje: ' + $json.inboundType + '\\nDebes devolver intent, confidence, entities, confirmationNeeded y handoffReason.' }}"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "7770b73fa361feaa",
+      "name": "LLM Provider Abstraction",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        140,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://llm-provider.invalid/v1/responses",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "bodyParametersJson": "={{ JSON.stringify({ model: 'provider-placeholder', input: [{ role: 'system', content: $json.llmSystemPrompt }, { role: 'user', content: $json.llmUserPrompt }], tools: [], text: { format: { type: 'json_schema', name: 'whatsapp_intent', strict: true, schema: { type: 'object', additionalProperties: false, required: ['intent', 'confidence', 'confirmationNeeded', 'handoff', 'entities'], properties: { intent: { type: 'string', enum: ['availability', 'create', 'list', 'detail', 'update', 'cancel', 'occasionCatalog', 'handoff', 'unsupported'] }, confidence: { type: 'number' }, confirmationNeeded: { type: 'boolean' }, handoff: { type: 'boolean' }, handoffReason: { type: ['string', 'null'] }, entities: { type: 'object', additionalProperties: false, properties: { restaurantId: { type: ['integer', 'null'] }, reservationId: { type: ['integer', 'null'] }, date: { type: ['string', 'null'] }, seats: { type: ['integer', 'null'] }, customerEmail: { type: ['string', 'null'] }, customerName: { type: ['string', 'null'] }, occasionCatalogItemIds: { type: ['array', 'null'], items: { type: 'integer' } }, expectedConcurrencyToken: { type: ['integer', 'null'] }, specialRequests: { type: ['string', 'null'] } } } } } } } }) }}",
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "94fcce53234d5f75",
+          "name": "LLM Provider API Key (placeholder)"
+        }
+      }
+    },
+    {
+      "id": "c94fa4497072a36b",
+      "name": "Validate Structured LLM Output",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        420,
+        0
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const raw = $json.output?.[0]?.content?.[0]?.text ?? $json.body?.output?.[0]?.content?.[0]?.text ?? $json.response?.output_text ?? $json.output_text ?? $json.text ?? \"{}\";\nconst parsed = typeof raw === \"string\" ? JSON.parse(raw) : raw;\nconst allowed = new Set([\"availability\", \"create\", \"list\", \"detail\", \"update\", \"cancel\", \"occasionCatalog\", \"handoff\", \"unsupported\"]);\nif (!allowed.has(parsed.intent)) {\n  throw new Error(\"schema-reject: intent no permitido\");\n}\nreturn [{\n  json: {\n    ...$json,\n    llmResult: parsed,\n    shouldStop: false\n  }\n}];"
+      }
+    },
+    {
+      "id": "68a7f3807047e093",
+      "name": "Confirmation State Machine",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.1,
+      "position": [
+        700,
+        0
+      ],
+      "parameters": {
+        "workflowId": "OpenResto WhatsApp Confirmation State Machine v1",
+        "mode": "each",
+        "options": {
+          "waitForSubWorkflow": true
+        },
+        "input": "={{ { verifiedSender: $json.verifiedSender, conversation: $json.conversation, llmResult: $json.llmResult, inboundText: $json.inboundText } }}"
+      }
+    },
+    {
+      "id": "a3f3dbd722951f1e",
+      "name": "Issue Assertion After Verified Sender",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        980,
+        0
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const crypto = require(\"crypto\");\nconst activeKid = $env.N8N_TEST_WHATSAPP_ASSERTION_ACTIVE_KID ?? \"active-placeholder\";\nconst header = Buffer.from(JSON.stringify({ alg: \"HS256\", typ: \"JWT\", kid: activeKid })).toString(\"base64url\");\nconst now = Math.floor(Date.now() / 1000);\nconst action = $json.botRequest?.operation === \"availability\" || $json.botRequest?.operation === \"list\" || $json.botRequest?.operation === \"detail\" || $json.botRequest?.operation === \"occasionCatalog\"\n  ? \"reservations.read\"\n  : \"reservations.mutate\";\nconst payload = {\n  iss: $env.N8N_TEST_WHATSAPP_ASSERTION_ISSUER ?? \"n8n-test\",\n  aud: $env.N8N_TEST_WHATSAPP_ASSERTION_AUDIENCE ?? \"openresto-whatsapp-private-api\",\n  sub: $json.verifiedSender.waId,\n  jti: String($json.conversation.correlationId) + \":\" + String(now),\n  scope: \"openresto.whatsapp reservations\",\n  'openresto:channel_action': action,\n  iat: now,\n  exp: now + 120\n};\nconst encodedPayload = Buffer.from(JSON.stringify(payload)).toString(\"base64url\");\nconst signingInput = header + \".\" + encodedPayload;\nconst signature = crypto.createHmac(\"sha256\", $env.N8N_TEST_WHATSAPP_ASSERTION_ACTIVE_KEY ?? \"placeholder-signing-key\").update(signingInput).digest(\"base64url\");\nreturn [{ json: { ...$json, issuedAssertion: signingInput + \".\" + signature, assertionKid: activeKid } }];"
+      }
+    },
+    {
+      "id": "5c958eab735fc45a",
+      "name": "Call Reservation Bot",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1260,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "http://reservation-bot-test:8080/api/internal/reservation-bot/operations",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-OpenResto-Channel-Assertion",
+              "value": "={{ $json.issuedAssertion }}"
+            },
+            {
+              "name": "X-Correlation-Id",
+              "value": "={{ $json.conversation.correlationId }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "bodyParametersJson": "={{ JSON.stringify($json.botRequest) }}",
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "f54f8475365f3e8a",
+          "name": "Reservation Bot Internal Credential (placeholder)"
+        }
+      }
+    },
+    {
+      "id": "8b57fccd4f1cb763",
+      "name": "Template Messages",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.1,
+      "position": [
+        1540,
+        0
+      ],
+      "parameters": {
+        "workflowId": "OpenResto WhatsApp Template Messages v1",
+        "mode": "each",
+        "options": {
+          "waitForSubWorkflow": true
+        },
+        "input": "={{ { verifiedSender: $json.verifiedSender, conversation: $json.conversation, llmResult: $json.llmResult, confirmation: $json.confirmation, botRequest: $json.botRequest, botResponse: $json.body ?? $json, templateContext: $json.templateContext ?? {} } }}"
+      }
+    },
+    {
+      "id": "948b5f90cc18b4f2",
+      "name": "Observability Workflow",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.1,
+      "position": [
+        1820,
+        0
+      ],
+      "parameters": {
+        "workflowId": "OpenResto WhatsApp Observability v1",
+        "mode": "each",
+        "options": {
+          "waitForSubWorkflow": true
+        },
+        "input": "={{ { verifiedSender: $json.verifiedSender, conversation: $json.conversation, inboundText: $json.inboundText, botRequest: $json.botRequest, botResponse: $json.body ?? $json, llmResult: $json.llmResult, templateContext: $json.templateContext ?? {}, replayBodyRaw: $json.rawBody } }}"
+      }
+    },
+    {
+      "id": "b3fcb4b4a4c0c8cd",
+      "name": "Respond To Meta",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        2100,
+        0
+      ],
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "={{ $json.responseBody ?? 'EVENT_RECEIVED' }}",
+        "options": {
+          "responseCode": "={{ $json.responseCode ?? 200 }}"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Meta Inbound Webhook": {
+      "main": [
+        [
+          {
+            "node": "Extract Raw Envelope",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Raw Envelope": {
+      "main": [
+        [
+          {
+            "node": "Verify Meta HMAC Before Parse",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verify Meta HMAC Before Parse": {
+      "main": [
+        [
+          {
+            "node": "Parse Meta Envelope",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Meta Envelope": {
+      "main": [
+        [
+          {
+            "node": "Dedupe And Ordering Gate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Dedupe And Ordering Gate": {
+      "main": [
+        [
+          {
+            "node": "Interpret Dedupe Gate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Interpret Dedupe Gate": {
+      "main": [
+        [
+          {
+            "node": "Build LLM Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build LLM Request": {
+      "main": [
+        [
+          {
+            "node": "LLM Provider Abstraction",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "LLM Provider Abstraction": {
+      "main": [
+        [
+          {
+            "node": "Validate Structured LLM Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Structured LLM Output": {
+      "main": [
+        [
+          {
+            "node": "Confirmation State Machine",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Confirmation State Machine": {
+      "main": [
+        [
+          {
+            "node": "Issue Assertion After Verified Sender",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Issue Assertion After Verified Sender": {
+      "main": [
+        [
+          {
+            "node": "Call Reservation Bot",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call Reservation Bot": {
+      "main": [
+        [
+          {
+            "node": "Template Messages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Template Messages": {
+      "main": [
+        [
+          {
+            "node": "Observability Workflow",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Observability Workflow": {
+      "main": [
+        [
+          {
+            "node": "Respond To Meta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataErrorExecution": "none",
+    "saveDataSuccessExecution": "none",
+    "saveDataProgressExecution": false,
+    "saveManualExecutions": false
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 0,
+  "versionId": "7aa581bcad16c44e",
+  "meta": {
+    "openrestoWorkflowVersion": "phase-4-v1",
+    "templateCredsSetupCompleted": true,
+    "purpose": "Meta POST inbound routing with HMAC, LLM, confirmation, assertion, and bot dispatch"
+  },
+  "active": false
+}

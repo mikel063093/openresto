@@ -7,7 +7,7 @@
 - The implementation plan and recorded local verification are under `.planning/features/internal-operator-mcp/`.
 - A new Level-C planning set for the test-only WhatsApp reservation channel now exists under `.planning/features/whatsapp-reservations-test/`.
 - The current feature branch already contains partial OpenResto-side WhatsApp channel implementation work that has been assessed against `develop` and folded into the new planning baseline.
-- Phase 3 for `whatsapp-reservations-test` has now been executed in-worktree with a durable `n8n-test` foundation, explicit state storage, and private-only network segmentation; public topology/DNS remains deferred to Phase 6.
+- Phases 3 and 4 for `whatsapp-reservations-test` have now been executed in-worktree with a durable `n8n-test` foundation, explicit state storage, versioned workflow exports, contract documentation, and static validation; public topology/DNS remains deferred to Phase 6.
 
 ## Implemented Decisions
 - The remote Streamable HTTP MCP server lives in the existing ASP.NET Core backend at `/api/mcp/operator`.
@@ -20,7 +20,8 @@
 - Full backend suite was run locally in the .NET 10 SDK container; consult `VERIFICATION.md` for the recorded command and results.
 - No push, merge, or deployment was performed from this worktree.
 - The WhatsApp test stack now includes a checked-in `n8n-test` compose foundation with Postgres-backed state, persistent volumes for session, dedupe, ordering, replay, and outbound correlation artifacts, and a bridged bot boundary that prevents direct `n8n` reachability to the OpenResto backend.
+- Phase 4 now adds importable workflow exports for Meta verification, inbound routing, confirmation state, handoff, observability, and `es-CO` template replies, plus static tests that enforce the fixed bot contract and workflow security invariants.
 
 ## Next Recommended Step
 - For `internal-operator-mcp`, obtain independent review approval, then decide whether to deploy the feature branch to the isolated `test-rest` environment.
-- For `whatsapp-reservations-test`, Phase 4 is the next recommended step: add actual Meta/LLM/confirmation/handoff workflows on top of the Phase 3 durable `n8n-test` foundation while keeping public topology, DNS, and edge routing deferred until Phase 6.
+- For `whatsapp-reservations-test`, Phase 5 is the next recommended step: add the admin backend and Expo UI for WhatsApp test visibility, handoff configuration, and occasion catalog management while keeping public topology, DNS, and edge routing deferred until Phase 6.

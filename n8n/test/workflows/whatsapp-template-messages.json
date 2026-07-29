@@ -1,0 +1,107 @@
+{
+  "name": "OpenResto WhatsApp Template Messages v1",
+  "nodes": [
+    {
+      "id": "eab77a6ab14a379f",
+      "name": "Execute Workflow Trigger",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [
+        -680,
+        0
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "26ad0dc853dd5a3e",
+      "name": "Build es-CO Reply",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -360,
+        0
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const key = $json.templateContext?.templateKey ?? \"unsupported\";\nconst templates = {\n  confirmation_prompt: $json.templateContext?.confirmationPrompt ?? \"Necesito tu confirmación explícita para continuar.\",\n  confirmation_cancelled: \"Entendido. No hice ningún cambio en tu reserva.\",\n  availability_result: \"Ya revisé la disponibilidad. En seguida te comparto las opciones confirmadas.\",\n  create_result: \"Tu solicitud de reserva quedó registrada. Te comparto el detalle enseguida.\",\n  update_result: \"Tu cambio quedó procesado. Revisa por favor el detalle actualizado.\",\n  cancel_result: \"La cancelación quedó registrada correctamente.\",\n  list_result: \"Estas son las reservas asociadas a tu número verificado.\",\n  detail_result: \"Aquí tienes el detalle de tu reserva.\",\n  occasionCatalog_result: \"Estas son las ocasiones disponibles para tu reserva.\",\n  unsupported: \"No pude resolver esa solicitud de forma segura. Te voy a pasar con una persona del restaurante.\",\n  handoff_result: \"Te voy a comunicar con una persona del restaurante para continuar por este mismo WhatsApp.\"\n};\nreturn [{ json: { ...$json, outboundMessage: templates[key] ?? templates.unsupported } }];"
+      }
+    },
+    {
+      "id": "5fd74faf9f8c0aad",
+      "name": "Send Meta Reply",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -40,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://graph.facebook.com/v23.0/{{$json.conversation.phoneNumberId}}/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "bodyParametersJson": "={{ JSON.stringify({ messaging_product: 'whatsapp', recipient_type: 'individual', to: $json.verifiedSender.waId, type: 'text', text: { preview_url: false, body: $json.outboundMessage } }) }}",
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "33476be42e80ae85",
+          "name": "Meta Access Token (placeholder)"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Execute Workflow Trigger": {
+      "main": [
+        [
+          {
+            "node": "Build es-CO Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build es-CO Reply": {
+      "main": [
+        [
+          {
+            "node": "Send Meta Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataErrorExecution": "none",
+    "saveDataSuccessExecution": "none",
+    "saveDataProgressExecution": false,
+    "saveManualExecutions": false
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 0,
+  "versionId": "5541b5149b5e68aa",
+  "meta": {
+    "openrestoWorkflowVersion": "phase-4-v1",
+    "templateCredsSetupCompleted": true,
+    "purpose": "es-CO reply templates and Meta send path"
+  },
+  "active": false
+}

@@ -167,6 +167,11 @@ Define the mandatory verification gates for executing `.planning/features/whatsa
 - Remediation applied on Wednesday, July 29, 2026 to remove premature public topology and enforce network segmentation.
 - No production deploy, push, secret creation, DNS mutation, public Traefik exposure, or Phase 4 workflows performed.
 
+### Phase 4 status
+- Phase 4 completed in the current worktree on Wednesday, July 29, 2026.
+- Scope executed: versioned n8n workflow exports, workflow contract documentation, static workflow security tests, n8n import validation, compose validation, and targeted Phase 4 secret scanning.
+- No production deploy, push, secret creation, DNS mutation, public Traefik exposure, or Phase 5+ implementation performed.
+
 ### Commands run on Wednesday, July 29, 2026
 - `docker run --rm -v /tmp/openresto-whatsapp-delivery:/src -w /src mcr.microsoft.com/dotnet/sdk:10.0 dotnet test OpenRestoApi.Tests/OpenRestoApi.Tests.csproj --filter "FullyQualifiedName~WhatsAppChannelReservationsIntegrationTests|FullyQualifiedName~WhatsAppAuthorityBaselineMigrationTests|FullyQualifiedName~OpenApiDocumentationTests"`
 - `docker run --rm -v /tmp/openresto-whatsapp-delivery:/src -w /src mcr.microsoft.com/dotnet/sdk:10.0 dotnet test OpenRestoApi.Tests/OpenRestoApi.Tests.csproj`
@@ -184,6 +189,11 @@ Define the mandatory verification gates for executing `.planning/features/whatsa
 - `export CORS_ORIGINS='<temporal-redacted>' JWT_KEY='<temporal-redacted>' ADMIN_EMAIL='<temporal-redacted>' ADMIN_PASSWORD='<temporal-redacted>' N8N_TEST_POSTGRES_PASSWORD='<temporal-redacted>' N8N_TEST_ENCRYPTION_KEY='<temporal-redacted>' N8N_TEST_BASIC_AUTH_USER='<temporal-redacted>' N8N_TEST_BASIC_AUTH_PASSWORD='<temporal-redacted>' ReservationBot__InternalCredential='<temporal-redacted>' WhatsAppChannel__InternalCallerCredential='<temporal-redacted>'; docker compose -f docker-compose.test-rest.yml ps`
 - `docker compose -f docker-compose.test-rest.yml down`
 - `docker run --rm -v /tmp/openresto-whatsapp-delivery:/repo zricethezav/gitleaks:latest dir /repo --no-banner --redact`
+- `node scripts/generate-phase4-n8n-workflows.cjs`
+- `docker run --rm -v /tmp/openresto-whatsapp-delivery:/repo -e N8N_ENCRYPTION_KEY='<temporal-redacted>' -e DB_TYPE=sqlite -e N8N_USER_FOLDER=/tmp/n8n docker.n8n.io/n8nio/n8n:latest import:workflow --separate --input=/repo/n8n/test/workflows`
+- `docker run --rm -v /tmp/openresto-whatsapp-delivery:/src -w /src mcr.microsoft.com/dotnet/sdk:10.0 dotnet test OpenRestoApi.Tests/OpenRestoApi.Tests.csproj --filter FullyQualifiedName~N8nPhase4WorkflowContractTests`
+- `export CORS_ORIGINS='<temporal-redacted>' JWT_KEY='<temporal-redacted>' ADMIN_EMAIL='<temporal-redacted>' ADMIN_PASSWORD='<temporal-redacted>' N8N_TEST_POSTGRES_PASSWORD='<temporal-redacted>' N8N_TEST_ENCRYPTION_KEY='<temporal-redacted>' N8N_TEST_BASIC_AUTH_USER='<temporal-redacted>' N8N_TEST_BASIC_AUTH_PASSWORD='<temporal-redacted>' ReservationBot__InternalCredential='<temporal-redacted>' WhatsAppChannel__InternalCallerCredential='<temporal-redacted>'; docker compose -f docker-compose.test-rest.yml config`
+- `docker run --rm -v /tmp/openresto-whatsapp-delivery:/repo zricethezav/gitleaks:latest dir /repo/n8n --no-banner --redact`
 
 ### Command summaries
 - Focused backend suite: passed, `18` passed, `0` failed, `0` skipped, duration `7 s`.
@@ -200,6 +210,11 @@ Define the mandatory verification gates for executing `.planning/features/whatsa
   - `openresto-frontend/tests/api/admin.test.ts`
   - No new Phase 3 secret exposure was identified after sanitizing verification artifacts and keeping repo placeholders non-secret.
 - Current remediation static scan: passed by targeted source/rendered-config search. No `n8n-test.joypaw.tech`, `reservation-bot-test.joypaw.tech`, `WEBHOOK_URL`, or `N8N_EDITOR_BASE_URL` entries remain in Phase 3 compose, Traefik, topology tests, or the rendered compose output; the rendered config shows separate `test-rest-app-internal` and `test-rest-bot-internal` networks.
+- Phase 4 workflow generation: passed. `scripts/generate-phase4-n8n-workflows.cjs` emitted `6` versioned workflow exports into `n8n/test/workflows/`.
+- Phase 4 workflow import validation: passed. The official `docker.n8n.io/n8nio/n8n:latest` image imported all `6` workflow JSON files successfully into a disposable SQLite-backed n8n user folder.
+- Phase 4 static contract suite: passed, `5` passed, `0` failed, `0` skipped, duration `25 ms`, executed in `mcr.microsoft.com/dotnet/sdk:10.0` because `dotnet` is not installed on the host shell.
+- Phase 4 compose config validation: passed. The rendered config still shows the same named durable volumes and no additional public topology or direct `n8n-test -> test-rest-backend` wiring.
+- Phase 4 targeted secret scan: passed. `gitleaks` on `/repo/n8n` reported `0` findings.
 
 ### Phase 1 criteria confirmed
 - Atomic private WhatsApp create endpoint implemented with authority-side availability validation, idempotency, trusted phone ownership stamping, and immutable extras snapshot persistence.
@@ -224,15 +239,26 @@ Define the mandatory verification gates for executing `.planning/features/whatsa
 - `n8n-test` is not attached to `dokploy-network` and no longer carries public domain/editor/webhook configuration in Phase 3.
 - `traefik/test-rest.yml` keeps only the existing `test-rest.joypaw.tech` route in this phase; public `n8n-test` and `reservation-bot-test` routing remains deferred to Phase 6.
 - Placeholder-only secret injection points are documented in `.env.example`, `n8n/test/README.md`, `n8n/test/credentials/README.md`, and `n8n/test/storage/README.md`.
-- The reserved `n8n/test/workflows/` directory exists but contains no Phase 4 workflow logic.
+- The `n8n/test/workflows/` directory now contains importable Phase 4 workflow exports for Meta verification, inbound routing, confirmation state, handoff, observability, and `es-CO` template replies.
+
+### Phase 4 criteria confirmed
+- `n8n/test/workflows/whatsapp-meta-verification.json` responds to Meta `GET` verification with placeholder-only verify-token wiring.
+- `n8n/test/workflows/whatsapp-inbound-router.json` validates `X-Hub-Signature-256` before parsing the inbound envelope, persists dedupe/order state under the durable volume paths, constrains the LLM to schema-shaped output with no tools, and calls only `POST /api/internal/reservation-bot/operations`.
+- `n8n/test/workflows/whatsapp-confirmation-state-machine.json` enforces explicit confirmation for `create`, `update`, `cancel`, and handoff-adjacent mutation flows while persisting session state durably.
+- `n8n/test/workflows/whatsapp-observability.json` redacts replay data before writing to `/data/channel-state/replay` and keeps outbound correlation in `/data/channel-state/outbound`.
+- `n8n/test/workflows/whatsapp-handoff.json` sanitizes the operator summary before bot registration and Meta forward delivery.
+- `n8n/test/workflows/whatsapp-template-messages.json` centralizes customer-visible `es-CO` replies and uses only named placeholder credentials.
+- `n8n/test/docs/contract.md` documents the fixed bot contract, credential placeholders, assertion claims, and the active/previous `kid` rotation flow.
+- `OpenRestoApi.Tests/Infrastructure/N8nPhase4WorkflowContractTests.cs` statically enforces the Phase 4 security invariants against the exported JSON and contract document.
 
 ### Residual risks
-- Phase 4 workflows, Phase 5 admin frontend, and later end-to-end sandbox work remain intentionally unimplemented.
+- Phase 5 admin frontend and later end-to-end sandbox/public-edge work remain intentionally unimplemented.
+- The exported workflows were validated by import and static contract inspection, but not by live Meta/WABA execution because real secrets, webhook registration, and public test domains remain `USER/AWAITING` and Phase 6-scoped.
 - Existing package-vulnerability restore warnings for `Microsoft.OpenApi` and `SQLitePCLRaw.lib.e_sqlite3` remain in the baseline and were not changed by this phase.
 - Existing analyzer warnings in the baseline solution remain outside the Phase 3 scope.
 - `gitleaks` flags two pre-existing redacted test fixtures in frontend tests as generic-api-key false positives.
 
 ### Final verification statement
-- Test-only Phases 1 through 3 complete on Wednesday, July 29, 2026.
-- Phase 3 now reflects only durable stack foundation plus private network segmentation; public topology remains a Phase 6 concern.
+- Test-only Phases 1 through 4 complete on Wednesday, July 29, 2026.
+- Phase 4 now reflects versioned workflow exports plus static/import validation on top of the durable stack foundation; public topology remains a Phase 6 concern.
 - No production promotion performed.
