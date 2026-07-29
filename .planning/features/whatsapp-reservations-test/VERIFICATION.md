@@ -188,6 +188,11 @@ Define the mandatory verification gates for executing `.planning/features/whatsa
 - The runbook covers Business Manager/WABA/test-number preparation, test DNS/TLS, secret placement by boundary, Meta webhook registration, templates, `kid` rotation, asymmetric migration note, and sandbox activation gate. Every external action is explicitly `USER/AWAITING`.
 - No deployment, DNS mutation, push, secret creation, external Meta configuration, or production change was performed.
 
+### Phase 8 status
+- Started locally on Wednesday, July 29, 2026; not complete.
+- Local regression and secret-scan gates were run. A stale Phase 4 contract assertion was corrected so that it now enforces the actual Phase 6 webhook-only edge boundary instead of the superseded no-edge statement.
+- Test-environment sandbox, external Meta HMAC/webhook verification, live WABA messaging, DNS/TLS validation, and deployment smoke remain blocked on the external prerequisites listed below. No deployment was attempted.
+
 ### Commands run on Wednesday, July 29, 2026
 - `docker run --rm -v /tmp/openresto-whatsapp-delivery:/src -w /src mcr.microsoft.com/dotnet/sdk:10.0 dotnet test OpenRestoApi.Tests/OpenRestoApi.Tests.csproj --filter "FullyQualifiedName~WhatsAppChannelReservationsIntegrationTests|FullyQualifiedName~WhatsAppAuthorityBaselineMigrationTests|FullyQualifiedName~OpenApiDocumentationTests"`
 - `docker run --rm -v /tmp/openresto-whatsapp-delivery:/src -w /src mcr.microsoft.com/dotnet/sdk:10.0 dotnet test OpenRestoApi.Tests/OpenRestoApi.Tests.csproj`
@@ -247,6 +252,10 @@ Define the mandatory verification gates for executing `.planning/features/whatsa
 - Phase 6 compose validation: passed with temporary non-secret `.invalid` values injected only for the command; `docker compose -f docker-compose.test-rest.yml config --quiet` exited `0`.
 - Phase 6 n8n secret scan: passed; `gitleaks dir /repo/n8n --no-banner --redact` reported `no leaks found`.
 - Phase 7 runbook review: passed. The runbook has `USER/AWAITING` markers for every external action, forbids public bot exposure and production changes, and is linked from `n8n/test/README.md`.
+- Phase 8 full solution regression after correcting the stale contract assertion: passed. `OpenRestoApi.Tests`: `1298` passed, `0` failed, `0` skipped, duration `1 m 16 s`; `OpenRestoReservationBot.Tests`: `19` passed, `0` failed, `0` skipped, duration `<1 s`. Existing dependency advisories and analyzer warnings remain.
+- Phase 8 full frontend regression: passed. `npm test -- --runInBand` completed with `154` suites and `1932` tests passed. Existing React `act(...)` and intentionally exercised API-error console warnings were emitted but did not fail the suite.
+- Phase 8 repository secret scan: completed with `2` pre-existing generic-api-key false positives in the already-recorded frontend fixtures; the Phase 6/7 n8n and runbook targeted scans reported no leaks.
+- Phase 8 n8n import rerun was not executed because the execution environment required separate approval to pull the non-standard `docker.n8n.io` image. The previous recorded import of all six workflows remains the latest import evidence.
 
 ### Phase 1 criteria confirmed
 - Atomic private WhatsApp create endpoint implemented with authority-side availability validation, idempotency, trusted phone ownership stamping, and immutable extras snapshot persistence.
@@ -295,6 +304,7 @@ Define the mandatory verification gates for executing `.planning/features/whatsa
 ### Residual risks
 - The Phase 6 topology is repository-defined and locally validated only. It has not been deployed to the test environment and no DNS/router or external webhook has been activated.
 - The exported workflows were validated by import and static contract inspection, but not by live Meta/WABA execution because real secrets, webhook registration, public test DNS/TLS, Meta/WABA/test-number provisioning, and applicable template approval remain `USER/AWAITING`.
+- Phase 8 cannot close without: a Meta app/WABA and registered test phone number, externally injected test secrets, approved test DNS/TLS and test-stack deployment, Meta webhook registration (and templates if the messaging window requires them), then a test-only sandbox authorization.
 - Existing package-vulnerability restore warnings for `Microsoft.OpenApi` and `SQLitePCLRaw.lib.e_sqlite3` remain in the baseline and were not changed by this phase.
 - Existing analyzer warnings in the baseline solution remain outside the Phase 5 scope.
 - `gitleaks` flags two pre-existing redacted test fixtures in frontend tests as generic-api-key false positives.
