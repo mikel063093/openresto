@@ -3,7 +3,8 @@
 ## Alcance actual
 - La Fase 3 dejó lista la base durable de `n8n-test`.
 - La Fase 4 ahora agrega workflows versionados de Meta, LLM, confirmaciones, observabilidad y handoff en `n8n/test/workflows/`.
-- No crea secretos reales, no hace despliegues y no publica topología ni DNS; eso sigue diferido a la Fase 6.
+- La Fase 6 agrega solo el edge público mínimo para webhooks de Meta.
+- No crea secretos reales, no despliega, no toca DNS real fuera de placeholders del repo y no publica el editor/API de `n8n` ni el bot.
 
 ## Decisión de persistencia
 - Backend durable principal de `n8n`: `Postgres` en el servicio `n8n-test-postgres`.
@@ -23,14 +24,19 @@
 - `n8n-test`
   - Usa `Postgres` para el estado interno de `n8n`.
   - Conserva artefactos de sesión/dedupe/orden/replay/outbound en volúmenes dedicados.
-  - Queda solo en red privada durante la Fase 3; no recibe dominio, editor ni webhook públicos.
+  - Mantiene editor/UI/API en red privada.
+  - En Fase 6 recibe solo el host público de webhook `n8n-test.joypaw.tech` por Traefik para `/webhook*`.
 
 ## Frontera de red
 - Flujo permitido en esta fase:
+  - público -> `n8n-test.joypaw.tech/webhook/*`
+  - público -> `n8n-test.joypaw.tech/webhook-test/*`
   - `n8n-test` -> `reservation-bot-test`
   - `reservation-bot-test` -> `test-rest-backend`
 - Flujo negado o no expuesto:
-  - público -> `n8n-test`
+  - público -> `n8n-test.joypaw.tech/`
+  - público -> `n8n-test.joypaw.tech/rest/*`
+  - público -> `n8n-test.joypaw.tech/metrics`
   - público -> `reservation-bot-test`
   - público -> `/api/private/channels/whatsapp/*`
   - `n8n-test` -> `test-rest-backend`
@@ -52,6 +58,7 @@
   - `USER/AWAITING`
 - Propiedad obligatoria:
   - Meta, OpenAI y claves de assertion de WhatsApp: solo `n8n`.
+  - `N8N_TEST_WEBHOOK_BASE_URL`: solo describe la URL pública del webhook; no reemplaza secretos.
   - Credencial interna del bot: compartida entre `n8n` y `reservation-bot-test`, nunca en prompts ni logs públicos.
   - Credencial interna del canal privado de OpenResto: usada por `reservation-bot-test`, no por modelos.
 
@@ -63,6 +70,5 @@ docker compose -f docker-compose.test-rest.yml ps
 docker compose -f docker-compose.test-rest.yml down
 ```
 
-## Siguiente fase
-- La Fase 5 aborda el surface administrativo para catálogo y configuración de WhatsApp/handoff.
-- La Fase 6, no la Fase 4, debe definir Traefik, DNS y cualquier webhook público de Meta.
+## Referencia de topología
+- La prueba estática y las fronteras públicas/privadas de Fase 6 se documentan en [n8n/test/docs/phase6-topology.md](/tmp/openresto-whatsapp-delivery/n8n/test/docs/phase6-topology.md).

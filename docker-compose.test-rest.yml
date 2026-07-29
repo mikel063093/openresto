@@ -181,6 +181,9 @@ services:
       N8N_HOST: n8n-test
       N8N_PROTOCOL: http
       N8N_PORT: 5678
+      # Phase 6 exposes only /webhook* through Traefik on a dedicated public host.
+      # The editor/API remain private because no public router targets those paths.
+      WEBHOOK_URL: ${N8N_TEST_WEBHOOK_BASE_URL}
       N8N_SECURE_COOKIE: "false"
       N8N_ENCRYPTION_KEY: ${N8N_TEST_ENCRYPTION_KEY}
       N8N_BASIC_AUTH_ACTIVE: "true"
@@ -218,6 +221,7 @@ services:
         aliases:
           - n8n-test
       test-rest-egress: {}
+      dokploy-network: {}
     healthcheck:
       test:
         [

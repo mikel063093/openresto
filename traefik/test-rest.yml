@@ -8,8 +8,21 @@ http:
       tls:
         certResolver: letsencrypt
 
+    n8n-test-webhooks-secure:
+      rule: "Host(`n8n-test.joypaw.tech`) && (Path(`/webhook`) || PathPrefix(`/webhook/`) || Path(`/webhook-test`) || PathPrefix(`/webhook-test/`))"
+      entryPoints:
+        - websecure
+      service: n8n-test-webhooks
+      tls:
+        certResolver: letsencrypt
+
   services:
     test-rest-openresto:
       loadBalancer:
         servers:
           - url: "http://test-rest-reverse-proxy:80"
+
+    n8n-test-webhooks:
+      loadBalancer:
+        servers:
+          - url: "http://n8n-test:5678"
