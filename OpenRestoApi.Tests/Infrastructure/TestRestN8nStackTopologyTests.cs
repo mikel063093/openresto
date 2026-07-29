@@ -19,6 +19,8 @@ public sealed class TestRestN8nStackTopologyTests
         Assert.Contains("n8n_test_replay_data:/data/channel-state/replay", text, StringComparison.Ordinal);
         Assert.Contains("n8n_test_outbound_data:/data/channel-state/outbound", text, StringComparison.Ordinal);
         Assert.Contains("WEBHOOK_URL: ${N8N_TEST_WEBHOOK_BASE_URL}", text, StringComparison.Ordinal);
+        Assert.Contains("WhatsAppChannel__InternalCallerCredential: ${WhatsAppChannel__InternalCallerCredential}", text, StringComparison.Ordinal);
+        Assert.Contains("WhatsAppChannel__Assertion__SigningKey: ${N8N_TEST_WHATSAPP_ASSERTION_ACTIVE_KEY}", text, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -43,6 +45,10 @@ public sealed class TestRestN8nStackTopologyTests
         Assert.Contains("dokploy-network", n8nBlock, StringComparison.Ordinal);
         Assert.DoesNotContain("N8N_EDITOR_BASE_URL", n8nBlock, StringComparison.Ordinal);
         Assert.Contains("WEBHOOK_URL: ${N8N_TEST_WEBHOOK_BASE_URL}", n8nBlock, StringComparison.Ordinal);
+        Assert.Contains("N8N_TEST_META_APP_SECRET: ${N8N_TEST_META_APP_SECRET}", n8nBlock, StringComparison.Ordinal);
+        Assert.Contains("N8N_TEST_OPENAI_API_KEY: ${N8N_TEST_OPENAI_API_KEY}", n8nBlock, StringComparison.Ordinal);
+        Assert.Contains("N8N_TEST_WHATSAPP_ASSERTION_ACTIVE_KEY: ${N8N_TEST_WHATSAPP_ASSERTION_ACTIVE_KEY}", n8nBlock, StringComparison.Ordinal);
+        Assert.Contains("N8N_TEST_BOT_INTERNAL_CREDENTIAL: ${N8N_TEST_BOT_INTERNAL_CREDENTIAL}", n8nBlock, StringComparison.Ordinal);
         Assert.DoesNotContain("N8N_HOST: n8n-test.joypaw.tech", n8nBlock, StringComparison.Ordinal);
     }
 

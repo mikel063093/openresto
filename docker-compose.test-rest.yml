@@ -41,6 +41,15 @@ services:
       # Test is intentionally the only deployed environment that opts in to docs.
       # The backend still requires a SuperAdmin JWT or auth cookie for both docs URLs.
       OpenApi__ExposeDocs: "true"
+      WhatsAppChannel__Enabled: "true"
+      WhatsAppChannel__InternalCallerCredential: ${WhatsAppChannel__InternalCallerCredential}
+      WhatsAppChannel__Assertion__Issuer: ${N8N_TEST_WHATSAPP_ASSERTION_ISSUER}
+      WhatsAppChannel__Assertion__Audience: ${N8N_TEST_WHATSAPP_ASSERTION_AUDIENCE}
+      WhatsAppChannel__Assertion__SigningKey: ${N8N_TEST_WHATSAPP_ASSERTION_ACTIVE_KEY}
+      WhatsAppChannel__Assertion__ActiveKid: ${N8N_TEST_WHATSAPP_ASSERTION_ACTIVE_KID}
+      WhatsAppChannel__Assertion__PreviousSigningKey: ${N8N_TEST_WHATSAPP_ASSERTION_PREVIOUS_KEY}
+      WhatsAppChannel__Assertion__PreviousKid: ${N8N_TEST_WHATSAPP_ASSERTION_PREVIOUS_KID}
+      WhatsAppChannel__Assertion__RequiredScope: whatsapp.reservations
     volumes:
       - test_rest_db_data:/data
       - test_rest_media_data:/app/wwwroot/media
@@ -189,6 +198,17 @@ services:
       N8N_BASIC_AUTH_ACTIVE: "true"
       N8N_BASIC_AUTH_USER: ${N8N_TEST_BASIC_AUTH_USER}
       N8N_BASIC_AUTH_PASSWORD: ${N8N_TEST_BASIC_AUTH_PASSWORD}
+      N8N_TEST_META_VERIFY_TOKEN: ${N8N_TEST_META_VERIFY_TOKEN}
+      N8N_TEST_META_APP_SECRET: ${N8N_TEST_META_APP_SECRET}
+      N8N_TEST_META_ACCESS_TOKEN: ${N8N_TEST_META_ACCESS_TOKEN}
+      N8N_TEST_OPENAI_API_KEY: ${N8N_TEST_OPENAI_API_KEY}
+      N8N_TEST_WHATSAPP_ASSERTION_ISSUER: ${N8N_TEST_WHATSAPP_ASSERTION_ISSUER}
+      N8N_TEST_WHATSAPP_ASSERTION_AUDIENCE: ${N8N_TEST_WHATSAPP_ASSERTION_AUDIENCE}
+      N8N_TEST_WHATSAPP_ASSERTION_ACTIVE_KID: ${N8N_TEST_WHATSAPP_ASSERTION_ACTIVE_KID}
+      N8N_TEST_WHATSAPP_ASSERTION_ACTIVE_KEY: ${N8N_TEST_WHATSAPP_ASSERTION_ACTIVE_KEY}
+      N8N_TEST_WHATSAPP_ASSERTION_PREVIOUS_KID: ${N8N_TEST_WHATSAPP_ASSERTION_PREVIOUS_KID}
+      N8N_TEST_WHATSAPP_ASSERTION_PREVIOUS_KEY: ${N8N_TEST_WHATSAPP_ASSERTION_PREVIOUS_KEY}
+      N8N_TEST_BOT_INTERNAL_CREDENTIAL: ${N8N_TEST_BOT_INTERNAL_CREDENTIAL}
       N8N_DIAGNOSTICS_ENABLED: "false"
       N8N_PERSONALIZATION_ENABLED: "false"
       N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS: "true"

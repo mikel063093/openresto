@@ -28,7 +28,7 @@
 - Toda persistencia fuera de OpenResto pasa por redacción previa de PII.
 - Los logs/replay no deben guardar correos, teléfonos completos, tokens ni secretos.
 - Las mutaciones `create`, `update`, `cancel` y `handoff` requieren confirmación explícita.
-- No se define ninguna ruta pública, DNS, Traefik ni despliegue en esta fase.
+- La Fase 6 define el edge público de webhook de prueba; el editor/API de `n8n`, el bot y la API privada de OpenResto permanecen privados.
 
 ## Credenciales permitidas por nombre
 - `Meta Verify Token (placeholder)`
