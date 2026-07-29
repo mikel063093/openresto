@@ -115,6 +115,7 @@ public sealed class OperatorReservationService(
             EndTime = existing.EndTime,
             IsCancelled = existing.IsCancelled,
             CancelledAt = existing.CancelledAt,
+            ConcurrencyToken = existing.ConcurrencyToken,
         };
 
         await _bookingService.UpdateBookingAsync(id, updateDto);

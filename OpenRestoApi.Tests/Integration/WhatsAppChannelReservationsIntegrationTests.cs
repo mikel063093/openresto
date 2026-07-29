@@ -124,6 +124,62 @@ public sealed class WhatsAppChannelReservationsIntegrationTests(TestWebAppFactor
     }
 
     [Fact]
+    public async Task ReplayProtection_PersistsThroughValidatedJwtExpiry_AndExpiredMarkersAreCleanedUp()
+    {
+        int restaurantId = await SeedRestaurantAsync("Assertion Lifetime", whatsappEnabled: true);
+        _ = await SeedBookingAsync(restaurantId, "+14155550106", "owner@example.com", "Owner");
+
+        string jwtId = Guid.NewGuid().ToString("N");
+        DateTime expiresAtUtc = DateTime.UtcNow.AddMinutes(9);
+        string longLivedAssertion = TestWebAppFactory.GenerateWhatsAppAssertion(
+            "+14155550106",
+            expiresAtUtc: expiresAtUtc,
+            jwtId: jwtId);
+
+        HttpClient client = CreateWhatsAppClient("+14155550106", assertion: longLivedAssertion);
+
+        HttpResponseMessage firstResponse = await client.GetAsync("/api/private/channels/whatsapp/reservations");
+        Assert.Equal(HttpStatusCode.OK, firstResponse.StatusCode);
+
+        using (IServiceScope scope = _factory.Services.CreateScope())
+        {
+            AppDbContext db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            ChannelMutationIdempotencyRecord marker = db.ChannelMutationIdempotencyRecords
+                .Single(x => x.Channel == "whatsapp_assertion" && x.ReplayKey == jwtId);
+            Assert.NotNull(marker.ExpiresAtUtc);
+            Assert.True(marker.ExpiresAtUtc.Value > DateTime.UtcNow.AddMinutes(5));
+            Assert.True(marker.ExpiresAtUtc.Value <= expiresAtUtc);
+        }
+
+        HttpResponseMessage replayResponse = await client.GetAsync("/api/private/channels/whatsapp/reservations");
+        Assert.Equal(HttpStatusCode.Unauthorized, replayResponse.StatusCode);
+
+        using (IServiceScope expireScope = _factory.Services.CreateScope())
+        {
+            AppDbContext db = expireScope.ServiceProvider.GetRequiredService<AppDbContext>();
+            ChannelMutationIdempotencyRecord marker = db.ChannelMutationIdempotencyRecords
+                .Single(x => x.Channel == "whatsapp_assertion" && x.ReplayKey == jwtId);
+            marker.ExpiresAtUtc = DateTime.UtcNow.AddMinutes(-1);
+            await db.SaveChangesAsync();
+        }
+
+        string refreshedAssertion = TestWebAppFactory.GenerateWhatsAppAssertion(
+            "+14155550106",
+            expiresAtUtc: DateTime.UtcNow.AddMinutes(4),
+            jwtId: jwtId);
+        HttpClient refreshedClient = CreateWhatsAppClient("+14155550106", assertion: refreshedAssertion);
+
+        HttpResponseMessage refreshedResponse = await refreshedClient.GetAsync("/api/private/channels/whatsapp/reservations");
+        Assert.Equal(HttpStatusCode.OK, refreshedResponse.StatusCode);
+
+        using IServiceScope cleanupScope = _factory.Services.CreateScope();
+        AppDbContext cleanupDb = cleanupScope.ServiceProvider.GetRequiredService<AppDbContext>();
+        ChannelMutationIdempotencyRecord renewedMarker = cleanupDb.ChannelMutationIdempotencyRecords
+            .Single(x => x.Channel == "whatsapp_assertion" && x.ReplayKey == jwtId);
+        Assert.True(renewedMarker.ExpiresAtUtc > DateTime.UtcNow);
+    }
+
+    [Fact]
     public async Task CreateRequiresEmailAndConfirmation_AndStampsTrustedOwnershipAndSnapshots()
     {
         int restaurantId = await SeedRestaurantAsync("Create Validation", whatsappEnabled: true);

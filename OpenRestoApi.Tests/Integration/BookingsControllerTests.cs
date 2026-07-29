@@ -1,7 +1,10 @@
 using System.Net;
+using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using OpenRestoApi.Core.Application.DTOs;
 using OpenRestoApi.Core.Domain;
 using OpenRestoApi.Infrastructure.Cookies;
 using OpenRestoApi.Infrastructure.Persistence;
@@ -10,6 +13,7 @@ namespace OpenRestoApi.Tests.Integration;
 
 public class BookingsControllerTests(TestWebAppFactory factory) : IClassFixture<TestWebAppFactory>
 {
+    private const string AssertionHeader = "X-OpenResto-Channel-Assertion";
     private readonly TestWebAppFactory _factory = factory;
 
     private (int restaurantId, int sectionId, int tableId) GetSeededIds()
@@ -252,6 +256,152 @@ public class BookingsControllerTests(TestWebAppFactory factory) : IClassFixture<
         HttpClient client = _factory.CreateAuthenticatedClient();
         HttpResponseMessage response = await client.PutAsJsonAsync("/api/bookings/1", new { id = 2 });
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task StandardPut_RejectsStaleConcurrencyToken_AfterWhatsAppUpdate()
+    {
+        int restaurantId;
+        int sectionId;
+        int tableId;
+        using (IServiceScope scope = _factory.Services.CreateScope())
+        {
+            AppDbContext db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            Restaurant restaurant = db.Restaurants.First();
+            Section section = db.Sections.First(s => s.RestaurantId == restaurant.Id);
+            Table table = db.Tables.First(t => t.SectionId == section.Id);
+            restaurantId = restaurant.Id;
+            sectionId = section.Id;
+            tableId = table.Id;
+        }
+
+        HttpClient adminClient = _factory.CreateAuthenticatedClient();
+        HttpResponseMessage createResponse = await adminClient.PostAsJsonAsync("/api/admin/bookings", new
+        {
+            restaurantId,
+            sectionId,
+            tableId,
+            date = DateTime.UtcNow.AddDays(15).ToString("yyyy-MM-ddTHH:mm:ss"),
+            customerEmail = "stale-put-after-wa@test.com",
+            customerName = "Before WhatsApp",
+            seats = 2
+        });
+        Assert.Equal(HttpStatusCode.Created, createResponse.StatusCode);
+        BookingDto created = (await createResponse.Content.ReadFromJsonAsync<BookingDto>())!;
+        await StampBookingWhatsAppOwnershipAsync(created.Id, "+14155550991");
+        int stampedConcurrencyToken = await GetBookingConcurrencyTokenAsync(created.Id);
+
+        HttpClient whatsappClient = CreateWhatsAppClient("+14155550991", action: "reservations.mutate");
+        HttpResponseMessage whatsappUpdateResponse = await whatsappClient.PatchAsJsonAsync(
+            $"/api/private/channels/whatsapp/reservations/{created.Id}",
+            new
+            {
+                date = created.Date.AddHours(1),
+                seats = created.Seats + 1,
+                confirmed = true,
+                idempotencyKey = "stale-put-after-wa-whatsapp",
+                expectedConcurrencyToken = stampedConcurrencyToken
+            });
+        Assert.Equal(HttpStatusCode.OK, whatsappUpdateResponse.StatusCode);
+
+        HttpResponseMessage stalePutResponse = await adminClient.PutAsJsonAsync(
+            $"/api/bookings/{created.Id}",
+            new
+            {
+                id = created.Id,
+                restaurantId = created.RestaurantId,
+                sectionId = created.SectionId,
+                tableId = created.TableId,
+                date = created.Date.AddHours(2),
+                customerEmail = created.CustomerEmail,
+                customerName = "Stale Standard PUT",
+                seats = created.Seats + 2,
+                concurrencyToken = stampedConcurrencyToken
+            });
+
+        Assert.Equal(HttpStatusCode.Conflict, stalePutResponse.StatusCode);
+        JsonElement staleBody = await stalePutResponse.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.False(string.IsNullOrWhiteSpace(staleBody.GetProperty("message").GetString()));
+
+        using IServiceScope verificationScope = _factory.Services.CreateScope();
+        AppDbContext verificationDb = verificationScope.ServiceProvider.GetRequiredService<AppDbContext>();
+        Booking persisted = verificationDb.Bookings.Single(x => x.Id == created.Id);
+        Assert.Equal("Before WhatsApp", persisted.CustomerName);
+        Assert.Equal(created.Date.AddHours(1), persisted.Date);
+        Assert.Equal(created.Seats + 1, persisted.Seats);
+        Assert.True(persisted.ConcurrencyToken > created.ConcurrencyToken);
+    }
+
+    [Fact]
+    public async Task WhatsAppUpdate_RejectsStaleConcurrencyToken_AfterStandardPut()
+    {
+        int restaurantId;
+        int sectionId;
+        int tableId;
+        using (IServiceScope scope = _factory.Services.CreateScope())
+        {
+            AppDbContext db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            Restaurant restaurant = db.Restaurants.First();
+            Section section = db.Sections.First(s => s.RestaurantId == restaurant.Id);
+            Table table = db.Tables.First(t => t.SectionId == section.Id);
+            restaurantId = restaurant.Id;
+            sectionId = section.Id;
+            tableId = table.Id;
+        }
+
+        HttpClient adminClient = _factory.CreateAuthenticatedClient();
+        HttpResponseMessage createResponse = await adminClient.PostAsJsonAsync("/api/admin/bookings", new
+        {
+            restaurantId,
+            sectionId,
+            tableId,
+            date = DateTime.UtcNow.AddDays(16).ToString("yyyy-MM-ddTHH:mm:ss"),
+            customerEmail = "stale-wa-after-put@test.com",
+            customerName = "Initial",
+            seats = 2
+        });
+        Assert.Equal(HttpStatusCode.Created, createResponse.StatusCode);
+        BookingDto created = (await createResponse.Content.ReadFromJsonAsync<BookingDto>())!;
+        await StampBookingWhatsAppOwnershipAsync(created.Id, "+14155550992");
+        int stampedConcurrencyToken = await GetBookingConcurrencyTokenAsync(created.Id);
+
+        HttpResponseMessage putResponse = await adminClient.PutAsJsonAsync(
+            $"/api/bookings/{created.Id}",
+            new
+            {
+                id = created.Id,
+                restaurantId = created.RestaurantId,
+                sectionId = created.SectionId,
+                tableId = created.TableId,
+                date = created.Date.AddHours(1),
+                customerEmail = created.CustomerEmail,
+                customerName = "Updated By PUT",
+                seats = created.Seats + 1,
+                concurrencyToken = stampedConcurrencyToken
+            });
+        Assert.Equal(HttpStatusCode.NoContent, putResponse.StatusCode);
+
+        HttpClient whatsappClient = CreateWhatsAppClient("+14155550992", action: "reservations.mutate");
+        HttpResponseMessage staleWhatsAppResponse = await whatsappClient.PatchAsJsonAsync(
+            $"/api/private/channels/whatsapp/reservations/{created.Id}",
+            new
+            {
+                date = created.Date.AddHours(2),
+                seats = created.Seats + 2,
+                confirmed = true,
+                idempotencyKey = "stale-wa-after-put-whatsapp",
+                expectedConcurrencyToken = stampedConcurrencyToken
+            });
+
+        Assert.Equal(HttpStatusCode.Conflict, staleWhatsAppResponse.StatusCode);
+
+        using IServiceScope verificationScope = _factory.Services.CreateScope();
+        AppDbContext verificationDb = verificationScope.ServiceProvider.GetRequiredService<AppDbContext>();
+        Booking persisted = verificationDb.Bookings.Single(x => x.Id == created.Id);
+        Assert.Equal("Updated By PUT", persisted.CustomerName);
+        Assert.Equal(created.Date.AddHours(1), persisted.Date);
+        Assert.Equal(created.Seats + 1, persisted.Seats);
+        Assert.True(persisted.ConcurrencyToken > created.ConcurrencyToken);
     }
 
     [Fact]
@@ -524,5 +674,50 @@ public class BookingsControllerTests(TestWebAppFactory factory) : IClassFixture<
             .Select(r => r.body.GetProperty("tableId").GetInt32())
             .ToList();
         Assert.Equal(winnerTables.Count, winnerTables.Distinct().Count());
+    }
+
+    private HttpClient CreateWhatsAppClient(string verifiedPhone, string action = "reservations.read", string? assertion = null)
+    {
+        return _factory.CreateDefaultClient(new FreshWhatsAppAssertionHandler(verifiedPhone, action, assertion));
+    }
+
+    private async Task StampBookingWhatsAppOwnershipAsync(int bookingId, string phoneE164)
+    {
+        using IServiceScope scope = _factory.Services.CreateScope();
+        AppDbContext db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        Booking booking = db.Bookings.Single(x => x.Id == bookingId);
+        booking.CustomerPhoneE164 = phoneE164;
+        booking.CustomerPhoneNormalized = phoneE164.TrimStart('+');
+        booking.CreatedViaChannel = "whatsapp";
+        Restaurant restaurant = db.Restaurants.Single(x => x.Id == booking.RestaurantId);
+        restaurant.IsWhatsAppTestEnabled = true;
+        await db.SaveChangesAsync();
+    }
+
+    private async Task<int> GetBookingConcurrencyTokenAsync(int bookingId)
+    {
+        using IServiceScope scope = _factory.Services.CreateScope();
+        AppDbContext db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        return await db.Bookings.Where(x => x.Id == bookingId).Select(x => x.ConcurrencyToken).SingleAsync();
+    }
+
+    private sealed class FreshWhatsAppAssertionHandler(string verifiedPhone, string action, string? fixedAssertion)
+        : DelegatingHandler
+    {
+        private readonly string _verifiedPhone = verifiedPhone;
+        private readonly string _action = action;
+        private readonly string? _fixedAssertion = fixedAssertion;
+
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            request.Headers.Authorization = new AuthenticationHeaderValue(
+                "Bearer",
+                TestWebAppFactory.WhatsAppChannelInternalCallerCredential);
+            request.Headers.Remove(AssertionHeader);
+            request.Headers.Add(
+                AssertionHeader,
+                _fixedAssertion ?? TestWebAppFactory.GenerateWhatsAppAssertion(_verifiedPhone, action: _action));
+            return base.SendAsync(request, cancellationToken);
+        }
     }
 }

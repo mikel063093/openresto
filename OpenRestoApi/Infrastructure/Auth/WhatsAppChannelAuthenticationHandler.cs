@@ -83,7 +83,7 @@ public sealed class WhatsAppChannelAuthenticationHandler(
             }
 
             string? jwtId = jwt.Id;
-            if (string.IsNullOrWhiteSpace(jwtId) || await HasAssertionBeenReplayedAsync(jwtId))
+            if (string.IsNullOrWhiteSpace(jwtId) || await HasAssertionBeenReplayedAsync(jwtId, jwt.ValidTo))
             {
                 return AuthenticateResult.Fail("WhatsApp channel assertion replay detected.");
             }
@@ -159,7 +159,7 @@ public sealed class WhatsAppChannelAuthenticationHandler(
         };
     }
 
-    private async Task<bool> HasAssertionBeenReplayedAsync(string jwtId)
+    private async Task<bool> HasAssertionBeenReplayedAsync(string jwtId, DateTime validToUtc)
     {
         string requiredAction = ResolveRequiredAction(Request);
         string replayFingerprint = $"{Request.Method}:{Request.Path}:{requiredAction}";
@@ -168,7 +168,7 @@ public sealed class WhatsAppChannelAuthenticationHandler(
             replayKey: jwtId,
             mutationScope: requiredAction,
             fingerprint: replayFingerprint,
-            expiresAtUtc: DateTime.UtcNow.AddMinutes(5));
+            expiresAtUtc: validToUtc);
         return registration.WasReplayed;
     }
 
