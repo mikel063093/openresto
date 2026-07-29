@@ -9,12 +9,14 @@ namespace OpenRestoApi.Core.Application.Services;
 
 public sealed class ChannelIdempotencyService(
     IChannelMutationIdempotencyRepository repository,
-    AppDbContext db)
+    AppDbContext db,
+    ISystemClock clock)
 {
     private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web);
 
     private readonly IChannelMutationIdempotencyRepository _repository = repository;
     private readonly AppDbContext _db = db;
+    private readonly ISystemClock _clock = clock;
 
     public async Task<ChannelMutationExecutionResult<T>> ExecuteAsync<T>(
         string channel,
@@ -47,7 +49,7 @@ public sealed class ChannelIdempotencyService(
                 IdempotencyKey = idempotencyKey,
                 Fingerprint = fingerprint,
                 State = ChannelMutationState.Pending,
-                CreatedAtUtc = DateTime.UtcNow,
+                CreatedAtUtc = _clock.UtcNow,
             };
 
             _repository.Add(record);
@@ -57,7 +59,7 @@ public sealed class ChannelIdempotencyService(
                 T result = await operation();
                 record.State = ChannelMutationState.Completed;
                 record.ResultJson = JsonSerializer.Serialize(result, SerializerOptions);
-                record.CompletedAtUtc = DateTime.UtcNow;
+                record.CompletedAtUtc = _clock.UtcNow;
 
                 await _db.SaveChangesAsync();
                 if (transaction is not null)
@@ -120,8 +122,8 @@ public sealed class ChannelIdempotencyService(
             ReplayKey = replayKey,
             Fingerprint = fingerprint,
             State = ChannelMutationState.Consumed,
-            CreatedAtUtc = DateTime.UtcNow,
-            CompletedAtUtc = DateTime.UtcNow,
+            CreatedAtUtc = _clock.UtcNow,
+            CompletedAtUtc = _clock.UtcNow,
             ExpiresAtUtc = expiresAtUtc,
         };
 
@@ -144,7 +146,7 @@ public sealed class ChannelIdempotencyService(
 
     private async Task PurgeExpiredReplayRecordsAsync(string channel, string replayKey)
     {
-        DateTime nowUtc = DateTime.UtcNow;
+        DateTime nowUtc = _clock.UtcNow;
         List<ChannelMutationIdempotencyRecord> expiredRecords = await _db.ChannelMutationIdempotencyRecords
             .Where(x =>
                 x.Channel == channel &&

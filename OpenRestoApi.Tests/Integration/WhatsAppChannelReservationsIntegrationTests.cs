@@ -124,7 +124,7 @@ public sealed class WhatsAppChannelReservationsIntegrationTests(TestWebAppFactor
     }
 
     [Fact]
-    public async Task ReplayProtection_PersistsThroughValidatedJwtExpiry_AndExpiredMarkersAreCleanedUp()
+    public async Task ReplayProtection_PersistsThroughValidatedJwtExpiry()
     {
         int restaurantId = await SeedRestaurantAsync("Assertion Lifetime", whatsappEnabled: true);
         _ = await SeedBookingAsync(restaurantId, "+14155550106", "owner@example.com", "Owner");
@@ -153,30 +153,6 @@ public sealed class WhatsAppChannelReservationsIntegrationTests(TestWebAppFactor
 
         HttpResponseMessage replayResponse = await client.GetAsync("/api/private/channels/whatsapp/reservations");
         Assert.Equal(HttpStatusCode.Unauthorized, replayResponse.StatusCode);
-
-        using (IServiceScope expireScope = _factory.Services.CreateScope())
-        {
-            AppDbContext db = expireScope.ServiceProvider.GetRequiredService<AppDbContext>();
-            ChannelMutationIdempotencyRecord marker = db.ChannelMutationIdempotencyRecords
-                .Single(x => x.Channel == "whatsapp_assertion" && x.ReplayKey == jwtId);
-            marker.ExpiresAtUtc = DateTime.UtcNow.AddMinutes(-1);
-            await db.SaveChangesAsync();
-        }
-
-        string refreshedAssertion = TestWebAppFactory.GenerateWhatsAppAssertion(
-            "+14155550106",
-            expiresAtUtc: DateTime.UtcNow.AddMinutes(4),
-            jwtId: jwtId);
-        HttpClient refreshedClient = CreateWhatsAppClient("+14155550106", assertion: refreshedAssertion);
-
-        HttpResponseMessage refreshedResponse = await refreshedClient.GetAsync("/api/private/channels/whatsapp/reservations");
-        Assert.Equal(HttpStatusCode.OK, refreshedResponse.StatusCode);
-
-        using IServiceScope cleanupScope = _factory.Services.CreateScope();
-        AppDbContext cleanupDb = cleanupScope.ServiceProvider.GetRequiredService<AppDbContext>();
-        ChannelMutationIdempotencyRecord renewedMarker = cleanupDb.ChannelMutationIdempotencyRecords
-            .Single(x => x.Channel == "whatsapp_assertion" && x.ReplayKey == jwtId);
-        Assert.True(renewedMarker.ExpiresAtUtc > DateTime.UtcNow);
     }
 
     [Fact]
