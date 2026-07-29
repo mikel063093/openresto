@@ -136,7 +136,7 @@ Add a dedicated internal bot service with a fixed operation contract that cannot
 
 #### Work
 1. Create a separate ASP.NET Core service for `reservation-bot-test`.
-2. Define a small request/response contract for the seven allowed operations.
+2. Define a small request/response contract for the eight allowed operations: availability, create, list, detail, update, cancel, occasion catalog, and handoff.
 3. Add request authentication between n8n and bot.
 4. Forward the n8n-issued assertion and correlation metadata unchanged to OpenResto.
 5. Keep provider abstraction separate from tool execution logic.
