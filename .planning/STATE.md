@@ -24,4 +24,4 @@
 
 ## Next Recommended Step
 - For `internal-operator-mcp`, obtain independent review approval, then decide whether to deploy the feature branch to the isolated `test-rest` environment.
-- For `whatsapp-reservations-test`, Phase 8 has started with passing local regression gates but cannot close until the external prerequisites and a test-deployment authorization exist. It is blocked on Meta/WABA, test-number, DNS/TLS, secret injection, webhook registration, and applicable template approval.
+- For `whatsapp-reservations-test`, Phase 8 has started with passing local regression gates, including the current fail-closed webhook/bootstrap changes, but cannot close until the external prerequisites and a test deployment are available. It is blocked on Meta/WABA, test number, test DNS/TLS (the n8n host does not resolve), externally injected secrets, webhook registration, applicable template approval, and a healthy `test-rest` edge (the public probe returned `502`).
