@@ -172,6 +172,11 @@ Define the mandatory verification gates for executing `.planning/features/whatsa
 - Scope executed: versioned n8n workflow exports, workflow contract documentation, static workflow security tests, n8n import validation, compose validation, and targeted Phase 4 secret scanning.
 - No production deploy, push, secret creation, DNS mutation, public Traefik exposure, or Phase 5+ implementation performed.
 
+### Phase 5 status
+- Phase 5 completed in the current worktree on Wednesday, July 29, 2026.
+- Scope executed: SuperAdmin-only admin backend for WhatsApp settings, Expo settings cards for WhatsApp visibility/handoff/catalog management, typed admin API wiring, and focused backend/frontend verification.
+- No deployment, DNS mutation, push, secret creation, Phase 6 topology work, or Phase 7+ workflow execution performed.
+
 ### Commands run on Wednesday, July 29, 2026
 - `docker run --rm -v /tmp/openresto-whatsapp-delivery:/src -w /src mcr.microsoft.com/dotnet/sdk:10.0 dotnet test OpenRestoApi.Tests/OpenRestoApi.Tests.csproj --filter "FullyQualifiedName~WhatsAppChannelReservationsIntegrationTests|FullyQualifiedName~WhatsAppAuthorityBaselineMigrationTests|FullyQualifiedName~OpenApiDocumentationTests"`
 - `docker run --rm -v /tmp/openresto-whatsapp-delivery:/src -w /src mcr.microsoft.com/dotnet/sdk:10.0 dotnet test OpenRestoApi.Tests/OpenRestoApi.Tests.csproj`
@@ -194,6 +199,12 @@ Define the mandatory verification gates for executing `.planning/features/whatsa
 - `docker run --rm -v /tmp/openresto-whatsapp-delivery:/src -w /src mcr.microsoft.com/dotnet/sdk:10.0 dotnet test OpenRestoApi.Tests/OpenRestoApi.Tests.csproj --filter FullyQualifiedName~N8nPhase4WorkflowContractTests`
 - `export CORS_ORIGINS='<temporal-redacted>' JWT_KEY='<temporal-redacted>' ADMIN_EMAIL='<temporal-redacted>' ADMIN_PASSWORD='<temporal-redacted>' N8N_TEST_POSTGRES_PASSWORD='<temporal-redacted>' N8N_TEST_ENCRYPTION_KEY='<temporal-redacted>' N8N_TEST_BASIC_AUTH_USER='<temporal-redacted>' N8N_TEST_BASIC_AUTH_PASSWORD='<temporal-redacted>' ReservationBot__InternalCredential='<temporal-redacted>' WhatsAppChannel__InternalCallerCredential='<temporal-redacted>'; docker compose -f docker-compose.test-rest.yml config`
 - `docker run --rm -v /tmp/openresto-whatsapp-delivery:/repo zricethezav/gitleaks:latest dir /repo/n8n --no-banner --redact`
+- `docker run --rm -v /tmp/openresto-whatsapp-delivery:/src -w /src mcr.microsoft.com/dotnet/sdk:10.0 dotnet test OpenRestoApi.Tests/OpenRestoApi.Tests.csproj --filter "FullyQualifiedName~AdminRestaurantWhatsAppSettingsControllerTests|FullyQualifiedName~RestaurantWhatsAppSettingsServiceTests|FullyQualifiedName~AdminOccasionCatalogControllerTests|FullyQualifiedName~RoleAuthorizationTests"`
+- `cd /tmp/openresto-whatsapp-delivery/openresto-frontend && npm install`
+- `cd /tmp/openresto-whatsapp-delivery/openresto-frontend && npm test -- --runInBand tests/components/admin/settings/WhatsAppTestSettingsCard.test.tsx tests/components/admin/settings/HandoffWhatsAppCard.test.tsx tests/components/admin/settings/OccasionCatalogCard.test.tsx tests/app/admin/settings.test.tsx tests/api/admin.test.ts`
+- `cd /tmp/openresto-whatsapp-delivery/openresto-frontend && npx tsc --noEmit -p tsconfig.json`
+- `cd /tmp/openresto-whatsapp-delivery/openresto-frontend && npx oxlint components/admin/settings/WhatsAppTestSettingsCard.tsx components/admin/settings/HandoffWhatsAppCard.tsx components/admin/settings/OccasionCatalogCard.tsx components/admin/settings/OccasionCatalogRow.tsx tests/components/admin/settings/WhatsAppTestSettingsCard.test.tsx tests/components/admin/settings/HandoffWhatsAppCard.test.tsx tests/components/admin/settings/OccasionCatalogCard.test.tsx app/admin/settings.tsx api/admin.ts tests/app/admin/settings.test.tsx tests/api/admin.test.ts`
+- `cd /tmp/openresto-whatsapp-delivery/openresto-frontend && npx prettier --check api/admin.ts app/admin/settings.tsx components/admin/settings/WhatsAppTestSettingsCard.tsx components/admin/settings/HandoffWhatsAppCard.tsx components/admin/settings/OccasionCatalogCard.tsx components/admin/settings/OccasionCatalogRow.tsx tests/app/admin/settings.test.tsx tests/api/admin.test.ts tests/components/admin/settings/WhatsAppTestSettingsCard.test.tsx tests/components/admin/settings/HandoffWhatsAppCard.test.tsx tests/components/admin/settings/OccasionCatalogCard.test.tsx`
 
 ### Command summaries
 - Focused backend suite: passed, `18` passed, `0` failed, `0` skipped, duration `7 s`.
@@ -215,6 +226,12 @@ Define the mandatory verification gates for executing `.planning/features/whatsa
 - Phase 4 static contract suite: passed, `5` passed, `0` failed, `0` skipped, duration `25 ms`, executed in `mcr.microsoft.com/dotnet/sdk:10.0` because `dotnet` is not installed on the host shell.
 - Phase 4 compose config validation: passed. The rendered config still shows the same named durable volumes and no additional public topology or direct `n8n-test -> test-rest-backend` wiring.
 - Phase 4 targeted secret scan: passed. `gitleaks` on `/repo/n8n` reported `0` findings.
+- Phase 5 focused backend suite: passed, `15` passed, `0` failed, `0` skipped, duration `5 s`, executed in `mcr.microsoft.com/dotnet/sdk:10.0` because `dotnet` is not installed on the host shell.
+- Phase 5 frontend dependency install: completed locally in `openresto-frontend` to materialize the repo-declared `jest`, `typescript`, `prettier`, and `oxlint` toolchain for verification.
+- Phase 5 frontend Jest suite: passed, `5` test suites, `138` tests passed, `0` failed, duration `3.521 s`.
+- Phase 5 frontend typecheck: passed with `npx tsc --noEmit -p tsconfig.json`.
+- Phase 5 scoped frontend lint: passed with `npx oxlint` on the changed Phase 5 files.
+- Phase 5 scoped frontend format check: passed with `npx prettier --check` on the changed Phase 5 files.
 
 ### Phase 1 criteria confirmed
 - Atomic private WhatsApp create endpoint implemented with authority-side availability validation, idempotency, trusted phone ownership stamping, and immutable extras snapshot persistence.
@@ -251,14 +268,24 @@ Define the mandatory verification gates for executing `.planning/features/whatsa
 - `n8n/test/docs/contract.md` documents the fixed bot contract, credential placeholders, assertion claims, and the active/previous `kid` rotation flow.
 - `OpenRestoApi.Tests/Infrastructure/N8nPhase4WorkflowContractTests.cs` statically enforces the Phase 4 security invariants against the exported JSON and contract document.
 
+### Phase 5 criteria confirmed
+- `AdminRestaurantWhatsAppSettingsController` now exposes SuperAdmin-only `GET` and `PUT` admin settings operations guarded by both `SuperAdminOnly` and current-credential validation, with `es-CO` not-found and validation messages.
+- `RestaurantWhatsAppSettingsService` now serves persisted settings and rejects enabling the test channel without a configured handoff number while normalizing the stored WhatsApp destination.
+- `AdminOccasionCatalogController` is now aligned to the same current SuperAdmin management boundary as the newer credential-management surfaces.
+- `openresto-frontend/api/admin.ts` now includes typed admin functions for WhatsApp settings and per-restaurant occasion catalog CRUD.
+- `openresto-frontend/app/admin/settings.tsx` now renders a SuperAdmin-only `WHATSAPP DE PRUEBA` section with the planned `WhatsAppTestSettingsCard`, `HandoffWhatsAppCard`, and `OccasionCatalogCard`.
+- The new Expo components use `es-CO` copy, local validation, and race-safe loading guards so operators cannot save stale default state before the current restaurant settings are loaded.
+- Focused backend allow/deny tests, frontend API/component tests, scoped typecheck, scoped lint, and scoped format checks all passed in the current worktree.
+
 ### Residual risks
-- Phase 5 admin frontend and later end-to-end sandbox/public-edge work remain intentionally unimplemented.
+- Phase 6 topology, edge exposure, and secret-injection work remain intentionally unimplemented.
 - The exported workflows were validated by import and static contract inspection, but not by live Meta/WABA execution because real secrets, webhook registration, and public test domains remain `USER/AWAITING` and Phase 6-scoped.
 - Existing package-vulnerability restore warnings for `Microsoft.OpenApi` and `SQLitePCLRaw.lib.e_sqlite3` remain in the baseline and were not changed by this phase.
-- Existing analyzer warnings in the baseline solution remain outside the Phase 3 scope.
+- Existing analyzer warnings in the baseline solution remain outside the Phase 5 scope.
 - `gitleaks` flags two pre-existing redacted test fixtures in frontend tests as generic-api-key false positives.
+- Full `openresto-frontend` `npm run check` still reports pre-existing Prettier drift in unrelated files under `components/layout/` and `i18n/`; the changed Phase 5 files themselves pass scoped Prettier and oxlint checks.
 
 ### Final verification statement
-- Test-only Phases 1 through 4 complete on Wednesday, July 29, 2026.
-- Phase 4 now reflects versioned workflow exports plus static/import validation on top of the durable stack foundation; public topology remains a Phase 6 concern.
+- Test-only Phases 1 through 5 complete on Wednesday, July 29, 2026.
+- Phase 5 now adds the planned admin/backend Expo settings slice while keeping public topology, DNS, and secret-injection work deferred to Phase 6.
 - No production promotion performed.

@@ -8,6 +8,7 @@ namespace OpenRestoApi.Controllers;
 [ApiController]
 [Route("api/admin/restaurants/{restaurantId:int}/occasion-catalog")]
 [Authorize(Policy = "SuperAdminOnly")]
+[Authorize(Policy = "CurrentSuperAdminManagement")]
 public sealed class AdminOccasionCatalogController(OccasionCatalogService service) : ControllerBase
 {
     private readonly OccasionCatalogService _service = service;

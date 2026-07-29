@@ -13,6 +13,9 @@ import { HighlightsCard } from "@/components/admin/settings/HighlightsCard";
 import { PushNotificationsCard } from "@/components/admin/settings/PushNotificationsCard";
 import { UsersRolesCard } from "@/components/admin/settings/UsersRolesCard";
 import { OperatorCredentialsCard } from "@/components/admin/settings/OperatorCredentialsCard";
+import { WhatsAppTestSettingsCard } from "@/components/admin/settings/WhatsAppTestSettingsCard";
+import { HandoffWhatsAppCard } from "@/components/admin/settings/HandoffWhatsAppCard";
+import { OccasionCatalogCard } from "@/components/admin/settings/OccasionCatalogCard";
 import { checkSession } from "@/api/auth";
 import { styles } from "@/components/admin/settings/settings.styles";
 
@@ -80,6 +83,26 @@ export default function AdminSettingsScreen() {
               ACCESO MCP INTERNO
             </ThemedText>
             <OperatorCredentialsCard
+              borderColor={borderColor}
+              mutedColor={mutedColor}
+              cardBg={cardBg}
+            />
+          </View>
+          <View style={styles.section}>
+            <ThemedText style={[styles.sectionHeading, { color: mutedColor }]}>
+              WHATSAPP DE PRUEBA
+            </ThemedText>
+            <WhatsAppTestSettingsCard
+              borderColor={borderColor}
+              mutedColor={mutedColor}
+              cardBg={cardBg}
+            />
+            <HandoffWhatsAppCard
+              borderColor={borderColor}
+              mutedColor={mutedColor}
+              cardBg={cardBg}
+            />
+            <OccasionCatalogCard
               borderColor={borderColor}
               mutedColor={mutedColor}
               cardBg={cardBg}

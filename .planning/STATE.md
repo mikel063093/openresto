@@ -7,7 +7,7 @@
 - The implementation plan and recorded local verification are under `.planning/features/internal-operator-mcp/`.
 - A new Level-C planning set for the test-only WhatsApp reservation channel now exists under `.planning/features/whatsapp-reservations-test/`.
 - The current feature branch already contains partial OpenResto-side WhatsApp channel implementation work that has been assessed against `develop` and folded into the new planning baseline.
-- Phases 3 and 4 for `whatsapp-reservations-test` have now been executed in-worktree with a durable `n8n-test` foundation, explicit state storage, versioned workflow exports, contract documentation, and static validation; public topology/DNS remains deferred to Phase 6.
+- Phases 3 through 5 for `whatsapp-reservations-test` have now been executed in-worktree with a durable `n8n-test` foundation, explicit state storage, versioned workflow exports, contract documentation, SuperAdmin-only admin settings APIs, Expo WhatsApp settings cards, and focused backend/frontend validation; public topology/DNS remains deferred to Phase 6.
 
 ## Implemented Decisions
 - The remote Streamable HTTP MCP server lives in the existing ASP.NET Core backend at `/api/mcp/operator`.
@@ -24,4 +24,4 @@
 
 ## Next Recommended Step
 - For `internal-operator-mcp`, obtain independent review approval, then decide whether to deploy the feature branch to the isolated `test-rest` environment.
-- For `whatsapp-reservations-test`, Phase 5 is the next recommended step: add the admin backend and Expo UI for WhatsApp test visibility, handoff configuration, and occasion catalog management while keeping public topology, DNS, and edge routing deferred until Phase 6.
+- For `whatsapp-reservations-test`, Phase 6 is the next recommended step: define the test-only deployment topology, network boundaries, and secrets injection without introducing production rollout or Phase 7/8 execution.
