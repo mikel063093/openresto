@@ -170,6 +170,11 @@ Add a dedicated internal bot service with a fixed operation contract that cannot
 
 ### Phase 3. Add durable n8n test stack and state storage
 
+#### Execution status
+- Completed on Wednesday, July 29, 2026.
+- Acceptance criteria satisfied in the current worktree.
+- Verification captured in `.planning/features/whatsapp-reservations-test/VERIFICATION.md`.
+
 #### Objective
 Create the test-only n8n stack and durable storage layout needed for Meta webhook handling, session state, dedupe, ordering, and replay-safe observability.
 
