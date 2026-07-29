@@ -8,21 +8,8 @@ http:
       tls:
         certResolver: letsencrypt
 
-    n8n-test-secure:
-      rule: "Host(`n8n-test.joypaw.tech`)"
-      entryPoints:
-        - websecure
-      service: n8n-test-service
-      tls:
-        certResolver: letsencrypt
-
   services:
     test-rest-openresto:
       loadBalancer:
         servers:
           - url: "http://test-rest-reverse-proxy:80"
-
-    n8n-test-service:
-      loadBalancer:
-        servers:
-          - url: "http://n8n-test:5678"

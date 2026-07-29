@@ -96,7 +96,7 @@ Define the mandatory verification gates for executing `.planning/features/whatsa
 ### Route and deployment boundary verification
 - public `test-rest` proxy returns `404` for `/api/private/channels/whatsapp/*`
 - internal bot/OpenResto connectivity works on test network
-- `n8n-test` and `reservation-bot-test` routes are exposed only as intended
+- Phase 3 keeps `n8n-test` and `reservation-bot-test` off the public edge; any public route belongs to Phase 6
 - no production compose/router files changed as part of this feature
 
 ## E2E Sandbox Matrix
@@ -140,8 +140,7 @@ Define the mandatory verification gates for executing `.planning/features/whatsa
 - Meta app, WABA, test number, webhook registration, and template approvals.
 - DNS availability for:
   - `test-rest.joypaw.tech`
-  - `n8n-test.joypaw.tech`
-  - `reservation-bot-test.joypaw.tech`
+- Public `n8n-test.joypaw.tech` and `reservation-bot-test.joypaw.tech` readiness is deferred until Phase 6
 - Real secret injection into test environment.
 
 ## Exit Criteria
@@ -165,7 +164,8 @@ Define the mandatory verification gates for executing `.planning/features/whatsa
 ### Phase 3 status
 - Phase 3 completed in the current worktree on Wednesday, July 29, 2026.
 - Scope executed: durable n8n test stack and state storage foundation only.
-- No production deploy, push, secret creation, DNS mutation, or Phase 4 workflows performed.
+- Remediation applied on Wednesday, July 29, 2026 to remove premature public topology and enforce network segmentation.
+- No production deploy, push, secret creation, DNS mutation, public Traefik exposure, or Phase 4 workflows performed.
 
 ### Commands run on Wednesday, July 29, 2026
 - `docker run --rm -v /tmp/openresto-whatsapp-delivery:/src -w /src mcr.microsoft.com/dotnet/sdk:10.0 dotnet test OpenRestoApi.Tests/OpenRestoApi.Tests.csproj --filter "FullyQualifiedName~WhatsAppChannelReservationsIntegrationTests|FullyQualifiedName~WhatsAppAuthorityBaselineMigrationTests|FullyQualifiedName~OpenApiDocumentationTests"`
@@ -179,7 +179,7 @@ Define the mandatory verification gates for executing `.planning/features/whatsa
 - `docker exec test-rest-n8n-test-1 sh -lc "mkdir -p /data/channel-state/sessions /data/channel-state/dedupe /data/channel-state/ordering /data/channel-state/replay /data/channel-state/outbound && printf 'ok' > /data/channel-state/sessions/restart-marker.txt && printf 'ok' > /data/channel-state/dedupe/restart-marker.txt && printf 'ok' > /data/channel-state/ordering/restart-marker.txt && printf 'ok' > /data/channel-state/replay/restart-marker.txt && printf 'ok' > /data/channel-state/outbound/restart-marker.txt"`
 - `docker restart test-rest-n8n-test-1`
 - `docker exec test-rest-n8n-test-1 sh -lc "test -f /data/channel-state/sessions/restart-marker.txt && test -f /data/channel-state/dedupe/restart-marker.txt && test -f /data/channel-state/ordering/restart-marker.txt && test -f /data/channel-state/replay/restart-marker.txt && test -f /data/channel-state/outbound/restart-marker.txt && echo persisted"`
-- `docker exec test-rest-n8n-test-1 node -e "Promise.all([fetch('http://reservation-bot-test:8080/api/health'), fetch('http://test-rest-backend:8080/api/health')]).then((responses) => process.exit(responses.every((response) => response.ok) ? 0 : 1)).catch(() => process.exit(1))"`
+- `docker run --rm -v /tmp/openresto-whatsapp-delivery:/src -w /src mcr.microsoft.com/dotnet/sdk:10.0 dotnet test OpenRestoApi.Tests/OpenRestoApi.Tests.csproj --filter "FullyQualifiedName~NginxPrivateChannelExposureTests|FullyQualifiedName~TestRestN8nStackTopologyTests"`
 - `docker exec test-rest-reservation-bot-test-1 sh -lc "curl -fsS http://test-rest-backend:8080/api/health >/dev/null"`
 - `export CORS_ORIGINS='<temporal-redacted>' JWT_KEY='<temporal-redacted>' ADMIN_EMAIL='<temporal-redacted>' ADMIN_PASSWORD='<temporal-redacted>' N8N_TEST_POSTGRES_PASSWORD='<temporal-redacted>' N8N_TEST_ENCRYPTION_KEY='<temporal-redacted>' N8N_TEST_BASIC_AUTH_USER='<temporal-redacted>' N8N_TEST_BASIC_AUTH_PASSWORD='<temporal-redacted>' ReservationBot__InternalCredential='<temporal-redacted>' WhatsAppChannel__InternalCallerCredential='<temporal-redacted>'; docker compose -f docker-compose.test-rest.yml ps`
 - `docker compose -f docker-compose.test-rest.yml down`
@@ -191,13 +191,15 @@ Define the mandatory verification gates for executing `.planning/features/whatsa
 - Focused bot suite: passed, `19` passed, `0` failed, `0` skipped, duration `1 s`.
 - Full solution suite: passed. `OpenRestoReservationBot.Tests`: `19` passed, `0` failed, `0` skipped. `OpenRestoApi.Tests`: `1281` passed, `0` failed, `0` skipped, duration `1 m 23 s` for the backend project inside solution execution.
 - Focused infra topology suite: passed, `6` passed, `0` failed, `0` skipped, duration `30 ms`.
+- Remediation topology suite: passed in the current worktree, `6` passed, `0` failed, `0` skipped, duration `21 ms`, executed in `mcr.microsoft.com/dotnet/sdk:10.0` because `dotnet` is not installed on the host shell.
 - Test compose config validation: passed after adding `n8n-test-volume-init`; the rendered config includes `reservation-bot-test`, `n8n-test-postgres`, `n8n-test-volume-init`, `n8n-test`, the internal-only bot network boundary, and the durable named volumes.
 - Test stack boot and restart smoke: passed. `backend`, `reservation-bot-test`, `n8n-test-postgres`, and `n8n-test` all reached `healthy`; marker files written to sessions/dedupe/ordering/replay/outbound remained present after restarting `n8n-test`.
-- Internal connectivity smoke: passed for `n8n-test -> reservation-bot-test`, `n8n-test -> test-rest-backend`, and `reservation-bot-test -> test-rest-backend`.
+- Internal connectivity smoke: original Phase 3 note superseded by remediation. The intended boundary is `n8n-test -> reservation-bot-test -> test-rest-backend`; direct `n8n-test -> test-rest-backend` reachability is no longer allowed by topology.
 - Static secret scan: `gitleaks` completed and reported `2` findings, both existing redacted frontend test fixtures:
   - `openresto-frontend/tests/components/admin/settings/OperatorCredentialsCard.test.tsx`
   - `openresto-frontend/tests/api/admin.test.ts`
   - No new Phase 3 secret exposure was identified after sanitizing verification artifacts and keeping repo placeholders non-secret.
+- Current remediation static scan: passed by targeted source/rendered-config search. No `n8n-test.joypaw.tech`, `reservation-bot-test.joypaw.tech`, `WEBHOOK_URL`, or `N8N_EDITOR_BASE_URL` entries remain in Phase 3 compose, Traefik, topology tests, or the rendered compose output; the rendered config shows separate `test-rest-app-internal` and `test-rest-bot-internal` networks.
 
 ### Phase 1 criteria confirmed
 - Atomic private WhatsApp create endpoint implemented with authority-side availability validation, idempotency, trusted phone ownership stamping, and immutable extras snapshot persistence.
@@ -218,8 +220,9 @@ Define the mandatory verification gates for executing `.planning/features/whatsa
 
 ### Phase 3 criteria confirmed
 - `docker-compose.test-rest.yml` now defines a durable `n8n-test` stack with explicit Postgres state backend and named persistence volumes for session, dedupe, ordering, replay, outbound correlation, n8n data, and binary data.
-- `reservation-bot-test` remains internal-only on `test-rest-internal`; it is not attached to `dokploy-network` and does not receive Meta/OpenAI secrets.
-- `traefik/test-rest.yml` now exposes only `n8n-test.joypaw.tech` for the webhook/editor surface; `reservation-bot-test` remains intentionally without public routing in this phase.
+- `reservation-bot-test` now bridges two private networks only: the n8n-side internal network and the backend-side internal network. `n8n-test` and `test-rest-backend` no longer share an internal network.
+- `n8n-test` is not attached to `dokploy-network` and no longer carries public domain/editor/webhook configuration in Phase 3.
+- `traefik/test-rest.yml` keeps only the existing `test-rest.joypaw.tech` route in this phase; public `n8n-test` and `reservation-bot-test` routing remains deferred to Phase 6.
 - Placeholder-only secret injection points are documented in `.env.example`, `n8n/test/README.md`, `n8n/test/credentials/README.md`, and `n8n/test/storage/README.md`.
 - The reserved `n8n/test/workflows/` directory exists but contains no Phase 4 workflow logic.
 
@@ -231,4 +234,5 @@ Define the mandatory verification gates for executing `.planning/features/whatsa
 
 ### Final verification statement
 - Test-only Phases 1 through 3 complete on Wednesday, July 29, 2026.
+- Phase 3 now reflects only durable stack foundation plus private network segmentation; public topology remains a Phase 6 concern.
 - No production promotion performed.

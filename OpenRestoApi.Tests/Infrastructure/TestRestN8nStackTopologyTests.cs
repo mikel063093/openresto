@@ -21,31 +21,39 @@ public sealed class TestRestN8nStackTopologyTests
     }
 
     [Fact]
-    public void TestRestCompose_RestrictsBotToInternalNetwork()
+    public void TestRestCompose_SegmentsNetworksSoN8nCannotReachBackendDirectly()
     {
         string text = ReadRepoFile("docker-compose.test-rest.yml");
         string botBlock = ExtractBlock(text, "  reservation-bot-test:", "  n8n-test-postgres:");
         string n8nBlock = ExtractBlock(text, "  n8n-test:", string.Empty);
+        string backendBlock = ExtractBlock(text, "  backend:", "  frontend:");
 
-        Assert.Contains("test-rest-internal", botBlock, StringComparison.Ordinal);
+        Assert.Contains("test-rest-app-internal", botBlock, StringComparison.Ordinal);
+        Assert.Contains("test-rest-bot-internal", botBlock, StringComparison.Ordinal);
         Assert.DoesNotContain("dokploy-network", botBlock, StringComparison.Ordinal);
         Assert.DoesNotContain("test-rest-egress", botBlock, StringComparison.Ordinal);
 
-        Assert.Contains("test-rest-internal", n8nBlock, StringComparison.Ordinal);
+        Assert.Contains("test-rest-app-internal", backendBlock, StringComparison.Ordinal);
+        Assert.DoesNotContain("test-rest-bot-internal", backendBlock, StringComparison.Ordinal);
+
+        Assert.Contains("test-rest-bot-internal", n8nBlock, StringComparison.Ordinal);
+        Assert.DoesNotContain("test-rest-app-internal", n8nBlock, StringComparison.Ordinal);
         Assert.Contains("test-rest-egress", n8nBlock, StringComparison.Ordinal);
-        Assert.Contains("dokploy-network", n8nBlock, StringComparison.Ordinal);
-        Assert.Contains("WEBHOOK_URL: https://n8n-test.joypaw.tech/", n8nBlock, StringComparison.Ordinal);
+        Assert.DoesNotContain("dokploy-network", n8nBlock, StringComparison.Ordinal);
+        Assert.DoesNotContain("N8N_EDITOR_BASE_URL", n8nBlock, StringComparison.Ordinal);
+        Assert.DoesNotContain("WEBHOOK_URL", n8nBlock, StringComparison.Ordinal);
+        Assert.DoesNotContain("joypaw.tech", n8nBlock, StringComparison.Ordinal);
     }
 
     [Fact]
-    public void TestRestTraefik_ExposesOnlyN8nTestWebhookSurface()
+    public void TestRestTraefik_DoesNotExposeN8nOrBotDuringPhase3()
     {
         string text = ReadRepoFile("traefik/test-rest.yml");
 
         Assert.Contains("Host(`test-rest.joypaw.tech`)", text, StringComparison.Ordinal);
-        Assert.Contains("Host(`n8n-test.joypaw.tech`)", text, StringComparison.Ordinal);
+        Assert.DoesNotContain("Host(`n8n-test.joypaw.tech`)", text, StringComparison.Ordinal);
         Assert.DoesNotContain("reservation-bot-test.joypaw.tech", text, StringComparison.Ordinal);
-        Assert.Contains("http://n8n-test:5678", text, StringComparison.Ordinal);
+        Assert.DoesNotContain("http://n8n-test:5678", text, StringComparison.Ordinal);
     }
 
     [Fact]

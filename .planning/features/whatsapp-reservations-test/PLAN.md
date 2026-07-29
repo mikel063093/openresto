@@ -192,7 +192,7 @@ Create the test-only n8n stack and durable storage layout needed for Meta webhoo
 
 #### Work
 1. Decide and record durable state backend for n8n test.
-2. Define internal-only networking between n8n, bot, and OpenResto.
+2. Define internal-only networking where n8n reaches only the bot, the bot bridges to OpenResto, and no public Traefik/DNS route is introduced in Phase 3.
 3. Define stored artifacts:
   - session state
   - dedupe ledger
@@ -204,12 +204,14 @@ Create the test-only n8n stack and durable storage layout needed for Meta webhoo
 
 #### Trust boundaries
 - Meta and OpenAI credentials live only in n8n secret store.
-- n8n may call bot, but not arbitrary private OpenResto routes beyond planned internal connections.
+- n8n may call bot, but not arbitrary private OpenResto routes or the backend network directly.
+- Public topology, DNS, and external webhook exposure are deferred to Phase 6.
 
 #### Acceptance criteria
 - n8n stack definition is durable across restart.
 - Required state categories are persisted.
 - Secrets placeholders are documented but no real secrets are stored in repo.
+- Phase 3 adds no public n8n or bot route and no shared n8n/backend network.
 
 #### TDD test matrix
 - Compose/config validation checks.
@@ -221,7 +223,7 @@ Create the test-only n8n stack and durable storage layout needed for Meta webhoo
 - Remove n8n test-only definitions and docs only.
 
 #### Deployment boundary
-- Test-only compose and docs. No live deploy.
+- Test-only compose and docs. No live deploy, public DNS, or Traefik exposure in this phase.
 
 ### Phase 4. Implement n8n workflows for Meta, LLM, confirmations, and handoff
 

@@ -13,7 +13,9 @@ volumes:
   n8n_test_outbound_data:
 
 networks:
-  test-rest-internal:
+  test-rest-app-internal:
+    internal: true
+  test-rest-bot-internal:
     internal: true
   test-rest-egress:
     driver: bridge
@@ -43,7 +45,7 @@ services:
       - test_rest_db_data:/data
       - test_rest_media_data:/app/wwwroot/media
     networks:
-      test-rest-internal:
+      test-rest-app-internal:
         aliases:
           - test-rest-backend
       test-rest-egress: {}
@@ -64,7 +66,7 @@ services:
     environment:
       EXPO_PUBLIC_API_URL: /api
     networks:
-      test-rest-internal:
+      test-rest-app-internal:
         aliases:
           - test-rest-frontend
     healthcheck:
@@ -89,7 +91,7 @@ services:
     volumes:
       - test_rest_media_data:/usr/share/nginx/html/media:ro
     networks:
-      - test-rest-internal
+      - test-rest-app-internal
       - dokploy-network
     depends_on:
       backend:
@@ -121,7 +123,10 @@ services:
       backend:
         condition: service_healthy
     networks:
-      test-rest-internal:
+      test-rest-app-internal:
+        aliases:
+          - reservation-bot-test-backend
+      test-rest-bot-internal:
         aliases:
           - reservation-bot-test
     healthcheck:
@@ -141,7 +146,7 @@ services:
     volumes:
       - n8n_test_postgres_data:/var/lib/postgresql/data
     networks:
-      test-rest-internal:
+      test-rest-bot-internal:
         aliases:
           - n8n-test-postgres
     healthcheck:
@@ -173,13 +178,10 @@ services:
     image: docker.n8n.io/n8nio/n8n:${N8N_TEST_IMAGE_TAG:-latest}
     restart: unless-stopped
     environment:
-      N8N_HOST: n8n-test.joypaw.tech
-      N8N_PROTOCOL: https
+      N8N_HOST: n8n-test
+      N8N_PROTOCOL: http
       N8N_PORT: 5678
-      N8N_EDITOR_BASE_URL: https://n8n-test.joypaw.tech
-      WEBHOOK_URL: https://n8n-test.joypaw.tech/
-      N8N_PROXY_HOPS: 1
-      N8N_SECURE_COOKIE: "true"
+      N8N_SECURE_COOKIE: "false"
       N8N_ENCRYPTION_KEY: ${N8N_TEST_ENCRYPTION_KEY}
       N8N_BASIC_AUTH_ACTIVE: "true"
       N8N_BASIC_AUTH_USER: ${N8N_TEST_BASIC_AUTH_USER}
@@ -212,11 +214,10 @@ services:
       reservation-bot-test:
         condition: service_healthy
     networks:
-      test-rest-internal:
+      test-rest-bot-internal:
         aliases:
           - n8n-test
       test-rest-egress: {}
-      dokploy-network: {}
     healthcheck:
       test:
         [

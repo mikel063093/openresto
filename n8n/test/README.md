@@ -3,7 +3,7 @@
 ## Alcance de esta fase
 - Esta carpeta deja lista la base durable de `n8n-test` para la Fase 3.
 - No agrega workflows funcionales de Meta, LLM, confirmaciones ni handoff.
-- No crea secretos reales, no hace despliegues y no modifica topología de producción.
+- No crea secretos reales, no hace despliegues y no publica topología ni DNS; eso queda diferido a la Fase 6.
 
 ## Decisión de persistencia
 - Backend durable principal de `n8n`: `Postgres` en el servicio `n8n-test-postgres`.
@@ -12,7 +12,7 @@
 
 ## Servicios definidos en `docker-compose.test-rest.yml`
 - `reservation-bot-test`
-  - Solo red interna `test-rest-internal`.
+  - Puentea solo redes internas privadas entre `n8n-test` y `test-rest-backend`.
   - Recibe solicitudes cerradas desde `n8n-test`.
   - No recibe secretos de Meta ni de OpenAI.
 - `n8n-test-postgres`
@@ -22,17 +22,18 @@
   - No expone red ni recibe secretos.
 - `n8n-test`
   - Usa `Postgres` para el estado interno de `n8n`.
-  - Publica la entrada HTTPS solo por `n8n-test.joypaw.tech` vía Traefik.
   - Conserva artefactos de sesión/dedupe/orden/replay/outbound en volúmenes dedicados.
+  - Queda solo en red privada durante la Fase 3; no recibe dominio, editor ni webhook públicos.
 
 ## Frontera de red
 - Flujo permitido en esta fase:
-  - público -> `n8n-test`
   - `n8n-test` -> `reservation-bot-test`
   - `reservation-bot-test` -> `test-rest-backend`
 - Flujo negado o no expuesto:
+  - público -> `n8n-test`
   - público -> `reservation-bot-test`
   - público -> `/api/private/channels/whatsapp/*`
+  - `n8n-test` -> `test-rest-backend`
   - `n8n-test` -> rutas privadas arbitrarias de OpenResto fuera del contrato del bot
 
 ## Volúmenes durables
@@ -64,3 +65,4 @@ docker compose -f docker-compose.test-rest.yml down
 
 ## Siguiente fase
 - La Fase 4 debe importar/exportar workflows reales dentro de `n8n/test/workflows/` y consumir únicamente estos puntos de persistencia ya definidos.
+- La Fase 6, no la Fase 3, debe definir Traefik, DNS y cualquier webhook público de Meta.
