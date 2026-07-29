@@ -149,3 +149,33 @@ Define the mandatory verification gates for executing `.planning/features/whatsa
 - Verification commands and summarized results are recorded here during execution.
 - Residual risks are explicitly listed.
 - Final verification statement confirms: test-only complete, no production promotion performed.
+
+## Execution Results
+
+### Phase 1 status
+- Phase 1 completed in the current worktree on Wednesday, July 29, 2026.
+- Scope executed: OpenResto authority baseline only.
+- No production deploy, push, secret creation, or infra mutation performed.
+
+### Commands run on Wednesday, July 29, 2026
+- `docker run --rm -v /tmp/openresto-whatsapp-delivery:/src -w /src mcr.microsoft.com/dotnet/sdk:10.0 dotnet test OpenRestoApi.Tests/OpenRestoApi.Tests.csproj --filter "FullyQualifiedName~WhatsAppChannelReservationsIntegrationTests|FullyQualifiedName~WhatsAppAuthorityBaselineMigrationTests|FullyQualifiedName~OpenApiDocumentationTests"`
+- `docker run --rm -v /tmp/openresto-whatsapp-delivery:/src -w /src mcr.microsoft.com/dotnet/sdk:10.0 dotnet test OpenRestoApi.Tests/OpenRestoApi.Tests.csproj`
+
+### Command summaries
+- Focused backend suite: passed, `18` passed, `0` failed, `0` skipped, duration `7 s`.
+- Full backend suite: passed, `1271` passed, `0` failed, `0` skipped, duration `1 m 17 s`.
+
+### Phase 1 criteria confirmed
+- Atomic private WhatsApp create endpoint implemented with authority-side availability validation, idempotency, trusted phone ownership stamping, and immutable extras snapshot persistence.
+- Create rejects missing email, missing confirmation, archived restaurants, disabled WhatsApp restaurants, foreign extras, and changed-fingerprint idempotency reuse.
+- Signed single-use assertion verification remains issuer-scoped and now supports `kid`-based active/previous HMAC verification overlap without allowing arbitrary keys.
+- Public/private route boundary remains protected by existing Nginx denial tests; no production routing files were changed.
+- Durable restaurant WhatsApp settings and handoff audit persistence were added and verified through migration and integration tests.
+
+### Residual risks
+- Phase 2+ bot, n8n, admin frontend, and test-topology work remain intentionally unimplemented.
+- Existing package-vulnerability restore warnings for `Microsoft.OpenApi` and `SQLitePCLRaw.lib.e_sqlite3` remain in the baseline and were not changed by this phase.
+
+### Final verification statement
+- Test-only Phase 1 complete on Wednesday, July 29, 2026.
+- No production promotion performed.

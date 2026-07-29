@@ -24,7 +24,10 @@ public class TestWebAppFactory : WebApplicationFactory<Program>
     public const string WhatsAppChannelInternalCallerCredential = "test-whatsapp-internal-caller-credential";
     public const string WhatsAppChannelAssertionIssuer = "n8n-test";
     public const string WhatsAppChannelAssertionAudience = "openresto-whatsapp-private-api";
+    public const string WhatsAppChannelAssertionActiveKid = "kid-active";
+    public const string WhatsAppChannelAssertionPreviousKid = "kid-previous";
     public const string WhatsAppChannelAssertionSigningKey = "test-whatsapp-assertion-signing-key-minimum-32-chars!!";
+    public const string WhatsAppChannelAssertionPreviousSigningKey = "test-whatsapp-previous-assertion-key-minimum-32!!";
     public const string WhatsAppChannelAssertionScope = "openresto.whatsapp.identity";
     private readonly string _environmentName;
     private readonly bool _exposeOpenApiDocs;
@@ -98,7 +101,10 @@ public class TestWebAppFactory : WebApplicationFactory<Program>
         builder.UseSetting("WhatsAppChannel:InternalCallerCredential", WhatsAppChannelInternalCallerCredential);
         builder.UseSetting("WhatsAppChannel:Assertion:Issuer", WhatsAppChannelAssertionIssuer);
         builder.UseSetting("WhatsAppChannel:Assertion:Audience", WhatsAppChannelAssertionAudience);
+        builder.UseSetting("WhatsAppChannel:Assertion:ActiveKid", WhatsAppChannelAssertionActiveKid);
         builder.UseSetting("WhatsAppChannel:Assertion:SigningKey", WhatsAppChannelAssertionSigningKey);
+        builder.UseSetting("WhatsAppChannel:Assertion:PreviousKid", WhatsAppChannelAssertionPreviousKid);
+        builder.UseSetting("WhatsAppChannel:Assertion:PreviousSigningKey", WhatsAppChannelAssertionPreviousSigningKey);
         builder.UseSetting("WhatsAppChannel:Assertion:RequiredScope", WhatsAppChannelAssertionScope);
         if (_exposeOpenApiDocs)
         {
@@ -155,6 +161,7 @@ public class TestWebAppFactory : WebApplicationFactory<Program>
         string? issuer = null,
         string? audience = null,
         string? signingKey = null,
+        string? kid = null,
         string? jwtId = null,
         string? scope = null)
     {
@@ -177,6 +184,8 @@ public class TestWebAppFactory : WebApplicationFactory<Program>
             claims: claims,
             expires: expiresAtUtc ?? DateTime.UtcNow.AddMinutes(2),
             signingCredentials: credentials);
+
+        token.Header["kid"] = kid ?? WhatsAppChannelAssertionActiveKid;
 
         return new JwtSecurityTokenHandler().WriteToken(token);
     }

@@ -27,6 +27,11 @@ Execute the remaining work to deliver the WhatsApp Business reservation channel 
 
 ### Phase 1. Reconcile OpenResto WhatsApp authority baseline
 
+#### Execution status
+- Completed on Wednesday, July 29, 2026.
+- Acceptance criteria satisfied in the current worktree.
+- Verification captured in `.planning/features/whatsapp-reservations-test/VERIFICATION.md`.
+
 #### Objective
 Close the remaining OpenResto authority gaps so the backend owns every write-critical rule before any bot/n8n orchestration is added.
 

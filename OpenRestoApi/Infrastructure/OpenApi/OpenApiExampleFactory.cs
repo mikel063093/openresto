@@ -196,6 +196,37 @@ internal static class OpenApiExampleFactory
             });
         }
 
+        if (targetType == typeof(WhatsAppRestaurantListItemDto))
+        {
+            return JsonSerializer.SerializeToNode(new WhatsAppRestaurantListItemDto
+            {
+                Id = 7,
+                Name = "Open Resto Downtown"
+            });
+        }
+
+        if (targetType == typeof(WhatsAppHandoffResultDto))
+        {
+            return JsonSerializer.SerializeToNode(new WhatsAppHandoffResultDto
+            {
+                AuditId = 15,
+                RestaurantId = 7,
+                BookingId = 18,
+                HandoffWhatsAppE164 = "+573001112233",
+                CreatedAtUtc = DateTime.Parse("2026-07-29T16:00:00Z", null, System.Globalization.DateTimeStyles.AdjustToUniversal)
+            });
+        }
+
+        if (targetType == typeof(RestaurantWhatsAppSettingsDto))
+        {
+            return JsonSerializer.SerializeToNode(new RestaurantWhatsAppSettingsDto
+            {
+                RestaurantId = 7,
+                IsWhatsAppTestEnabled = true,
+                HandoffWhatsAppE164 = "+573001112233"
+            });
+        }
+
         if (targetType == typeof(OperatorReservationActionResultDto))
         {
             return JsonSerializer.SerializeToNode(new OperatorReservationActionResultDto(

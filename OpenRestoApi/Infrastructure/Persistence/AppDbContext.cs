@@ -27,6 +27,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<ChannelMutationIdempotencyRecord> ChannelMutationIdempotencyRecords { get; set; } = null!;
     public DbSet<RestaurantOccasionCatalogItem> RestaurantOccasionCatalogItems { get; set; } = null!;
     public DbSet<BookingOccasionSnapshot> BookingOccasionSnapshots { get; set; } = null!;
+    public DbSet<WhatsAppHandoffAudit> WhatsAppHandoffAudits { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -60,6 +61,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
         {
             rb.HasKey(r => r.Id);
             rb.Property(r => r.Name).IsRequired();
+            rb.Property(r => r.IsWhatsAppTestEnabled).HasDefaultValue(false);
             rb.HasMany(r => r.Sections)
               .WithOne(s => s.Restaurant)
               .HasForeignKey(s => s.RestaurantId)
@@ -128,6 +130,25 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
                 .OnDelete(DeleteBehavior.Cascade);
             snapshot.HasIndex(x => x.BookingId);
             snapshot.HasIndex(x => new { x.BookingId, x.RestaurantOccasionCatalogItemId }).IsUnique();
+        });
+
+        modelBuilder.Entity<WhatsAppHandoffAudit>(audit =>
+        {
+            audit.HasKey(x => x.Id);
+            audit.Property(x => x.VerifiedPhoneE164).IsRequired();
+            audit.Property(x => x.VerifiedPhoneNormalized).IsRequired();
+            audit.Property(x => x.SummarySnapshot).IsRequired();
+            audit.Property(x => x.HandoffDestinationSnapshot).IsRequired();
+            audit.HasOne(x => x.Restaurant)
+                .WithMany()
+                .HasForeignKey(x => x.RestaurantId)
+                .OnDelete(DeleteBehavior.Cascade);
+            audit.HasOne(x => x.Booking)
+                .WithMany()
+                .HasForeignKey(x => x.BookingId)
+                .OnDelete(DeleteBehavior.SetNull);
+            audit.HasIndex(x => new { x.RestaurantId, x.CreatedAtUtc });
+            audit.HasIndex(x => new { x.VerifiedPhoneNormalized, x.CreatedAtUtc });
         });
 
         modelBuilder.Entity<AdminCredential>(a =>

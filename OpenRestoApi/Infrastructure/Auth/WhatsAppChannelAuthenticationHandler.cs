@@ -54,6 +54,15 @@ public sealed class WhatsAppChannelAuthenticationHandler(
                 return AuthenticateResult.Fail("Invalid WhatsApp channel assertion.");
             }
 
+            string? activeKid = _configuration["WhatsAppChannel:Assertion:ActiveKid"];
+            string? previousKid = _configuration["WhatsAppChannel:Assertion:PreviousKid"];
+            if (string.IsNullOrWhiteSpace(jwt.Header.Kid) ||
+                (!string.Equals(jwt.Header.Kid, activeKid, StringComparison.Ordinal) &&
+                 !string.Equals(jwt.Header.Kid, previousKid, StringComparison.Ordinal)))
+            {
+                return AuthenticateResult.Fail("Invalid WhatsApp channel assertion.");
+            }
+
             string? action = validatedPrincipal.FindFirstValue(WhatsAppChannelAuthenticationDefaults.ActionClaim);
             string? scope = validatedPrincipal.FindFirstValue(WhatsAppChannelAuthenticationDefaults.ScopeClaim);
             string? requiredScope = _configuration["WhatsAppChannel:Assertion:RequiredScope"];
@@ -102,21 +111,44 @@ public sealed class WhatsAppChannelAuthenticationHandler(
     {
         string signingKey = _configuration["WhatsAppChannel:Assertion:SigningKey"]
             ?? throw new InvalidOperationException("Missing WhatsApp assertion signing key.");
+        string activeKid = _configuration["WhatsAppChannel:Assertion:ActiveKid"]
+            ?? throw new InvalidOperationException("Missing WhatsApp assertion active kid.");
+        string? previousSigningKey = _configuration["WhatsAppChannel:Assertion:PreviousSigningKey"];
+        string? previousKid = _configuration["WhatsAppChannel:Assertion:PreviousKid"];
         string issuer = _configuration["WhatsAppChannel:Assertion:Issuer"]
             ?? throw new InvalidOperationException("Missing WhatsApp assertion issuer.");
         string audience = _configuration["WhatsAppChannel:Assertion:Audience"]
             ?? throw new InvalidOperationException("Missing WhatsApp assertion audience.");
 
+        Dictionary<string, SecurityKey> signingKeys = new(StringComparer.Ordinal)
+        {
+            [activeKid] = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(signingKey))
+        };
+
+        if (!string.IsNullOrWhiteSpace(previousKid) && !string.IsNullOrWhiteSpace(previousSigningKey))
+        {
+            signingKeys[previousKid] = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(previousSigningKey));
+        }
+
         return new TokenValidationParameters
         {
             ValidateIssuerSigningKey = true,
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(signingKey)),
+            IssuerSigningKeyResolver = (_, _, kid, _) =>
+            {
+                if (string.IsNullOrWhiteSpace(kid) || !signingKeys.TryGetValue(kid, out SecurityKey? key))
+                {
+                    return [];
+                }
+
+                return [key];
+            },
             ValidateIssuer = true,
             ValidIssuer = issuer,
             ValidateAudience = true,
             ValidAudience = audience,
             ValidateLifetime = true,
             ClockSkew = TimeSpan.Zero,
+            ValidAlgorithms = [SecurityAlgorithms.HmacSha256],
             NameClaimType = JwtRegisteredClaimNames.Sub,
             RoleClaimType = WhatsAppChannelAuthenticationDefaults.ActionClaim,
         };

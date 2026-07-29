@@ -75,44 +75,51 @@ public sealed class OperatorCredentialScopesMigrationTests : IDisposable
         IMigrator migrator = upgradeDb.GetInfrastructure().GetRequiredService<IMigrator>();
         await migrator.MigrateAsync(LastMigrationBeforeOperatorCredentialScopes);
 
-        Restaurant restaurant = new()
-        {
-            Name = "Scope Upgrade",
-            OpenTime = "11:00",
-            CloseTime = "22:00",
-            Timezone = "UTC",
-        };
-        upgradeDb.Restaurants.Add(restaurant);
-
-        OperatorPrincipal principal = new()
-        {
-            Identifier = "upgrade@test.com",
-            NormalizedIdentifier = "upgrade@test.com",
-            IsActive = true,
-            CreatedAt = DateTime.UtcNow,
-            RestaurantScopes =
-            [
-                new OperatorRestaurantScope
-                {
-                    Restaurant = restaurant,
-                    CreatedAt = DateTime.UtcNow,
-                },
-            ],
-        };
-        upgradeDb.OperatorPrincipals.Add(principal);
-        await upgradeDb.SaveChangesAsync();
+        int restaurantId = await InsertLegacyRestaurantAsync("Scope Upgrade");
+        int principalId = await InsertLegacyOperatorPrincipalAsync("upgrade@test.com");
+        await upgradeDb.Database.ExecuteSqlInterpolatedAsync($"""
+            INSERT INTO "OperatorRestaurantScopes" ("OperatorPrincipalId", "RestaurantId", "CreatedAt")
+            VALUES ({principalId}, {restaurantId}, {DateTime.UtcNow});
+            """);
 
         DateTime issuedAt = DateTime.UtcNow;
         DateTime expiresAt = issuedAt.AddHours(1);
         await upgradeDb.Database.ExecuteSqlInterpolatedAsync($"""
             INSERT INTO "OperatorAgentCredentials" ("OperatorPrincipalId", "CredentialKeyId", "TokenDigest", "IssuedAt", "ExpiresAt")
-            VALUES ({principal.Id}, {"legacycred"}, {new string('a', 64)}, {issuedAt}, {expiresAt});
+            VALUES ({principalId}, {"legacycred"}, {new string('a', 64)}, {issuedAt}, {expiresAt});
             """);
 
         await migrator.MigrateAsync();
 
         OperatorAgentCredentialScope scope = await upgradeDb.OperatorAgentCredentialScopes.SingleAsync();
-        Assert.Equal(restaurant.Id, scope.RestaurantId);
+        Assert.Equal(restaurantId, scope.RestaurantId);
+    }
+
+    private async Task<int> InsertLegacyRestaurantAsync(string name)
+    {
+        await using var cmd = _connection.CreateCommand();
+        cmd.CommandText = """
+            INSERT INTO "Restaurants" (
+                "Name", "OpenTime", "CloseTime", "OpenDays", "Timezone",
+                "IsArchived", "WalkInOnly", "DefaultBookingDurationMinutes", "BookingSlotIntervalMinutes")
+            VALUES ($name, '11:00', '22:00', '1,2,3,4,5,6,7', 'UTC', 0, 0, 60, 30);
+            SELECT last_insert_rowid();
+            """;
+        cmd.Parameters.AddWithValue("$name", name);
+        return Convert.ToInt32((long)(await cmd.ExecuteScalarAsync() ?? throw new InvalidOperationException("Restaurant insert failed.")));
+    }
+
+    private async Task<int> InsertLegacyOperatorPrincipalAsync(string identifier)
+    {
+        await using var cmd = _connection.CreateCommand();
+        cmd.CommandText = """
+            INSERT INTO "OperatorPrincipals" ("Identifier", "NormalizedIdentifier", "IsActive", "CreatedAt")
+            VALUES ($identifier, $identifier, 1, $createdAt);
+            SELECT last_insert_rowid();
+            """;
+        cmd.Parameters.AddWithValue("$identifier", identifier);
+        cmd.Parameters.AddWithValue("$createdAt", DateTime.UtcNow);
+        return Convert.ToInt32((long)(await cmd.ExecuteScalarAsync() ?? throw new InvalidOperationException("Principal insert failed.")));
     }
 
     private async Task<string?> GetObjectTypeAsync(string name)

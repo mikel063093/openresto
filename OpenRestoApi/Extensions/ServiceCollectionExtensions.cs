@@ -209,18 +209,30 @@ public static class ServiceCollectionExtensions
         string? internalCallerCredential = configuration["WhatsAppChannel:InternalCallerCredential"];
         string? assertionIssuer = configuration["WhatsAppChannel:Assertion:Issuer"];
         string? assertionAudience = configuration["WhatsAppChannel:Assertion:Audience"];
+        string? activeKid = configuration["WhatsAppChannel:Assertion:ActiveKid"];
         string? assertionSigningKey = configuration["WhatsAppChannel:Assertion:SigningKey"];
+        string? previousKid = configuration["WhatsAppChannel:Assertion:PreviousKid"];
+        string? previousSigningKey = configuration["WhatsAppChannel:Assertion:PreviousSigningKey"];
         string? requiredScope = configuration["WhatsAppChannel:Assertion:RequiredScope"];
 
         if (string.IsNullOrWhiteSpace(internalCallerCredential) ||
             string.IsNullOrWhiteSpace(assertionIssuer) ||
             string.IsNullOrWhiteSpace(assertionAudience) ||
+            string.IsNullOrWhiteSpace(activeKid) ||
             string.IsNullOrWhiteSpace(requiredScope) ||
             string.IsNullOrWhiteSpace(assertionSigningKey) ||
             assertionSigningKey.Length < 32)
         {
             throw new InvalidOperationException(
                 "WhatsAppChannel is enabled but the internal caller credential and assertion verification settings are incomplete.");
+        }
+
+        bool hasPreviousKid = !string.IsNullOrWhiteSpace(previousKid);
+        bool hasPreviousSigningKey = !string.IsNullOrWhiteSpace(previousSigningKey);
+        if (hasPreviousKid != hasPreviousSigningKey || (hasPreviousSigningKey && previousSigningKey!.Length < 32))
+        {
+            throw new InvalidOperationException(
+                "WhatsAppChannel previous assertion verification settings must include both kid and signing key, and the key must be at least 32 characters.");
         }
     }
 
@@ -320,6 +332,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<WhatsAppPhoneOwnershipService>();
         services.AddScoped<ChannelIdempotencyService>();
         services.AddScoped<OccasionCatalogService>();
+        services.AddScoped<RestaurantWhatsAppSettingsService>();
         services.AddScoped<BrandService>();
         services.AddScoped<EmailSettingsService>();
         services.AddScoped<HighlightService>();

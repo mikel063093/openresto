@@ -50,6 +50,13 @@ public class OpenApiDocumentationTests(TestWebAppFactory factory) : IClassFixtur
             expectedSchemaNames: ["MessageResponse", "ValidationProblemDetails"]);
         AssertJsonResponse(root, "/api/admin/auth/change-email", "post", "400",
             expectedSchemaNames: ["MessageResponse", "ValidationProblemDetails"]);
+        AssertJsonResponse(root, "/api/private/channels/whatsapp/restaurants", "get", "200");
+        AssertJsonResponse(root, "/api/private/channels/whatsapp/reservations", "post", "201", expectedSchemaNames: ["BookingDto"]);
+        AssertJsonResponse(root, "/api/private/channels/whatsapp/reservations", "post", "400",
+            expectedSchemaNames: ["MessageResponse"]);
+        AssertJsonResponse(root, "/api/private/channels/whatsapp/handoffs", "post", "202");
+        AssertJsonResponse(root, "/api/admin/restaurants/{restaurantId}/whatsapp-settings", "put", "200");
+        AssertResponseExists(root, "/api/admin/restaurants/{restaurantId}/whatsapp-settings", "put", "403");
 
         string description = root.GetProperty("info").GetProperty("description").GetString() ?? string.Empty;
         Assert.Contains("Streamable HTTP / JSON-RPC", description, StringComparison.Ordinal);
