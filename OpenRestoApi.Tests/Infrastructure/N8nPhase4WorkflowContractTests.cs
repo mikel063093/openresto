@@ -102,7 +102,8 @@ public sealed class N8nPhase4WorkflowContractTests
         Assert.Contains("LLM Provider API Key (placeholder)", text, StringComparison.Ordinal);
         Assert.Contains("OpenResto carga la nueva clave de verificación.", text, StringComparison.Ordinal);
         Assert.Contains("n8n` cambia `N8N_TEST_WHATSAPP_ASSERTION_ACTIVE_KID`", text, StringComparison.Ordinal);
-        Assert.Contains("No se define ninguna ruta pública, DNS, Traefik ni despliegue en esta fase.", text, StringComparison.Ordinal);
+        Assert.Contains("La Fase 6 define el edge público de webhook de prueba", text, StringComparison.Ordinal);
+        Assert.Contains("el bot y la API privada de OpenResto permanecen privados", text, StringComparison.Ordinal);
     }
 
     private static JsonDocument LoadWorkflow(string fileName)

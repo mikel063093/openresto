@@ -130,4 +130,4 @@
 ## Límites de esta fase
 - El workflow exportado es importable y versionado.
 - La activación real en Meta/WABA queda `USER/AWAITING`.
-- El edge público de `n8n-test.joypaw.tech` y `reservation-bot-test.joypaw.tech` sigue diferido a la Fase 6.
+- La Fase 6 define únicamente el edge de webhook de `n8n-test.joypaw.tech`; `reservation-bot-test` no tiene edge público.
