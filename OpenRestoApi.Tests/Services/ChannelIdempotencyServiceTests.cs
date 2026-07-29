@@ -176,6 +176,44 @@ public sealed class ChannelIdempotencyServiceTests : IDisposable
         Assert.Contains("idempotency", ex.Message, StringComparison.OrdinalIgnoreCase);
     }
 
+    [Fact]
+    public async Task RegisterReplayKeyAsync_PurgesExpiredReplayRecordBeforeUniquenessCheck()
+    {
+        await using AppDbContext db = CreateSqliteContext();
+        db.ChannelMutationIdempotencyRecords.Add(new ChannelMutationIdempotencyRecord
+        {
+            Channel = "whatsapp_assertion",
+            MutationScope = "reservations.read",
+            IdempotencyKey = "expired-jti",
+            ReplayKey = "expired-jti",
+            Fingerprint = "GET:/api/private/channels/whatsapp/reservations:reservations.read",
+            State = ChannelMutationState.Consumed,
+            CreatedAtUtc = DateTime.UtcNow.AddMinutes(-10),
+            CompletedAtUtc = DateTime.UtcNow.AddMinutes(-10),
+            ExpiresAtUtc = DateTime.UtcNow.AddMinutes(-1),
+        });
+        await db.SaveChangesAsync();
+
+        var repository = new ChannelMutationIdempotencyRepository(db);
+        var service = new ChannelIdempotencyService(repository, db);
+
+        ChannelReplayRegistrationResult result = await service.RegisterReplayKeyAsync(
+            channel: "whatsapp_assertion",
+            replayKey: "expired-jti",
+            mutationScope: "reservations.read",
+            fingerprint: "GET:/api/private/channels/whatsapp/restaurants:reservations.read",
+            expiresAtUtc: DateTime.UtcNow.AddMinutes(5));
+
+        Assert.False(result.WasReplayed);
+
+        List<ChannelMutationIdempotencyRecord> records = await db.ChannelMutationIdempotencyRecords
+            .Where(x => x.Channel == "whatsapp_assertion" && x.ReplayKey == "expired-jti")
+            .ToListAsync();
+        ChannelMutationIdempotencyRecord persisted = Assert.Single(records);
+        Assert.True(persisted.ExpiresAtUtc > DateTime.UtcNow);
+        Assert.Equal("GET:/api/private/channels/whatsapp/restaurants:reservations.read", persisted.Fingerprint);
+    }
+
     private AppDbContext CreateSqliteContext()
     {
         var connection = new SqliteConnection($"Data Source={_databasePath};Cache=Shared");

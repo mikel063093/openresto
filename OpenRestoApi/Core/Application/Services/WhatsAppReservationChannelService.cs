@@ -20,6 +20,7 @@ public sealed class WhatsAppReservationChannelService(
     AppDbContext db)
 {
     private const string ChannelName = "whatsapp_private_api";
+    private const int HandoffSummaryMaxLength = AppDbContext.WhatsAppHandoffSummaryMaxLength;
 
     private readonly BookingMapper _mapper = mapper;
     private readonly BookingService _bookingService = bookingService;
@@ -49,7 +50,10 @@ public sealed class WhatsAppReservationChannelService(
             .Include(x => x.Table)
             .Include(x => x.Section)
             .Include(x => x.Restaurant)
-            .Where(x => x.CustomerPhoneNormalized == identity.VerifiedPhoneNormalized)
+            .Where(x =>
+                x.CustomerPhoneNormalized == identity.VerifiedPhoneNormalized &&
+                !x.Restaurant.IsArchived &&
+                x.Restaurant.IsWhatsAppTestEnabled)
             .OrderByDescending(x => x.Date)
             .ToListAsync();
 
@@ -68,6 +72,7 @@ public sealed class WhatsAppReservationChannelService(
 
         WhatsAppChannelIdentityContext identity = _identityAccessor.GetCurrent();
         Restaurant restaurant = await GetVisibleEnabledRestaurantOrThrowAsync(request.RestaurantId);
+        ValidateRestaurantOpenAt(restaurant, request.Date);
         IReadOnlyList<int> requestedCatalogItemIds = (request.OccasionCatalogItemIds ?? []).OrderBy(x => x).ToList();
         _ = await _occasionCatalogService.GetActiveItemsForCreateAsync(restaurant.Id, requestedCatalogItemIds);
 
@@ -90,6 +95,7 @@ public sealed class WhatsAppReservationChannelService(
             async () =>
             {
                 Restaurant trackedRestaurant = await GetVisibleEnabledRestaurantOrThrowAsync(request.RestaurantId);
+                ValidateRestaurantOpenAt(trackedRestaurant, request.Date);
                 IReadOnlyList<RestaurantOccasionCatalogItem> activeItems = await _occasionCatalogService.GetActiveItemsForCreateAsync(
                     trackedRestaurant.Id,
                     requestedCatalogItemIds);
@@ -156,7 +162,6 @@ public sealed class WhatsAppReservationChannelService(
                 tracked.Date = bookingDate;
                 tracked.Seats = request.Seats;
                 tracked.EndTime = bookingDate.AddMinutes(tracked.Restaurant.DefaultBookingDurationMinutes);
-                tracked.ConcurrencyToken += 1;
 
                 _phoneOwnershipService.StampVerifiedOwnership(tracked, identity.VerifiedPhoneE164);
                 await _db.SaveChangesAsync();
@@ -197,7 +202,6 @@ public sealed class WhatsAppReservationChannelService(
                 {
                     tracked.IsCancelled = true;
                     tracked.CancelledAt = DateTime.UtcNow;
-                    tracked.ConcurrencyToken += 1;
                     await _db.SaveChangesAsync();
                 }
 
@@ -260,6 +264,8 @@ public sealed class WhatsAppReservationChannelService(
 
                 string destination = trackedRestaurant.HandoffWhatsAppE164
                     ?? throw new ConflictException("WhatsApp handoff is not configured for this restaurant.");
+                string normalizedDestination = WhatsAppPhoneOwnershipService.Normalize(destination).E164;
+                string summarySnapshot = SanitizeSummary(request.Summary);
 
                 var audit = new WhatsAppHandoffAudit
                 {
@@ -267,8 +273,8 @@ public sealed class WhatsAppReservationChannelService(
                     BookingId = booking?.Id,
                     VerifiedPhoneE164 = identity.VerifiedPhoneE164,
                     VerifiedPhoneNormalized = identity.VerifiedPhoneNormalized,
-                    SummarySnapshot = request.Summary.Trim(),
-                    HandoffDestinationSnapshot = destination,
+                    SummarySnapshot = summarySnapshot,
+                    HandoffDestinationSnapshot = normalizedDestination,
                     CreatedAtUtc = DateTime.UtcNow
                 };
 
@@ -293,7 +299,11 @@ public sealed class WhatsAppReservationChannelService(
             .Include(x => x.Table)
             .Include(x => x.Section)
             .Include(x => x.Restaurant)
-            .FirstOrDefaultAsync(x => x.Id == id && x.CustomerPhoneNormalized == identity.VerifiedPhoneNormalized);
+            .FirstOrDefaultAsync(x =>
+                x.Id == id &&
+                x.CustomerPhoneNormalized == identity.VerifiedPhoneNormalized &&
+                !x.Restaurant.IsArchived &&
+                x.Restaurant.IsWhatsAppTestEnabled);
     }
 
     private async Task<Booking> GetOwnedBookingOrThrowAsync(int id)
@@ -427,6 +437,15 @@ public sealed class WhatsAppReservationChannelService(
         }
     }
 
+    private static void ValidateRestaurantOpenAt(Restaurant restaurant, DateTime requestedDate)
+    {
+        DateTime bookingDate = TimeZoneHelper.ConvertLocalToUtc(requestedDate, restaurant.Timezone);
+        if (!restaurant.IsOpenAt(bookingDate))
+        {
+            throw new ValidationException("The restaurant is closed at the requested time.");
+        }
+    }
+
     private static void ValidateOwnedBookingVersion(Booking booking, int expectedConcurrencyToken)
     {
         if (booking.ConcurrencyToken != expectedConcurrencyToken)
@@ -503,5 +522,19 @@ public sealed class WhatsAppReservationChannelService(
         string payload = string.Join("|", parts.Select(x => x.Trim()));
         byte[] hash = SHA256.HashData(Encoding.UTF8.GetBytes(payload));
         return Convert.ToHexString(hash);
+    }
+
+    private static string SanitizeSummary(string summary)
+    {
+        string minimized = string.Join(
+            " ",
+            summary.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
+
+        if (minimized.Length <= HandoffSummaryMaxLength)
+        {
+            return minimized;
+        }
+
+        return minimized[..HandoffSummaryMaxLength];
     }
 }

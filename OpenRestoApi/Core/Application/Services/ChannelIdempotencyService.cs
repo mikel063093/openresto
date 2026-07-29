@@ -104,6 +104,8 @@ public sealed class ChannelIdempotencyService(
         string fingerprint,
         DateTime expiresAtUtc)
     {
+        await PurgeExpiredReplayRecordsAsync(channel, replayKey);
+
         ChannelMutationIdempotencyRecord? existing = await _repository.FindByReplayKeyAsync(channel, replayKey);
         if (existing != null)
         {
@@ -138,6 +140,29 @@ public sealed class ChannelIdempotencyService(
                 true,
                 replayedRecord);
         }
+    }
+
+    private async Task PurgeExpiredReplayRecordsAsync(string channel, string replayKey)
+    {
+        DateTime nowUtc = DateTime.UtcNow;
+        List<ChannelMutationIdempotencyRecord> expiredRecords = await _db.ChannelMutationIdempotencyRecords
+            .Where(x =>
+                x.Channel == channel &&
+                x.ReplayKey == replayKey &&
+                x.ExpiresAtUtc.HasValue &&
+                x.ExpiresAtUtc.Value <= nowUtc)
+            .OrderBy(x => x.Id)
+            .Take(8)
+            .ToListAsync();
+
+        if (expiredRecords.Count == 0)
+        {
+            return;
+        }
+
+        _db.ChannelMutationIdempotencyRecords.RemoveRange(expiredRecords);
+        await _db.SaveChangesAsync();
+        _db.ChangeTracker.Clear();
     }
 
     private static ChannelMutationExecutionResult<T> ReplayCompleted<T>(

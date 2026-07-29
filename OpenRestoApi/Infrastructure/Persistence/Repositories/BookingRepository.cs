@@ -63,9 +63,15 @@ namespace OpenRestoApi.Infrastructure.Persistence.Repositories
 
         public async Task<Booking> UpdateAsync(Booking booking)
         {
-            _db.Entry(booking).State = EntityState.Modified;
+            Booking? tracked = await _db.Bookings.FindAsync(booking.Id);
+            if (tracked is null)
+            {
+                throw new InvalidOperationException($"Booking {booking.Id} was not found.");
+            }
+
+            _db.Entry(tracked).CurrentValues.SetValues(booking);
             await _db.SaveChangesAsync();
-            return booking;
+            return tracked;
         }
 
         public async Task DeleteAsync(int id)
