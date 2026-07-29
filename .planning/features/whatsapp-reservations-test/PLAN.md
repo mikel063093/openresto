@@ -108,6 +108,11 @@ Close the remaining OpenResto authority gaps so the backend owns every write-cri
 
 ### Phase 2. Lock the reservation-bot internal service contract
 
+#### Execution status
+- Completed on Wednesday, July 29, 2026.
+- Acceptance criteria satisfied in the current worktree.
+- Verification captured in `.planning/features/whatsapp-reservations-test/VERIFICATION.md`.
+
 #### Objective
 Add a dedicated internal bot service with a fixed operation contract that cannot expand into arbitrary tool execution.
 

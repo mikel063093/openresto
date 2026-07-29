@@ -157,13 +157,28 @@ Define the mandatory verification gates for executing `.planning/features/whatsa
 - Scope executed: OpenResto authority baseline only.
 - No production deploy, push, secret creation, or infra mutation performed.
 
+### Phase 2 status
+- Phase 2 completed in the current worktree on Wednesday, July 29, 2026.
+- Scope executed: reservation-bot internal contract only.
+- No production deploy, push, secret creation, or infra mutation performed.
+
 ### Commands run on Wednesday, July 29, 2026
 - `docker run --rm -v /tmp/openresto-whatsapp-delivery:/src -w /src mcr.microsoft.com/dotnet/sdk:10.0 dotnet test OpenRestoApi.Tests/OpenRestoApi.Tests.csproj --filter "FullyQualifiedName~WhatsAppChannelReservationsIntegrationTests|FullyQualifiedName~WhatsAppAuthorityBaselineMigrationTests|FullyQualifiedName~OpenApiDocumentationTests"`
 - `docker run --rm -v /tmp/openresto-whatsapp-delivery:/src -w /src mcr.microsoft.com/dotnet/sdk:10.0 dotnet test OpenRestoApi.Tests/OpenRestoApi.Tests.csproj`
+- `docker run --rm -v /tmp/openresto-whatsapp-delivery:/src -w /src mcr.microsoft.com/dotnet/sdk:10.0 dotnet sln openresto.sln add OpenRestoReservationBot/OpenRestoReservationBot.csproj OpenRestoReservationBot.Tests/OpenRestoReservationBot.Tests.csproj`
+- `docker run --rm -v /tmp/openresto-whatsapp-delivery:/src -w /src mcr.microsoft.com/dotnet/sdk:10.0 dotnet test OpenRestoReservationBot.Tests/OpenRestoReservationBot.Tests.csproj`
+- `docker run --rm -v /tmp/openresto-whatsapp-delivery:/src -w /src mcr.microsoft.com/dotnet/sdk:10.0 dotnet test openresto.sln`
+- `docker run --rm -v /tmp/openresto-whatsapp-delivery:/repo zricethezav/gitleaks:latest dir /repo --no-banner --redact`
 
 ### Command summaries
 - Focused backend suite: passed, `18` passed, `0` failed, `0` skipped, duration `7 s`.
 - Full backend suite: passed, `1271` passed, `0` failed, `0` skipped, duration `1 m 17 s`.
+- Focused bot suite: passed, `19` passed, `0` failed, `0` skipped, duration `1 s`.
+- Full solution suite: passed. `OpenRestoReservationBot.Tests`: `19` passed, `0` failed, `0` skipped. `OpenRestoApi.Tests`: `1281` passed, `0` failed, `0` skipped, duration `1 m 23 s` for the backend project inside solution execution.
+- Static secret scan: `gitleaks` completed and reported `2` findings, both existing redacted frontend test fixtures:
+  - `openresto-frontend/tests/components/admin/settings/OperatorCredentialsCard.test.tsx`
+  - `openresto-frontend/tests/api/admin.test.ts`
+  - No new Phase 2 secret exposure was identified.
 
 ### Phase 1 criteria confirmed
 - Atomic private WhatsApp create endpoint implemented with authority-side availability validation, idempotency, trusted phone ownership stamping, and immutable extras snapshot persistence.
@@ -172,10 +187,22 @@ Define the mandatory verification gates for executing `.planning/features/whatsa
 - Public/private route boundary remains protected by existing Nginx denial tests; no production routing files were changed.
 - Durable restaurant WhatsApp settings and handoff audit persistence were added and verified through migration and integration tests.
 
+### Phase 2 criteria confirmed
+- `OpenRestoReservationBot` was added as a separate ASP.NET Core project with its own test project and included in `openresto.sln`.
+- The bot contract is closed to the fixed operations `availability`, `create`, `list`, `detail`, `update`, `cancel`, `occasionCatalog`, and `handoff`.
+- The bot rejects unknown operations, unexpected root fields, unexpected nested fields, and missing n8n assertion headers.
+- n8n-to-bot authentication is enforced with a dedicated configured internal bearer credential that is separate from the OpenResto private channel credential.
+- The bot forwards the n8n assertion string unchanged to the typed OpenResto private client and does not mint or parse assertion claims.
+- OpenResto calls are bound to configuration-backed base URLs, fixed paths, typed request models, explicit timeouts, cancellation tokens, and safe correlation-id propagation.
+- The bot does not include Meta webhook handlers, OpenAI SDK wiring, direct MCP operator client usage, or secrets placeholders for Meta/OpenAI/MCP credentials.
+- Safe placeholders were added to `.env.example` and bot `appsettings*.json` without introducing real secrets.
+
 ### Residual risks
-- Phase 2+ bot, n8n, admin frontend, and test-topology work remain intentionally unimplemented.
+- Phase 3+ n8n stack, workflows, admin frontend, and test-topology work remain intentionally unimplemented.
 - Existing package-vulnerability restore warnings for `Microsoft.OpenApi` and `SQLitePCLRaw.lib.e_sqlite3` remain in the baseline and were not changed by this phase.
+- Existing analyzer warnings in the baseline solution remain outside the Phase 2 scope.
+- `gitleaks` flags two pre-existing redacted test fixtures in frontend tests as generic-api-key false positives.
 
 ### Final verification statement
-- Test-only Phase 1 complete on Wednesday, July 29, 2026.
+- Test-only Phases 1 and 2 complete on Wednesday, July 29, 2026.
 - No production promotion performed.
