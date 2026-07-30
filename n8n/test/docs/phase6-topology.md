@@ -22,7 +22,7 @@
 ## Fronteras privadas obligatorias
 - `n8n-test` puede hablar con `reservation-bot-test`.
 - `reservation-bot-test` puede hablar con `test-rest-backend`.
-- `n8n-test` no puede hablar con `test-rest-backend` por red interna compartida.
+- `n8n-test` no puede hablar con `test-rest-backend`: el backend no está adjunto a `test-rest-egress`, la única red de salida de `n8n-test`.
 - `reservation-bot-test` no se publica en Traefik ni se adjunta al edge público.
 - El editor/UI/API de `n8n` queda privado; el host público solo enruta `/webhook*`.
 

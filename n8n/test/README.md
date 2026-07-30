@@ -74,7 +74,7 @@ docker compose -f docker-compose.test-rest.yml ps
 docker compose -f docker-compose.test-rest.yml down
 ```
 
-`N8N_TEST_IMAGE_TAG` es obligatorio y debe contener una versión o digest auditado; el compose rechaza `latest` por omisión. Después del arranque, comprobar que `n8n-test-workflow-init` terminó en estado `exited (0)` antes de verificar o registrar el webhook Meta.
+`N8N_TEST_IMAGE_DIGEST` es obligatorio y debe contener el digest inmutable `sha256:` de una imagen auditada; el compose no acepta tags ni `latest`. Después del arranque, comprobar que `n8n-test-workflow-init` terminó en estado `exited (0)` antes de verificar o registrar el webhook Meta.
 
 ## Referencia de topología
 - La prueba estática y las fronteras públicas/privadas de Fase 6 se documentan en [n8n/test/docs/phase6-topology.md](/tmp/openresto-whatsapp-delivery/n8n/test/docs/phase6-topology.md).

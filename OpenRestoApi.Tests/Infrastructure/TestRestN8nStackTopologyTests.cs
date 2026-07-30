@@ -12,8 +12,8 @@ public sealed class TestRestN8nStackTopologyTests
         Assert.Contains("n8n-test-volume-init:", text, StringComparison.Ordinal);
         Assert.Contains("n8n-test-workflow-init:", text, StringComparison.Ordinal);
         Assert.Contains("n8n-test:", text, StringComparison.Ordinal);
-        Assert.Contains("N8N_TEST_IMAGE_TAG:?Set N8N_TEST_IMAGE_TAG to an audited n8n release or digest", text, StringComparison.Ordinal);
-        Assert.DoesNotContain("N8N_TEST_IMAGE_TAG:-latest", text, StringComparison.Ordinal);
+        Assert.Contains("n8n@${N8N_TEST_IMAGE_DIGEST:?Set N8N_TEST_IMAGE_DIGEST to an audited immutable sha256 digest}", text, StringComparison.Ordinal);
+        Assert.DoesNotContain("N8N_TEST_IMAGE_TAG", text, StringComparison.Ordinal);
         Assert.Contains("import:workflow", text, StringComparison.Ordinal);
         Assert.Contains("--input=/workflows", text, StringComparison.Ordinal);
         Assert.Contains("n8n list:workflow", text, StringComparison.Ordinal);
@@ -47,6 +47,7 @@ public sealed class TestRestN8nStackTopologyTests
 
         Assert.Contains("test-rest-app-internal", backendBlock, StringComparison.Ordinal);
         Assert.DoesNotContain("test-rest-bot-internal", backendBlock, StringComparison.Ordinal);
+        Assert.DoesNotContain("test-rest-egress", backendBlock, StringComparison.Ordinal);
 
         Assert.Contains("test-rest-bot-internal", n8nBlock, StringComparison.Ordinal);
         Assert.DoesNotContain("test-rest-app-internal", n8nBlock, StringComparison.Ordinal);
@@ -86,8 +87,8 @@ public sealed class TestRestN8nStackTopologyTests
         string docText = ReadRepoFile("n8n/test/docs/phase6-topology.md");
 
         Assert.Contains("N8N_TEST_WEBHOOK_BASE_URL=", envText, StringComparison.Ordinal);
-        Assert.Contains("N8N_TEST_IMAGE_TAG=", envText, StringComparison.Ordinal);
-        Assert.DoesNotContain("N8N_TEST_IMAGE_TAG=latest", envText, StringComparison.Ordinal);
+        Assert.Contains("N8N_TEST_IMAGE_DIGEST=", envText, StringComparison.Ordinal);
+        Assert.DoesNotContain("N8N_TEST_IMAGE_TAG", envText, StringComparison.Ordinal);
         Assert.Contains("N8N_TEST_META_VERIFY_TOKEN=", envText, StringComparison.Ordinal);
         Assert.Contains("N8N_TEST_META_APP_SECRET=", envText, StringComparison.Ordinal);
         Assert.Contains("N8N_TEST_META_ACCESS_TOKEN=", envText, StringComparison.Ordinal);
