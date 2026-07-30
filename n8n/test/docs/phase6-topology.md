@@ -38,6 +38,7 @@
   - `N8N_TEST_WHATSAPP_ASSERTION_PREVIOUS_KEY`
 - El compose los inyecta únicamente en `n8n-test`; no se copian al bot.
 - El backend recibe únicamente la configuración de verificación de assertions y la credencial privada necesaria para validar solicitudes del bot.
+- El renderizado del compose falla cerrado si falta cualquier valor requerido de backend, bot, n8n, Meta, OpenAI, assertion activa o webhook; los valores anteriores de rotación siguen siendo opcionales como par y el backend rechaza un par incompleto.
 - Secretos compartidos solo entre capas internas:
   - `N8N_TEST_BOT_INTERNAL_CREDENTIAL`
   - `ReservationBot__InternalCredential`
