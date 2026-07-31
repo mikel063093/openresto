@@ -26,6 +26,7 @@
   - Conserva artefactos de sesión/dedupe/orden/replay/outbound en volúmenes dedicados.
   - Mantiene editor/UI/API en red privada.
   - En Fase 6 recibe solo el host público de webhook `n8n-test.joypaw.tech` por Traefik para `/webhook*`.
+  - El edge de webhook limita cada solicitud a 1 MiB, limita la concurrencia a 20 y aplica un límite de 30 solicitudes/minuto con ráfaga de 60 antes de llegar a `n8n`.
 - `n8n-test-workflow-init`
   - Importa los exports versionados antes de que arranque `n8n-test`.
   - n8n importa todos los exports inicialmente inactivos y después publica únicamente los workflows de verificación GET y recepción POST; los demás permanecen inactivos.

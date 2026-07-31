@@ -12,9 +12,29 @@ http:
       rule: "Host(`n8n-test.joypaw.tech`) && (Path(`/webhook`) || PathPrefix(`/webhook/`) || Path(`/webhook-test`) || PathPrefix(`/webhook-test/`))"
       entryPoints:
         - websecure
+      middlewares:
+        - n8n-test-webhook-rate-limit
+        - n8n-test-webhook-inflight
+        - n8n-test-webhook-buffer
       service: n8n-test-webhooks
       tls:
         certResolver: letsencrypt
+
+  middlewares:
+    n8n-test-webhook-rate-limit:
+      rateLimit:
+        average: 30
+        burst: 60
+        period: 1m
+
+    n8n-test-webhook-inflight:
+      inFlightReq:
+        amount: 20
+
+    n8n-test-webhook-buffer:
+      buffering:
+        maxRequestBodyBytes: 1048576
+        memRequestBodyBytes: 262144
 
   services:
     test-rest-openresto:
