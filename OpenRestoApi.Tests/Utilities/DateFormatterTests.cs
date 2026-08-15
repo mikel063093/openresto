@@ -4,11 +4,8 @@ namespace OpenRestoApi.Tests.Utilities;
 
 public class DateFormatterTests
 {
-    // Invariant culture forces English month/weekday names and "AM/PM" regardless of server
-    // locale — these snapshots document that contract.
-
     [Fact]
-    public void FormatLongDate_ProducesInvariantLongForm()
+    public void FormatLongDate_ProducesEnglishLongFormByDefault()
     {
         DateTime d = new DateTime(2026, 4, 18, 0, 0, 0, DateTimeKind.Unspecified);
 
@@ -16,13 +13,29 @@ public class DateFormatterTests
     }
 
     [Fact]
-    public void FormatTime_ProducesTwelveHourForm()
+    public void FormatLongDate_ProducesSpanishLongForm()
+    {
+        DateTime d = new DateTime(2026, 4, 18, 0, 0, 0, DateTimeKind.Unspecified);
+
+        Assert.Equal("sábado, 18 de abril de 2026", DateFormatter.FormatLongDate(d, "es-CO"));
+    }
+
+    [Fact]
+    public void FormatTime_ProducesLocalizedTwelveHourForm()
     {
         DateTime morning = new DateTime(2026, 4, 18, 9, 5, 0, DateTimeKind.Unspecified);
         DateTime afternoon = new DateTime(2026, 4, 18, 15, 45, 0, DateTimeKind.Unspecified);
 
         Assert.Equal("9:05 AM", DateFormatter.FormatTime(morning));
         Assert.Equal("3:45 PM", DateFormatter.FormatTime(afternoon));
+    }
+
+    [Fact]
+    public void FormatTime_FallsBackToEnglishWhenLocaleUnsupported()
+    {
+        DateTime time = new DateTime(2026, 4, 18, 15, 45, 0, DateTimeKind.Unspecified);
+
+        Assert.Equal("3:45 PM", DateFormatter.FormatTime(time, "fr-FR"));
     }
 
     [Fact]

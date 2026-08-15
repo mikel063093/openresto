@@ -2,10 +2,10 @@ using System.Text;
 using System.Security.Cryptography;
 using System.Threading.RateLimiting;
 using MailKit.Net.Smtp;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.HttpOverrides;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using OpenRestoApi.Infrastructure.OpenApi;
 using Microsoft.IdentityModel.Tokens;
@@ -16,6 +16,7 @@ using OpenRestoApi.Core.Domain;
 using OpenRestoApi.Infrastructure.Auth;
 using OpenRestoApi.Infrastructure.Holds;
 using OpenRestoApi.Infrastructure.Persistence;
+using OpenRestoApi.Infrastructure.Localization;
 using OpenRestoApi.Infrastructure.Persistence.Repositories;
 using WebPush;
 
@@ -368,15 +369,13 @@ public static class ServiceCollectionExtensions
             .ToDictionary(
                 entry => NormalizeModelStateKey(entry.Key),
                 entry => entry.Value!.Errors
-                    .Select(error => error.ErrorMessage)
+                    .Select(error => ApiLocalization.Localize(context.HttpContext, error.ErrorMessage))
                     .Where(message => !string.IsNullOrWhiteSpace(message))
                     .ToArray());
 
         bool hasFieldErrors = errors.Keys.Any(key => !string.IsNullOrWhiteSpace(key));
         if (!hasFieldErrors)
-        {
             return errors;
-        }
 
         foreach (string parameterName in context.ActionDescriptor.Parameters
                      .Select(parameter => parameter.Name)
@@ -397,9 +396,7 @@ public static class ServiceCollectionExtensions
     private static string NormalizeModelStateKey(string key)
     {
         if (string.IsNullOrWhiteSpace(key) || key == "$")
-        {
             return string.Empty;
-        }
 
         return key.StartsWith("$.", StringComparison.Ordinal) ? key[2..] : key;
     }

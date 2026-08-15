@@ -215,8 +215,8 @@ public class AvailabilityServiceTests
         var date = new DateTime(2026, 10, 10, 11, 0, 0, DateTimeKind.Utc);
         var holdSvc = new Mock<IHoldService>();
         // Hold both tables at 11:00
-        holdSvc.Setup(h => h.IsTableHeld(1, date, null, 60)).Returns(true);
-        holdSvc.Setup(h => h.IsTableHeld(2, date, null, 60)).Returns(true);
+        holdSvc.Setup(h => h.IsTableHeld(1, date, null, It.IsAny<int>())).Returns(true);
+        holdSvc.Setup(h => h.IsTableHeld(2, date, null, It.IsAny<int>())).Returns(true);
 
         var bookingRepo = new BookingRepository(db);
         var restRepo = new RestaurantRepository(db);

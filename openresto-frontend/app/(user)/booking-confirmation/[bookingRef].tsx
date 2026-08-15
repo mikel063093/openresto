@@ -26,8 +26,10 @@ import Footer from "@/components/layout/Footer";
 import * as Haptics from "expo-haptics";
 import { isPast } from "@/components/admin/bookings/StatusBadge";
 import { useErrorHandler } from "@/hooks/useErrorHandler";
+import { useI18n } from "@/context/I18nContext";
 
 export default function BookingConfirmationScreen() {
+  const { t } = useI18n();
   const { bookingRef, email } = useLocalSearchParams<{ bookingRef: string; email: string }>();
   const [booking, setBooking] = useState<BookingDto | null>(null);
   const [restaurant, setRestaurant] = useState<RestaurantDto | null>(null);
@@ -80,8 +82,7 @@ export default function BookingConfirmationScreen() {
   useEffect(() => {
     if (!restaurant?.address) return;
     fetch(
-      `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(restaurant.address)}&format=json&limit=1`,
-      { headers: { "Accept-Language": "en" } }
+      `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(restaurant.address)}&format=json&limit=1`
     )
       .then((r) => r.json())
       .then((data) => {
@@ -93,7 +94,7 @@ export default function BookingConfirmationScreen() {
   if (loading) {
     return (
       <>
-        {Platform.OS !== "web" && <Stack.Screen options={{ title: "Booking Confirmation" }} />}
+        {Platform.OS !== "web" && <Stack.Screen options={{ title: t("booking.confirmed") }} />}
         <BookingConfirmationSkeleton />
       </>
     );
@@ -102,17 +103,17 @@ export default function BookingConfirmationScreen() {
   if (!booking) {
     return (
       <View style={[styles.center, { backgroundColor: colors.page }]}>
-        {Platform.OS !== "web" && <Stack.Screen options={{ title: "Not Found" }} />}
+        {Platform.OS !== "web" && <Stack.Screen options={{ title: t("booking.notFound") }} />}
         <Ionicons name="alert-circle-outline" size={40} color={colors.muted} />
         <ThemedText style={[styles.notFoundText, { color: colors.muted }]}>
-          Booking not found.
+          {t("booking.notFound")}
         </ThemedText>
         <Pressable
           style={[styles.retryBtn, { borderColor: colors.border }]}
           onPress={() => router.replace("/")}
         >
           <ThemedText style={[styles.retryBtnText, { color: primaryColor }]}>
-            Back to Home
+            {t("booking.backHome")}
           </ThemedText>
         </Pressable>
       </View>
@@ -148,7 +149,9 @@ export default function BookingConfirmationScreen() {
       >
         {Platform.OS !== "web" && (
           <Stack.Screen
-            options={{ title: booking.isCancelled ? "Booking Cancelled" : "Booking Confirmed" }}
+            options={{
+              title: booking.isCancelled ? t("booking.cancelled") : t("booking.confirmed"),
+            }}
           />
         )}
         <PageContainer>
@@ -167,11 +170,11 @@ export default function BookingConfirmationScreen() {
               />
             </View>
             <ThemedText style={styles.title}>
-              {booking.isCancelled ? "Booking Cancelled" : "Booking Confirmed"}
+              {booking.isCancelled ? t("booking.cancelled") : t("booking.confirmed")}
             </ThemedText>
             <ThemedText style={[styles.subtitle, { color: colors.muted }]}>
               {booking.customerName ? `${booking.customerName}, ` : ""}
-              {booking.seats} {booking.seats === 1 ? "guest" : "guests"} at {restaurantName}
+              {t("booking.atRestaurant", { seats: booking.seats, restaurant: restaurantName })}
             </ThemedText>
           </View>
 
@@ -188,7 +191,7 @@ export default function BookingConfirmationScreen() {
               ]}
             >
               <ThemedText style={[styles.refLabel, { color: colors.muted }]}>
-                Booking Reference
+                {t("booking.bookingReference")}
               </ThemedText>
               <View style={styles.refRow}>
                 <View
@@ -216,13 +219,13 @@ export default function BookingConfirmationScreen() {
                     <ThemedText
                       style={[styles.copyBtnText, { color: copied ? primaryColor : colors.muted }]}
                     >
-                      {copied ? "Copied" : "Copy"}
+                      {copied ? t("common.copied") : t("common.copy")}
                     </ThemedText>
                   </Pressable>
                 )}
               </View>
               <ThemedText style={[styles.refHint, { color: colors.muted }]}>
-                Use this reference and your email to look up your booking
+                {t("booking.lookupUseReference")}
               </ThemedText>
             </View>
           )}
@@ -255,7 +258,7 @@ export default function BookingConfirmationScreen() {
                   ]}
                 >
                   <ThemedText style={[styles.refLabel, { color: colors.muted }]}>
-                    Booking Reference
+                    {t("booking.bookingReference")}
                   </ThemedText>
                   <View style={styles.refRow}>
                     <View
@@ -291,13 +294,13 @@ export default function BookingConfirmationScreen() {
                             { color: copied ? primaryColor : colors.muted },
                           ]}
                         >
-                          {copied ? "Copied" : "Copy"}
+                          {copied ? t("common.copied") : t("common.copy")}
                         </ThemedText>
                       </Pressable>
                     )}
                   </View>
                   <ThemedText style={[styles.refHint, { color: colors.muted }]}>
-                    Use this reference and your email to look up your booking
+                    {t("booking.lookupUseReference")}
                   </ThemedText>
                 </View>
               )}
@@ -333,7 +336,7 @@ export default function BookingConfirmationScreen() {
                   ]}
                 >
                   <ThemedText style={[styles.refLabel, { color: colors.muted }]}>
-                    Get Directions
+                    {t("booking.getDirections")}
                   </ThemedText>
                   {Platform.OS === "web" &&
                     mapCoords &&
@@ -371,11 +374,11 @@ export default function BookingConfirmationScreen() {
                             `https://maps.google.com/?q=${encodeURIComponent(restaurant.address!)}`
                           )
                         }
-                        accessibilityLabel="Open in Google Maps"
+                        accessibilityLabel={t("booking.openGoogleMaps")}
                       >
                         <Ionicons name="navigate-outline" size={13} color={colors.muted} />
                         <ThemedText style={[styles.mapLinkText, { color: colors.muted }]}>
-                          Google
+                          {t("common.google")}
                         </ThemedText>
                       </Pressable>
                       <Pressable
@@ -391,11 +394,11 @@ export default function BookingConfirmationScreen() {
                             `https://maps.apple.com/?q=${encodeURIComponent(restaurant.address!)}`
                           )
                         }
-                        accessibilityLabel="Open in Apple Maps"
+                        accessibilityLabel={t("booking.openAppleMaps")}
                       >
                         <Ionicons name="navigate-outline" size={13} color={colors.muted} />
                         <ThemedText style={[styles.mapLinkText, { color: colors.muted }]}>
-                          Apple
+                          {t("common.apple")}
                         </ThemedText>
                       </Pressable>
                     </View>
@@ -422,18 +425,18 @@ export default function BookingConfirmationScreen() {
                   <Ionicons name="trash-outline" size={15} color={theme.colors.error} />
                   <ThemedText style={styles.cancelBtnText}>
                     {booking.isCancelled
-                      ? "Already Cancelled"
+                      ? t("booking.alreadyCancelled")
                       : bookingIsPast
-                        ? "Booking Has Passed"
-                        : "Cancel This Booking"}
+                        ? t("booking.past")
+                        : t("booking.cancelThis")}
                   </ThemedText>
                 </Pressable>
               </View>
 
               <ThemedText style={[styles.cancelHint, { color: colors.muted }]}>
                 {!booking.isCancelled && bookingIsPast
-                  ? "This booking has already passed and can no longer be cancelled."
-                  : "This booking cannot be modified. However, feel free to cancel and rebook if need be."}
+                  ? t("booking.pastHint")
+                  : t("booking.modifyHint")}
               </ThemedText>
             </View>
           </View>
@@ -441,10 +444,10 @@ export default function BookingConfirmationScreen() {
 
         <ConfirmModal
           visible={showCancelConfirm}
-          title="Cancel Reservation"
-          message="Are you sure you want to cancel this booking? This action cannot be undone."
-          confirmLabel={cancelling ? "Cancelling..." : "Cancel Booking"}
-          cancelLabel="Keep Booking"
+          title={t("booking.cancelReservation")}
+          message={t("booking.cancelConfirmMessage")}
+          confirmLabel={cancelling ? t("booking.cancelling") : t("booking.cancelBooking")}
+          cancelLabel={t("booking.keepBooking")}
           destructive
           onConfirm={handleCancelBooking}
           onCancel={() => !cancelling && setShowCancelConfirm(false)}
@@ -452,7 +455,7 @@ export default function BookingConfirmationScreen() {
 
         <AlertModal
           visible={errorMessage !== null}
-          title="Error"
+          title={t("error.title")}
           message={errorMessage ?? ""}
           onClose={clearError}
         />

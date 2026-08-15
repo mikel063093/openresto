@@ -22,6 +22,23 @@ interface OverviewDto {
  * Runs under chromium-admin (storageState cookie pre-loaded).
  */
 test.describe("Admin dashboard", () => {
+  test("renders localized Spanish dashboard chrome when es-CO is persisted", async ({ page }) => {
+    await page.addInitScript(() => {
+      localStorage.setItem("openresto-language", "es-CO");
+    });
+
+    await page.goto("/admin/dashboard");
+    await page.waitForURL(/.*dashboard.*/, { timeout: 20_000 });
+
+    await expect(page.getByText("Reservas de hoy", { exact: true }).first()).toBeVisible();
+    await expect(page.getByText("Retenciones activas", { exact: true })).toBeVisible();
+    await expect(page.getByText("Estado del restaurante", { exact: true })).toBeVisible();
+    await expect(page.getByText("Cubiertos totales", { exact: true })).toBeVisible();
+
+    await page.reload();
+    await expect(page.getByText("Reservas de hoy", { exact: true }).first()).toBeVisible();
+  });
+
   test("renders all metric cards with values matching the overview API", async ({ page }) => {
     await gotoAdminDashboard(page);
 

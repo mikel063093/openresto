@@ -1,4 +1,3 @@
-using System.Globalization;
 using System.Net;
 using System.Text.Json;
 using Microsoft.Extensions.Options;
@@ -6,6 +5,7 @@ using OpenRestoApi.Core.Application.DTOs;
 using OpenRestoApi.Core.Application.Interfaces;
 using OpenRestoApi.Core.Application.Settings;
 using OpenRestoApi.Core.Domain;
+using OpenRestoApi.Infrastructure.Localization;
 using WebPush;
 
 namespace OpenRestoApi.Core.Application.Services;
@@ -38,8 +38,9 @@ public sealed class BookingNotificationService(
 
     // ── Notify ───────────────────────────────────────────────────────────────
 
-    public async Task NotifyBookingCreatedAsync(Booking booking, string restaurantName)
+    public async Task NotifyBookingCreatedAsync(Booking booking, string restaurantName, string locale = ApiLocalization.English)
     {
+        locale = EmailNotificationLocalization.NormalizeLocale(locale);
         _log.LogInformation("[Notif] BookingCreated: ref={Ref} restaurant={Restaurant} seats={Seats}",
             booking.BookingRef, restaurantName, booking.Seats);
 
@@ -59,13 +60,14 @@ public sealed class BookingNotificationService(
         await _notificationRepository.AddAsync(notification);
         _log.LogInformation("[Notif] BookingCreated saved id={Id}", notification.Id);
 
-        string localTime = FormatUtcAsLocalTime(booking.Date);
+        string customerName = booking.CustomerName ?? EmailNotificationLocalization.NotificationGuestFallback(locale);
+        string localTime = EmailNotificationLocalization.FormatNotificationTime(booking.Date, locale);
         await SendPushAsync(
             booking.RestaurantId,
             notification.Id,
             new PushPayload(
-                Title: $"New booking - {restaurantName}",
-                Body: $"{booking.CustomerName ?? "Guest"} · {booking.Seats} guest{(booking.Seats == 1 ? "" : "s")} · {localTime}",
+                Title: EmailNotificationLocalization.NewBookingTitle(locale, restaurantName),
+                Body: EmailNotificationLocalization.BookingNotificationBody(locale, customerName, booking.Seats, localTime),
                 Type: NotificationType.BookingCreated,
                 BookingId: booking.Id,
                 BookingRef: booking.BookingRef,
@@ -73,8 +75,9 @@ public sealed class BookingNotificationService(
             ));
     }
 
-    public async Task NotifyBookingCancelledAsync(Booking booking, string restaurantName)
+    public async Task NotifyBookingCancelledAsync(Booking booking, string restaurantName, string locale = ApiLocalization.English)
     {
+        locale = EmailNotificationLocalization.NormalizeLocale(locale);
         _log.LogInformation("[Notif] BookingCancelled: ref={Ref} restaurant={Restaurant}",
             booking.BookingRef, restaurantName);
 
@@ -94,13 +97,14 @@ public sealed class BookingNotificationService(
         await _notificationRepository.AddAsync(notification);
         _log.LogInformation("[Notif] BookingCancelled saved id={Id}", notification.Id);
 
-        string localTime = FormatUtcAsLocalTime(booking.Date);
+        string customerName = booking.CustomerName ?? EmailNotificationLocalization.NotificationGuestFallback(locale);
+        string localTime = EmailNotificationLocalization.FormatNotificationTime(booking.Date, locale);
         await SendPushAsync(
             booking.RestaurantId,
             notification.Id,
             new PushPayload(
-                Title: $"Booking cancelled - {restaurantName}",
-                Body: $"{booking.CustomerName ?? "Guest"} · {booking.Seats} guest{(booking.Seats == 1 ? "" : "s")} · {localTime}",
+                Title: EmailNotificationLocalization.BookingCancelledTitle(locale, restaurantName),
+                Body: EmailNotificationLocalization.BookingNotificationBody(locale, customerName, booking.Seats, localTime),
                 Type: NotificationType.BookingCancelled,
                 BookingId: booking.Id,
                 BookingRef: booking.BookingRef,
@@ -108,8 +112,9 @@ public sealed class BookingNotificationService(
             ));
     }
 
-    public async Task CheckAndNotifyCapacityAsync(int restaurantId, string restaurantName, DateTime bookingDate)
+    public async Task CheckAndNotifyCapacityAsync(int restaurantId, string restaurantName, DateTime bookingDate, string locale = ApiLocalization.English)
     {
+        locale = EmailNotificationLocalization.NormalizeLocale(locale);
         // Count distinct tables booked on the same UTC calendar day
         DateTime dayStart = bookingDate.Date;
         DateTime dayEnd = dayStart.AddDays(1);
@@ -161,8 +166,8 @@ public sealed class BookingNotificationService(
             restaurantId,
             notification.Id,
             new PushPayload(
-                Title: $"Nearly full - {restaurantName}",
-                Body: $"{bookedTables} of {totalTables} tables booked today ({(int)(ratio * 100)}%)",
+                Title: EmailNotificationLocalization.NearlyFullTitle(locale, restaurantName),
+                Body: EmailNotificationLocalization.NearlyFullBody(locale, bookedTables, totalTables, (int)(ratio * 100)),
                 Type: NotificationType.RestaurantNearlyFull,
                 BookingId: null,
                 BookingRef: null,
@@ -280,6 +285,4 @@ public sealed class BookingNotificationService(
         await _notificationRepository.SaveChangesAsync();
     }
 
-    private static string FormatUtcAsLocalTime(DateTime utc) =>
-        utc.ToString("ddd d MMM 'at' h:mm tt", CultureInfo.InvariantCulture);
 }

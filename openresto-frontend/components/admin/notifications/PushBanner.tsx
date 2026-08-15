@@ -7,6 +7,7 @@ import { hexToRgba } from "@/utils/colors";
 import { getVapidPublicKey, subscribePush } from "@/api/notifications";
 import { arrayBufferToBase64, urlBase64ToUint8Array } from "@/utils/notifications";
 import { styles } from "@/components/admin/notifications/notifications.styles";
+import { useI18n } from "@/context/I18nContext";
 
 type PushStatus = "unknown" | "active" | "inactive" | "denied" | "unsupported";
 
@@ -55,6 +56,7 @@ export interface PushBannerProps {
  * (owns its fetch + subscription state).
  */
 export function PushBanner({ restaurantId, primaryColor, isDark }: PushBannerProps) {
+  const { t } = useI18n();
   const [vapidKey, setVapidKey] = useState<string | null | undefined>(undefined);
   const [pushStatus, setPushStatus] = usePushStatus(vapidKey);
   const [working, setWorking] = useState(false);
@@ -78,7 +80,7 @@ export function PushBanner({ restaurantId, primaryColor, isDark }: PushBannerPro
       const permission = await Notification.requestPermission();
       if (permission === "denied") {
         setPushStatus("denied");
-        setErrorMsg("Blocked by browser - allow notifications in site settings.");
+        setErrorMsg(t("admin.pushBlockedBrowser"));
         setWorking(false);
         return;
       }
@@ -102,7 +104,7 @@ export function PushBanner({ restaurantId, primaryColor, isDark }: PushBannerPro
       setPushStatus("active");
     } catch (err) {
       console.error("Push subscribe error:", err);
-      setErrorMsg("Failed to enable - try again.");
+      setErrorMsg(t("admin.pushEnableFailed"));
     }
     setWorking(false);
   };
@@ -120,7 +122,7 @@ export function PushBanner({ restaurantId, primaryColor, isDark }: PushBannerPro
       >
         <Ionicons name="notifications-off-outline" size={16} color={theme.colors.warning} />
         <ThemedText style={[styles.pushBannerText, { color: theme.colors.warning }]}>
-          Push notifications blocked - enable in browser site settings.
+          {t("admin.pushBlocked")}
         </ThemedText>
       </View>
     );
@@ -138,7 +140,7 @@ export function PushBanner({ restaurantId, primaryColor, isDark }: PushBannerPro
     >
       <Ionicons name="notifications-outline" size={16} color={primaryColor} />
       <ThemedText style={[styles.pushBannerText, { color: primaryColor }]}>
-        Enable push notifications to get real-time booking alerts.
+        {t("admin.pushEnablePrompt")}
       </ThemedText>
       {errorMsg && (
         <ThemedText style={[styles.pushBannerText, { color: theme.colors.error, flex: undefined }]}>
@@ -156,7 +158,7 @@ export function PushBanner({ restaurantId, primaryColor, isDark }: PushBannerPro
         {working ? (
           <ActivityIndicator size="small" color="#fff" />
         ) : (
-          <ThemedText style={styles.pushBannerBtnText}>Enable</ThemedText>
+          <ThemedText style={styles.pushBannerBtnText}>{t("admin.pushEnable")}</ThemedText>
         )}
       </Pressable>
     </View>

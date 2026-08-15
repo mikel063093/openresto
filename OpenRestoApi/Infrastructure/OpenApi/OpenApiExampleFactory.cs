@@ -203,7 +203,6 @@ internal static class OpenApiExampleFactory
                 Message: "Reserva cancelada.",
                 Reservation: CreateBooking()));
         }
-
         if (targetType == typeof(BookingDetailDto))
         {
             return JsonSerializer.SerializeToNode(CreateBookingDetail());
@@ -293,7 +292,6 @@ internal static class OpenApiExampleFactory
                 PlaintextToken = "ormcp.example.[REDACTED]"
             });
         }
-
         if (targetType == typeof(AdminUserDto))
         {
             return JsonSerializer.SerializeToNode(new AdminUserDto
@@ -514,7 +512,6 @@ internal static class OpenApiExampleFactory
         Notes = "Turno de tarde",
         Restaurants = [new OperatorCredentialScopeDto { RestaurantId = 7, RestaurantName = "Open Resto Downtown" }]
     };
-
     private static RestaurantDto CreateRestaurant() => new()
     {
         Id = 7,

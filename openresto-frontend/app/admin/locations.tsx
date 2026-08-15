@@ -22,6 +22,8 @@ import { LocationCard } from "@/components/admin/settings/LocationCard";
 import { AddLocationForm } from "@/components/admin/locations/AddLocationForm";
 import { DangerZone } from "@/components/admin/locations/DangerZone";
 import { styles } from "@/components/admin/settings/settings.styles";
+import { useI18n } from "@/context/I18nContext";
+import { fmtDateTime } from "@/utils/formatters";
 
 export default function AdminLocationsScreen() {
   const [restaurants, setRestaurants] = useState<RestaurantDto[]>([]);
@@ -50,6 +52,7 @@ export default function AdminLocationsScreen() {
   const { state: confirmState, confirm: confirmAction, handleConfirm, handleCancel } = useConfirm();
 
   const { colors, isDark, primaryColor } = useAppTheme();
+  const { locale, t } = useI18n();
   const borderColor = colors.border;
   const cardBg = colors.card;
   const mutedColor = colors.muted;
@@ -87,7 +90,7 @@ export default function AdminLocationsScreen() {
     : false;
   const pausedUntilText =
     isPaused && selectedAdminData?.bookingsPausedUntil
-      ? new Date(selectedAdminData.bookingsPausedUntil).toLocaleTimeString([], {
+      ? fmtDateTime(new Date(selectedAdminData.bookingsPausedUntil), locale, {
           hour: "2-digit",
           minute: "2-digit",
         })
@@ -115,16 +118,16 @@ export default function AdminLocationsScreen() {
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      {Platform.OS !== "web" && <Stack.Screen options={{ title: "Locations" }} />}
+      {Platform.OS !== "web" && <Stack.Screen options={{ title: t("admin.locationsTitle") }} />}
 
       {/* ── Page header ─────────────────────────────────────────────── */}
       <View style={styles.pageHeader}>
         <View style={{ gap: 2 }}>
-          <ThemedText type="h1">Locations</ThemedText>
+          <ThemedText type="h1">{t("admin.locationsTitle")}</ThemedText>
           <ThemedText style={[styles.pageSub, { color: mutedColor }]}>
             {restaurants.length === 0
-              ? "No locations configured"
-              : `${restaurants.length} location${restaurants.length !== 1 ? "s" : ""} · all active`}
+              ? t("admin.locationsSummaryNone")
+              : t("admin.locationsSummaryActive", { count: restaurants.length })}
           </ThemedText>
         </View>
         <Pressable
@@ -144,7 +147,7 @@ export default function AdminLocationsScreen() {
         >
           <Ionicons name="add" size={16} color="#fff" />
           <ThemedText style={{ fontSize: 14, fontWeight: "600", color: "#fff" }}>
-            Add location
+            {t("admin.addLocation")}
           </ThemedText>
         </Pressable>
       </View>
@@ -270,10 +273,10 @@ export default function AdminLocationsScreen() {
               style={{ fontSize: 13, fontWeight: "600", color: isPaused ? "#16a34a" : "#ca8a04" }}
             >
               {pausing
-                ? "Saving…"
+                ? t("admin.pauseSaving")
                 : isPaused
-                  ? `Resume New Bookings now (Paused until ${pausedUntilText})`
-                  : "Pause New Bookings for 60m"}
+                  ? t("admin.resumeNewBookingsNow", { time: pausedUntilText ?? "" })
+                  : t("admin.pauseNewBookingsFor", { minutes: 60 })}
             </ThemedText>
           </Pressable>
 
@@ -325,14 +328,20 @@ export default function AdminLocationsScreen() {
               }}
             >
               {extending
-                ? "Extending…"
+                ? t("admin.extending")
                 : extendedBookings !== null
-                  ? `Extended ${extendedBookings.length} active bookings +60m`
+                  ? t("admin.extendedActiveBookings", {
+                      count: extendedBookings.length,
+                      minutes: 60,
+                    })
                   : extendNoActive
-                    ? "No active bookings to extend"
+                    ? t("admin.noActiveBookingsToExtend")
                     : activeCount > 0
-                      ? `Extend ${activeCount} active Bookings by 60m`
-                      : "No active bookings"}
+                      ? t("admin.extendActiveBookingsBy", {
+                          count: activeCount,
+                          minutes: 60,
+                        })
+                      : t("admin.noActiveBookings")}
             </ThemedText>
           </Pressable>
         </View>
@@ -363,7 +372,7 @@ export default function AdminLocationsScreen() {
             <Ionicons name="storefront-outline" size={28} color={mutedColor} />
           </View>
           <ThemedText style={{ fontSize: 16, fontWeight: "700", textAlign: "center" }}>
-            No locations yet
+            {t("admin.noLocationsYet")}
           </ThemedText>
           <ThemedText
             style={{
@@ -374,7 +383,7 @@ export default function AdminLocationsScreen() {
               lineHeight: 22,
             }}
           >
-            Add your first location to start accepting bookings.
+            {t("admin.firstLocationBody")}
           </ThemedText>
         </View>
       ) : selectedRestaurant ? (
@@ -432,10 +441,10 @@ export default function AdminLocationsScreen() {
 
       <ConfirmModal
         visible={!!confirmState}
-        title="Confirm"
+        title={t("common.confirm")}
         message={confirmState?.message ?? ""}
-        confirmLabel="Delete"
-        cancelLabel="Cancel"
+        confirmLabel={t("common.delete")}
+        cancelLabel={t("common.cancel")}
         destructive
         onConfirm={handleConfirm}
         onCancel={handleCancel}

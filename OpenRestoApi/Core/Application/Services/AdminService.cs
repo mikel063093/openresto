@@ -3,6 +3,7 @@ using OpenRestoApi.Core.Application.Exceptions;
 using OpenRestoApi.Core.Application.Interfaces;
 using OpenRestoApi.Core.Application.Utilities;
 using OpenRestoApi.Core.Domain;
+using OpenRestoApi.Infrastructure.Localization;
 
 namespace OpenRestoApi.Core.Application.Services;
 
@@ -126,8 +127,9 @@ public class AdminService(
         return b == null ? null : ToDetailDto(b);
     }
 
-    public virtual async Task<BookingDetailDto> CreateBookingAsync(AdminCreateBookingRequest req)
+    public virtual async Task<BookingDetailDto> CreateBookingAsync(AdminCreateBookingRequest req, string locale = ApiLocalization.English)
     {
+        locale = EmailNotificationLocalization.NormalizeLocale(locale);
         Table table = await _tableRepository.GetWithSectionRestaurantAsync(req.TableId, req.SectionId)
             ?? throw new ValidationException("Table not found in the specified section.");
 
@@ -178,8 +180,8 @@ public class AdminService(
 
         if (_notificationQueue != null)
         {
-            _notificationQueue.EnqueueBookingCreated(booking, booking.Restaurant!.Name);
-            _notificationQueue.EnqueueCapacityCheck(booking.RestaurantId, booking.Restaurant!.Name, booking.Date);
+            _notificationQueue.EnqueueBookingCreated(booking, booking.Restaurant!.Name, locale);
+            _notificationQueue.EnqueueCapacityCheck(booking.RestaurantId, booking.Restaurant!.Name, booking.Date, locale);
         }
 
         return ToDetailDto(booking);
@@ -211,8 +213,9 @@ public class AdminService(
         return booking.EndTime;
     }
 
-    public virtual async Task<bool> CancelBookingAsync(int id)
+    public virtual async Task<bool> CancelBookingAsync(int id, string locale = ApiLocalization.English)
     {
+        locale = EmailNotificationLocalization.NormalizeLocale(locale);
         Booking? booking = await _bookingRepository.FindByIdAsync(id);
         if (booking == null)
         {
@@ -231,7 +234,7 @@ public class AdminService(
         if (_notificationQueue != null)
         {
             Booking? withRestaurant = await _bookingRepository.GetByIdAsync(id);
-            _notificationQueue.EnqueueBookingCancelled(withRestaurant ?? booking, withRestaurant?.Restaurant?.Name ?? "");
+            _notificationQueue.EnqueueBookingCancelled(withRestaurant ?? booking, withRestaurant?.Restaurant?.Name ?? "", locale);
         }
 
         return true;

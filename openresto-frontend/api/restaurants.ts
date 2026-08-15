@@ -1,4 +1,4 @@
-import { get, post, put, del, buildUrl } from "./client";
+import { get, post, put, del, apiFetch } from "./client";
 
 export interface TableDto {
   id: number;
@@ -248,9 +248,8 @@ export async function uploadLocationImage(
   try {
     const form = new FormData();
     form.append("file", file);
-    const res = await fetch(buildUrl(`/media/location/${restaurantId}`), {
+    const res = await apiFetch(`/media/location/${restaurantId}`, {
       method: "POST",
-      credentials: "include",
       body: form,
     });
     if (!res.ok) return null;
@@ -263,9 +262,8 @@ export async function uploadLocationImage(
 
 export async function deleteLocationImage(restaurantId: number): Promise<boolean> {
   try {
-    const res = await fetch(buildUrl(`/media/location/${restaurantId}`), {
+    const res = await apiFetch(`/media/location/${restaurantId}`, {
       method: "DELETE",
-      credentials: "include",
     });
     return res.ok;
   } catch {
@@ -277,9 +275,8 @@ export async function uploadMenuFile(restaurantId: number, file: File): Promise<
   try {
     const form = new FormData();
     form.append("file", file);
-    const res = await fetch(buildUrl(`/media/menu/${restaurantId}`), {
+    const res = await apiFetch(`/media/menu/${restaurantId}`, {
       method: "POST",
-      credentials: "include",
       body: form,
     });
     if (!res.ok) return null;
@@ -292,9 +289,8 @@ export async function uploadMenuFile(restaurantId: number, file: File): Promise<
 
 export async function deleteMenuFile(restaurantId: number): Promise<boolean> {
   try {
-    const res = await fetch(buildUrl(`/media/menu/${restaurantId}`), {
+    const res = await apiFetch(`/media/menu/${restaurantId}`, {
       method: "DELETE",
-      credentials: "include",
     });
     return res.ok;
   } catch {

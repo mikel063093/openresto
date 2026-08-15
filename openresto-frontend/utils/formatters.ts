@@ -8,8 +8,12 @@
  * Uses the runtime locale (undefined first arg) intentionally — admins see dates in their
  * own locale, not the restaurant's.
  */
-export function fmtDate(d: Date): string {
-  return d.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
+export function fmtDate(d: Date, locale: Locale = "en"): string {
+  return d.toLocaleDateString(toIntlLocale(locale), {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+  });
 }
 
 /**
@@ -37,3 +41,12 @@ export function initials(nameOrEmail: string): string {
     ? (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
     : name.slice(0, 2).toUpperCase();
 }
+
+export function fmtDateTime(
+  d: Date,
+  locale: Locale = "en",
+  options: Intl.DateTimeFormatOptions
+): string {
+  return new Intl.DateTimeFormat(toIntlLocale(locale), options).format(d);
+}
+import { type Locale, toIntlLocale } from "@/i18n/locale";

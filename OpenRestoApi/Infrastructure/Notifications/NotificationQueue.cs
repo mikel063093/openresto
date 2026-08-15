@@ -21,14 +21,14 @@ internal sealed class NotificationQueue : INotificationQueue
                 SingleWriter = false,
             });
 
-    public void EnqueueBookingCreated(Booking booking, string restaurantName) =>
-        Channel.Writer.TryWrite(new BookingCreatedWork(booking, restaurantName));
+    public void EnqueueBookingCreated(Booking booking, string restaurantName, string locale = "en") =>
+        Channel.Writer.TryWrite(new BookingCreatedWork(booking, restaurantName, locale));
 
-    public void EnqueueBookingCancelled(Booking booking, string restaurantName) =>
-        Channel.Writer.TryWrite(new BookingCancelledWork(booking, restaurantName));
+    public void EnqueueBookingCancelled(Booking booking, string restaurantName, string locale = "en") =>
+        Channel.Writer.TryWrite(new BookingCancelledWork(booking, restaurantName, locale));
 
-    public void EnqueueCapacityCheck(int restaurantId, string restaurantName, DateTime bookingDate) =>
-        Channel.Writer.TryWrite(new CapacityCheckWork(restaurantId, restaurantName, bookingDate));
+    public void EnqueueCapacityCheck(int restaurantId, string restaurantName, DateTime bookingDate, string locale = "en") =>
+        Channel.Writer.TryWrite(new CapacityCheckWork(restaurantId, restaurantName, bookingDate, locale));
 
     public bool EnqueueOperatorEscalation(Booking booking, string restaurantName, string operatorIdentifier, string reason, int? notificationId = null) =>
         Channel.Writer.TryWrite(new OperatorEscalationWork(booking, restaurantName, operatorIdentifier, reason, notificationId));

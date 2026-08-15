@@ -3,17 +3,17 @@ import { View, StyleSheet, ActivityIndicator, Animated, Easing, Text } from "rea
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useAppTheme } from "@/hooks/use-app-theme";
 import { Brand } from "@/types";
+import { useI18n } from "@/context/I18nContext";
 
 interface LoadingScreenProps {
   brand: Brand;
   message?: string;
 }
 
-export default function LoadingScreen({
-  brand,
-  message = "Preparing your table...",
-}: LoadingScreenProps) {
+export default function LoadingScreen({ brand, message }: LoadingScreenProps) {
+  const { t } = useI18n();
   const { colors } = useAppTheme();
+  const resolvedMessage = message ?? t("loading.preparingTable");
 
   const [fadeAnim] = useState(() => new Animated.Value(0));
   const [scaleAnim] = useState(() => new Animated.Value(0.9));
@@ -51,7 +51,7 @@ export default function LoadingScreen({
   if (process.env.NODE_ENV === "test") {
     return (
       <View testID="loading-screen">
-        <Text>{message}</Text>
+        <Text>{resolvedMessage}</Text>
         <Text>{brand.appName}</Text>
       </View>
     );
@@ -83,7 +83,7 @@ export default function LoadingScreen({
           />
         </Animated.View>
         <ActivityIndicator size="large" color={brand.primaryColor} style={styles.spinner} />
-        <Text style={[styles.text, { color: colors.text }]}>{message}</Text>
+        <Text style={[styles.text, { color: colors.text }]}>{resolvedMessage}</Text>
         <Text style={[styles.subtext, { color: colors.muted }]}>{brand.appName}</Text>
       </Animated.View>
     </View>

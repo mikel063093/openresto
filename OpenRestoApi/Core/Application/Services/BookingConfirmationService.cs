@@ -1,5 +1,6 @@
 using OpenRestoApi.Core.Application.Interfaces;
 using OpenRestoApi.Core.Domain;
+using OpenRestoApi.Infrastructure.Localization;
 
 namespace OpenRestoApi.Core.Application.Services;
 
@@ -17,8 +18,9 @@ public sealed class BookingConfirmationService(
     private readonly IEmailTemplateService _templateService = templateService;
     private readonly BrandService _brandService = brandService;
 
-    public async Task SendConfirmationAsync(Booking booking, Restaurant restaurant)
+    public async Task SendConfirmationAsync(Booking booking, Restaurant restaurant, string locale = ApiLocalization.English)
     {
+        locale = EmailNotificationLocalization.NormalizeLocale(locale);
         // Same null-guard chain as the original BookingService block: short-circuits when any
         // prerequisite is missing so booking creation is never blocked by email configuration.
         if (_emailSettingsService == null || _emailService == null || string.IsNullOrEmpty(booking.CustomerEmail))
@@ -36,9 +38,8 @@ public sealed class BookingConfirmationService(
 
             var brand = await _brandService.GetAsync();
             string websiteUrl = _brandService.GetWebsiteUrl(brand);
-            // Subject uses an en-dash (U+2013), not a hyphen — preserved verbatim from the original.
-            string subject = $"Booking confirmed – {restaurant.Name}";
-            string body = _templateService.BuildConfirmationEmail(booking, restaurant, brand, websiteUrl);
+            string subject = EmailNotificationLocalization.BookingConfirmationSubject(locale, restaurant.Name);
+            string body = _templateService.BuildConfirmationEmail(booking, restaurant, brand, websiteUrl, locale);
             await _emailService.SendEmailAsync(booking.CustomerEmail, subject, body);
         }
         catch (Exception ex)

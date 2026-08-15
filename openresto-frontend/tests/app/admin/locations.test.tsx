@@ -147,6 +147,13 @@ describe("AdminLocationsScreen", () => {
     await waitFor(() => expect(screen.getByText("Resto 1")).toBeTruthy());
   });
 
+  it("renders Spanish admin copy without translating restaurant names", async () => {
+    renderWithProviders(<AdminLocationsScreen />, { locale: "es-CO" });
+    await waitFor(() => expect(screen.getByText("Ubicaciones")).toBeTruthy());
+    expect(screen.getByText("Resto 1")).toBeTruthy();
+    expect(screen.getByText("Pausar nuevas reservas por 60m")).toBeTruthy();
+  });
+
   it("shows 0 locations configured when empty", async () => {
     (fetchRestaurants as jest.Mock).mockResolvedValue([]);
     (adminGetRestaurants as jest.Mock).mockResolvedValue([]);
@@ -324,7 +331,7 @@ describe("AdminLocationsScreen", () => {
   it("renders booking action buttons when a location is selected", async () => {
     renderWithProviders(<AdminLocationsScreen />);
     await waitFor(() => expect(screen.getByText("Pause New Bookings for 60m")).toBeTruthy());
-    expect(screen.getByText("Extend 2 active Bookings by 60m")).toBeTruthy();
+    expect(screen.getByText("Extend 2 active bookings by 60m")).toBeTruthy();
   });
 
   it("shows disabled No active bookings button when there are no active bookings", async () => {
@@ -372,9 +379,9 @@ describe("AdminLocationsScreen", () => {
   it("shows No active bookings to extend when extend returns empty", async () => {
     (extendRestaurantBookings as jest.Mock).mockResolvedValue({ ok: true, extendedBookings: [] });
     renderWithProviders(<AdminLocationsScreen />);
-    await waitFor(() => expect(screen.getByText("Extend 2 active Bookings by 60m")).toBeTruthy());
+    await waitFor(() => expect(screen.getByText("Extend 2 active bookings by 60m")).toBeTruthy());
     await act(async () => {
-      fireEvent.press(screen.getByText("Extend 2 active Bookings by 60m"));
+      fireEvent.press(screen.getByText("Extend 2 active bookings by 60m"));
     });
     await waitFor(() => expect(screen.getByText("No active bookings to extend")).toBeTruthy());
   });
@@ -400,9 +407,9 @@ describe("AdminLocationsScreen", () => {
       ],
     });
     renderWithProviders(<AdminLocationsScreen />);
-    await waitFor(() => expect(screen.getByText("Extend 2 active Bookings by 60m")).toBeTruthy());
+    await waitFor(() => expect(screen.getByText("Extend 2 active bookings by 60m")).toBeTruthy());
     await act(async () => {
-      fireEvent.press(screen.getByText("Extend 2 active Bookings by 60m"));
+      fireEvent.press(screen.getByText("Extend 2 active bookings by 60m"));
     });
     await waitFor(() => expect(screen.getByText("Extended 1 active bookings +60m")).toBeTruthy());
     expect(extendRestaurantBookings).toHaveBeenCalledWith(1, 60);
@@ -438,13 +445,13 @@ describe("AdminLocationsScreen", () => {
       ],
     });
     renderWithProviders(<AdminLocationsScreen />);
-    await waitFor(() => expect(screen.getByText("Extend 2 active Bookings by 60m")).toBeTruthy());
+    await waitFor(() => expect(screen.getByText("Extend 2 active bookings by 60m")).toBeTruthy());
     await act(async () => {
-      fireEvent.press(screen.getByText("Extend 2 active Bookings by 60m"));
+      fireEvent.press(screen.getByText("Extend 2 active bookings by 60m"));
     });
     await waitFor(() => expect(screen.getByText("Extended 1 active bookings +60m")).toBeTruthy());
     fireEvent.press(screen.getByText("Resto 2"));
-    await waitFor(() => expect(screen.getByText("Extend 2 active Bookings by 60m")).toBeTruthy());
+    await waitFor(() => expect(screen.getByText("Extend 2 active bookings by 60m")).toBeTruthy());
   });
 });
 

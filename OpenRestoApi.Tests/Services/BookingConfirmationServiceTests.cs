@@ -92,6 +92,50 @@ public class BookingConfirmationServiceTests
     }
 
     [Fact]
+    public async Task SendConfirmationAsync_LocalizesSubjectAndBody_ForSpanishLocale()
+    {
+        using AppDbContext db = TestDbFactory.Create(nameof(SendConfirmationAsync_LocalizesSubjectAndBody_ForSpanishLocale));
+        (Booking booking, Restaurant restaurant) = MakeBookingAndRestaurant(db, restaurantName: "Casa Central", customerName: "Alicia");
+        string? capturedSubject = null;
+        string? capturedBody = null;
+        var emailServiceMock = new Mock<IEmailService>();
+        emailServiceMock
+            .Setup(e => e.SendEmailAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
+            .Callback<string, string, string>((_, subject, body) =>
+            {
+                capturedSubject = subject;
+                capturedBody = body;
+            })
+            .Returns(Task.CompletedTask);
+        BookingConfirmationService svc = CreateService(db, emailServiceMock, MockSettingsService(new EmailSettings { SendBookingConfirmations = true }));
+
+        await svc.SendConfirmationAsync(booking, restaurant, "es-CO");
+
+        Assert.Equal("Reserva confirmada – Casa Central", capturedSubject);
+        Assert.NotNull(capturedBody);
+        Assert.Contains("Gestionar tu reserva", capturedBody);
+        Assert.Contains("Tu reserva esta lista, Alicia.", capturedBody);
+    }
+
+    [Fact]
+    public async Task SendConfirmationAsync_FallsBackToEnglish_WhenLocaleUnsupported()
+    {
+        using AppDbContext db = TestDbFactory.Create(nameof(SendConfirmationAsync_FallsBackToEnglish_WhenLocaleUnsupported));
+        (Booking booking, Restaurant restaurant) = MakeBookingAndRestaurant(db, restaurantName: "Fallback Resto");
+        string? capturedSubject = null;
+        var emailServiceMock = new Mock<IEmailService>();
+        emailServiceMock
+            .Setup(e => e.SendEmailAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
+            .Callback<string, string, string>((_, subject, _) => capturedSubject = subject)
+            .Returns(Task.CompletedTask);
+        BookingConfirmationService svc = CreateService(db, emailServiceMock, MockSettingsService(new EmailSettings { SendBookingConfirmations = true }));
+
+        await svc.SendConfirmationAsync(booking, restaurant, "fr-FR");
+
+        Assert.Equal("Booking confirmed – Fallback Resto", capturedSubject);
+    }
+
+    [Fact]
     public async Task SendConfirmationAsync_EmailHtml_ContainsRestaurantImage_WhenImageUrlSet()
     {
         using AppDbContext db = TestDbFactory.Create(nameof(SendConfirmationAsync_EmailHtml_ContainsRestaurantImage_WhenImageUrlSet));

@@ -23,9 +23,17 @@ function readStoredLocale(): string | null {
   return StorageService.getItem(STORAGE_KEY);
 }
 
-export function I18nProvider({ children }: { children: ReactNode }) {
-  const [locale, setLocaleState] = useState<Locale>(() =>
-    detectLocale({ storedLocale: readStoredLocale(), browserLanguages: getBrowserLanguages() })
+export function I18nProvider({
+  children,
+  initialLocale,
+}: {
+  children: ReactNode;
+  initialLocale?: Locale;
+}) {
+  const [locale, setLocaleState] = useState<Locale>(
+    () =>
+      initialLocale ??
+      detectLocale({ storedLocale: readStoredLocale(), browserLanguages: getBrowserLanguages() })
   );
 
   const value = useMemo<I18nContextValue>(

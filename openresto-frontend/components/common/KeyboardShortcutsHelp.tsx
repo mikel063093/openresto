@@ -3,6 +3,7 @@ import { ThemedText } from "@/components/themed-text";
 import { theme } from "@/theme/theme";
 import { useAppTheme } from "@/hooks/use-app-theme";
 import { SHORTCUTS_BY_SCOPE, ShortcutScope } from "@/constants/keyboardShortcuts";
+import { useI18n } from "@/context/I18nContext";
 
 interface KeyboardShortcutsHelpProps {
   visible: boolean;
@@ -15,6 +16,7 @@ export default function KeyboardShortcutsHelp({
   scope,
   onClose,
 }: KeyboardShortcutsHelpProps) {
+  const { t } = useI18n();
   const { colors } = useAppTheme();
   const shortcuts = SHORTCUTS_BY_SCOPE[scope];
 
@@ -23,7 +25,7 @@ export default function KeyboardShortcutsHelp({
       <Pressable testID="keyboard-shortcuts-backdrop" style={styles.backdrop} onPress={onClose}>
         <TouchableWithoutFeedback>
           <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <ThemedText type="h3">Keyboard shortcuts</ThemedText>
+            <ThemedText type="h3">{t("shortcuts.title")}</ThemedText>
             <View style={styles.list}>
               {shortcuts.map((s) => (
                 <View key={s.keys} style={styles.row}>
@@ -46,7 +48,9 @@ export default function KeyboardShortcutsHelp({
               style={[styles.closeBtn, { borderColor: colors.border }]}
               onPress={onClose}
             >
-              <ThemedText style={[styles.closeBtnText, { color: colors.muted }]}>Close</ThemedText>
+              <ThemedText style={[styles.closeBtnText, { color: colors.muted }]}>
+                {t("common.closeShort")}
+              </ThemedText>
             </Pressable>
           </View>
         </TouchableWithoutFeedback>

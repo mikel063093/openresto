@@ -56,13 +56,13 @@ describe("constants", () => {
   });
 
   it("TYPE_LABELS covers all three notification types", () => {
-    expect(TYPE_LABELS.BookingCreated).toBe("New Booking");
-    expect(TYPE_LABELS.BookingCancelled).toBe("Booking Cancelled");
-    expect(TYPE_LABELS.RestaurantNearlyFull).toBe("Nearly Full");
+    expect(TYPE_LABELS.BookingCreated).toBe("admin.notificationType.bookingCreated");
+    expect(TYPE_LABELS.BookingCancelled).toBe("admin.notificationType.bookingCancelled");
+    expect(TYPE_LABELS.RestaurantNearlyFull).toBe("admin.notificationType.restaurantNearlyFull");
   });
 
   it("TYPE_FILTERS has an 'All Types' empty-value option plus one per type", () => {
-    expect(TYPE_FILTERS[0]).toEqual({ label: "All Types", value: "" });
+    expect(TYPE_FILTERS[0]).toEqual({ labelKey: "admin.notificationFilter.allTypes", value: "" });
     expect(TYPE_FILTERS).toHaveLength(4);
     const values = TYPE_FILTERS.map((f) => f.value).filter(Boolean);
     expect(values).toEqual(

@@ -1,4 +1,5 @@
 using OpenRestoApi.Core.Domain;
+using OpenRestoApi.Infrastructure.Localization;
 
 namespace OpenRestoApi.Core.Application.Interfaces;
 
@@ -13,5 +14,5 @@ public interface IEmailTemplateService
     /// conversions use the restaurant's IANA timezone; date/time formatting via
     /// <c>DateFormatter</c>; URLs are RFC-3986 escaped.
     /// </summary>
-    string BuildConfirmationEmail(Booking booking, Restaurant restaurant, BrandSettings brand, string websiteUrl);
+    string BuildConfirmationEmail(Booking booking, Restaurant restaurant, BrandSettings brand, string websiteUrl, string locale = ApiLocalization.English);
 }

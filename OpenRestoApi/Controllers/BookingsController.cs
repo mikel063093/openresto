@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.RateLimiting;
 using OpenRestoApi.Core.Application.DTOs;
 using OpenRestoApi.Core.Application.Services;
 using OpenRestoApi.Infrastructure.Cookies;
+using OpenRestoApi.Infrastructure.Localization;
 using OpenRestoApi.Infrastructure.OpenApi;
 
 namespace OpenRestoApi.Controllers
@@ -52,13 +53,13 @@ namespace OpenRestoApi.Controllers
         {
             if (string.IsNullOrWhiteSpace(email))
             {
-                return BadRequest(new { message = "Email is required to look up a booking." });
+                return BadRequest(new { message = ApiLocalization.Localize(HttpContext, "Email is required to look up a booking.") });
             }
 
             BookingDto? booking = await _bookingService.GetBookingByRefAsync(bookingRef);
             if (booking == null || !string.Equals(booking.CustomerEmail, email.Trim(), StringComparison.OrdinalIgnoreCase))
             {
-                return NotFound(new { message = "No booking found matching that reference and email." });
+                return NotFound(new { message = ApiLocalization.Localize(HttpContext, "No booking found matching that reference and email.") });
             }
             return Ok(booking);
         }
@@ -77,7 +78,8 @@ namespace OpenRestoApi.Controllers
             // ConflictException (overlap, paused, walk-in, past, held, seats) → 409 is mapped
             // by GlobalExceptionHandler with a MessageResponse { Message } body, which
             // serializes identically to the prior anonymous { message } shape.
-            BookingDto newBooking = await _bookingService.CreateBookingAsync(bookingDto);
+            string locale = ApiLocalization.ResolveLocale(HttpContext?.Request.Headers.AcceptLanguage.ToString());
+            BookingDto newBooking = await _bookingService.CreateBookingAsync(bookingDto, locale);
 
             string? restaurantName = await _bookingService.GetRestaurantNameAsync(bookingDto.RestaurantId);
 
@@ -144,15 +146,16 @@ namespace OpenRestoApi.Controllers
         {
             if (string.IsNullOrWhiteSpace(req.Email))
             {
-                return BadRequest(new { message = "Email is required to cancel a booking." });
+                return BadRequest(new { message = ApiLocalization.Localize(HttpContext, "Email is required to cancel a booking.") });
             }
 
             // ConflictException (past booking) → 409 is mapped by GlobalExceptionHandler;
             // body serializes identically to the prior anonymous { message } shape.
-            bool ok = await _bookingService.CancelBookingAsync(bookingRef, req.Email);
+            string locale = ApiLocalization.ResolveLocale(HttpContext?.Request.Headers.AcceptLanguage.ToString());
+            bool ok = await _bookingService.CancelBookingAsync(bookingRef, req.Email, locale);
             if (!ok)
             {
-                return NotFound(new { message = "No booking found matching that reference and email." });
+                return NotFound(new { message = ApiLocalization.Localize(HttpContext, "No booking found matching that reference and email.") });
             }
             return NoContent();
         }

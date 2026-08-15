@@ -443,6 +443,32 @@ public class AdminControllerTests(TestWebAppFactory factory) : IClassFixture<Tes
     }
 
     [Fact]
+    public async Task RestoreBooking_WithSpanishLocale_ReturnsLocalizedMessage()
+    {
+        HttpClient client = _factory.CreateAuthenticatedClient();
+        client.DefaultRequestHeaders.AcceptLanguage.ParseAdd("es-CO");
+        (int r, int s, int t) = GetSeededIds();
+        HttpResponseMessage createResp = await client.PostAsJsonAsync("/api/admin/bookings", new
+        {
+            restaurantId = r,
+            sectionId = s,
+            tableId = t,
+            date = DateTime.UtcNow.AddDays(40).ToString("yyyy-MM-ddT12:00:00"),
+            customerEmail = "restore-es@test.com",
+            seats = 2
+        });
+        JsonElement created = await createResp.Content.ReadFromJsonAsync<JsonElement>();
+        int bookingId = created.GetProperty("id").GetInt32();
+        await client.PostAsync($"/api/admin/bookings/{bookingId}/cancel", null);
+
+        HttpResponseMessage response = await client.PostAsync($"/api/admin/bookings/{bookingId}/restore", null);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        JsonElement body = await response.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal("Reserva restaurada correctamente.", body.GetProperty("message").GetString());
+    }
+
+    [Fact]
     public async Task GetBooking_ReturnsOk()
     {
         HttpClient client = _factory.CreateAuthenticatedClient();
@@ -491,6 +517,53 @@ public class AdminControllerTests(TestWebAppFactory factory) : IClassFixture<Tes
 
         HttpResponseMessage response = await client.PostAsync($"/api/admin/bookings/{id}/restore", null);
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task RestoreBooking_AlreadyActive_WithSpanishLocale_ReturnsLocalizedMessage()
+    {
+        HttpClient client = _factory.CreateAuthenticatedClient(locale: "es-CO");
+        (int r, int s, int t) = GetSeededIds();
+        HttpResponseMessage createResp = await client.PostAsJsonAsync("/api/admin/bookings", new
+        {
+            restaurantId = r,
+            sectionId = s,
+            tableId = t,
+            date = DateTime.UtcNow.AddDays(341).ToString("yyyy-MM-ddT12:00:00"),
+            customerEmail = "restore-active-es@test.com",
+            seats = 2
+        });
+        int id = (await createResp.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetInt32();
+
+        HttpResponseMessage response = await client.PostAsync($"/api/admin/bookings/{id}/restore", null);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        JsonElement body = await response.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal("La reserva ya esta activa.", body.GetProperty("message").GetString());
+    }
+
+    [Fact]
+    public async Task SendEmail_WithSpanishLocale_PreservesRecipientInLocalizedMessage()
+    {
+        HttpClient client = _factory.CreateAuthenticatedClient(locale: "es-CO");
+        (int r, int s, int t) = GetSeededIds();
+        HttpResponseMessage createResp = await client.PostAsJsonAsync("/api/admin/bookings", new
+        {
+            restaurantId = r,
+            sectionId = s,
+            tableId = t,
+            date = DateTime.UtcNow.AddDays(312).ToString("yyyy-MM-ddT12:00:00"),
+            customerEmail = "email-es@test.com",
+            seats = 2
+        });
+        int id = (await createResp.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetInt32();
+
+        HttpResponseMessage response = await client.PostAsJsonAsync($"/api/admin/bookings/{id}/email",
+            new { subject = "Mensaje", body = "Hola." });
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        JsonElement body = await response.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal("Correo enviado a email-es@test.com.", body.GetProperty("message").GetString());
     }
 
     [Fact]
@@ -680,6 +753,20 @@ public class AdminControllerTests(TestWebAppFactory factory) : IClassFixture<Tes
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         JsonElement body = await response.Content.ReadFromJsonAsync<JsonElement>();
         Assert.Equal("Bookings paused successfully.", body.GetProperty("message").GetString());
+    }
+
+    [Fact]
+    public async Task PauseRestaurant_WithSpanishLocale_ReturnsLocalizedMessage()
+    {
+        HttpClient client = _factory.CreateAuthenticatedClient();
+        client.DefaultRequestHeaders.AcceptLanguage.ParseAdd("es-CO");
+        (int r, _, _) = GetSeededIds();
+
+        HttpResponseMessage response = await client.PostAsJsonAsync($"/api/admin/restaurants/{r}/pause", new { minutes = 60 });
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        JsonElement body = await response.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal("Las reservas se pausaron correctamente.", body.GetProperty("message").GetString());
     }
 
     [Fact]

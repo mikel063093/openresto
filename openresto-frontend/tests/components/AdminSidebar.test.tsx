@@ -5,6 +5,7 @@ import React from "react";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react-native";
 import AdminSidebar from "@/components/layout/AdminSidebar";
 import { SafeAreaProvider } from "react-native-safe-area-context";
+import { I18nProvider } from "@/context/I18nContext";
 
 global.fetch = jest.fn(() =>
   Promise.resolve({
@@ -50,14 +51,16 @@ describe("AdminSidebar", () => {
 
   const renderWithProviders = (ui: React.ReactElement) =>
     render(
-      <SafeAreaProvider
-        initialMetrics={{
-          frame: { x: 0, y: 0, width: 0, height: 0 },
-          insets: { top: 0, left: 0, right: 0, bottom: 0 },
-        }}
-      >
-        {ui}
-      </SafeAreaProvider>
+      <I18nProvider initialLocale="en">
+        <SafeAreaProvider
+          initialMetrics={{
+            frame: { x: 0, y: 0, width: 0, height: 0 },
+            insets: { top: 0, left: 0, right: 0, bottom: 0 },
+          }}
+        >
+          {ui}
+        </SafeAreaProvider>
+      </I18nProvider>
     );
 
   it("renders all navigation links", async () => {
@@ -66,14 +69,14 @@ describe("AdminSidebar", () => {
       expect(screen.getByText("Overview")).toBeTruthy();
       expect(screen.getByText("Bookings")).toBeTruthy();
       expect(screen.getByText("Settings")).toBeTruthy();
-      expect(screen.getByText("Back to site")).toBeTruthy();
+      expect(screen.getByText("Back to Test App")).toBeTruthy();
     });
   });
 
   it("renders the lookup booking widget", async () => {
     renderWithProviders(<AdminSidebar />);
     await waitFor(() => {
-      expect(screen.getByText("Lookup Booking")).toBeTruthy();
+      expect(screen.getByText("Lookup booking")).toBeTruthy();
       expect(screen.getByPlaceholderText("Email or reference…")).toBeTruthy();
     });
   });

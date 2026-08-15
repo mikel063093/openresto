@@ -1,0 +1,18 @@
+{
+  "frontend": {
+    "notes": [
+      "The frontend regression gate only scans shared route-title and status-banner files where raw product copy has regressed before.",
+      "Tenant-authored restaurant content is intentionally out of scope and never scanned."
+    ],
+    "allowlisted_literals": []
+  },
+  "backend": {
+    "notes": [
+      "Exact controller message literals must localize through ApiLocalization.",
+      "Dynamic controller messages are only allowed when they match an explicitly reviewed pattern."
+    ],
+    "allowlisted_dynamic_patterns": [
+      "^Connection failed: .+$"
+    ]
+  }
+}

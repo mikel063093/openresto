@@ -2,6 +2,7 @@ import { Pressable, TextInput, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { ThemedText } from "@/components/themed-text";
 import { theme } from "@/theme/theme";
+import { useI18n } from "@/context/I18nContext";
 
 export interface AddLocationFormProps {
   value: string;
@@ -30,6 +31,7 @@ export function AddLocationForm({
   onSubmit,
   onCancel,
 }: AddLocationFormProps) {
+  const { t } = useI18n();
   return (
     <View
       style={{
@@ -47,7 +49,7 @@ export function AddLocationForm({
       <TextInput
         value={value}
         onChangeText={onValueChange}
-        placeholder="Location name (e.g. Downtown, Westside)"
+        placeholder={t("admin.locationNamePlaceholder")}
         placeholderTextColor={mutedColor}
         autoFocus
         style={{
@@ -68,7 +70,7 @@ export function AddLocationForm({
         }}
       >
         <ThemedText style={{ color: "#fff", fontSize: 14, fontWeight: "600" }}>
-          {saving ? "Adding…" : "Add"}
+          {saving ? t("admin.adding") : t("admin.add")}
         </ThemedText>
       </Pressable>
       <Pressable testID="add-location-cancel" onPress={onCancel} style={{ padding: 6 }}>

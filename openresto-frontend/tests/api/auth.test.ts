@@ -30,7 +30,9 @@ describe("auth api", () => {
       expect(res).toEqual(data);
       expect(mockFetch).toHaveBeenCalledWith(
         expect.stringContaining("/admin/auth/login"),
-        expect.any(Object)
+        expect.objectContaining({
+          headers: expect.objectContaining({ "Accept-Language": "en" }),
+        })
       );
     });
 
@@ -153,7 +155,9 @@ describe("auth api", () => {
       });
       expect(mockFetch).toHaveBeenCalledWith(
         expect.stringContaining("/admin/auth/change-email"),
-        expect.any(Object)
+        expect.objectContaining({
+          headers: expect.objectContaining({ "Accept-Language": "en" }),
+        })
       );
     });
 

@@ -3,6 +3,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { useAppTheme } from "@/hooks/use-app-theme";
+import { useI18n } from "@/context/I18nContext";
 
 interface ErrorScreenProps {
   /** Defaults to "Something went wrong". */
@@ -24,14 +25,12 @@ interface ErrorScreenProps {
  * are optional so the same component can serve boundaries that have no
  * navigation context.
  */
-export default function ErrorScreen({
-  title = "Something went wrong",
-  message = "An unexpected error occurred. Try again.",
-  retry,
-  onGoHome,
-}: ErrorScreenProps) {
+export default function ErrorScreen({ title, message, retry, onGoHome }: ErrorScreenProps) {
+  const { t } = useI18n();
   const { colors, primaryColor, isDark } = useAppTheme();
   const mutedColor = isDark ? colors.muted : "#666";
+  const resolvedTitle = title ?? t("error.title");
+  const resolvedMessage = message ?? t("error.message");
 
   return (
     <ThemedView style={styles.root}>
@@ -39,8 +38,8 @@ export default function ErrorScreen({
         <View style={[styles.iconRing, { borderColor: colors.border }]}>
           <Ionicons name="warning-outline" size={32} color={mutedColor} />
         </View>
-        <ThemedText style={styles.title}>{title}</ThemedText>
-        <ThemedText style={[styles.message, { color: mutedColor }]}>{message}</ThemedText>
+        <ThemedText style={styles.title}>{resolvedTitle}</ThemedText>
+        <ThemedText style={[styles.message, { color: mutedColor }]}>{resolvedMessage}</ThemedText>
         {(retry || onGoHome) && (
           <View style={styles.actions}>
             {retry && (
@@ -48,9 +47,9 @@ export default function ErrorScreen({
                 style={[styles.btn, { backgroundColor: primaryColor }]}
                 onPress={retry}
                 accessibilityRole="button"
-                accessibilityLabel="Try again"
+                accessibilityLabel={t("error.tryAgain")}
               >
-                <ThemedText style={styles.btnText}>Try again</ThemedText>
+                <ThemedText style={styles.btnText}>{t("error.tryAgain")}</ThemedText>
               </Pressable>
             )}
             {onGoHome && (
@@ -58,10 +57,10 @@ export default function ErrorScreen({
                 style={[styles.btnOutline, { borderColor: primaryColor }]}
                 onPress={onGoHome}
                 accessibilityRole="button"
-                accessibilityLabel="Go to home"
+                accessibilityLabel={t("error.goHome")}
               >
                 <ThemedText style={[styles.btnOutlineText, { color: primaryColor }]}>
-                  Go to home
+                  {t("error.goHome")}
                 </ThemedText>
               </Pressable>
             )}

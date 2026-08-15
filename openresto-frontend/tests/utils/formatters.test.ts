@@ -6,9 +6,16 @@ describe("formatters - fmtDate", () => {
     // toLocaleDateString with these options returns e.g. "Sat, Apr 18" in en locales.
     // We assert day-of-month and abbreviated month are present; year is intentionally omitted
     // by the formatter (matching the original inline behaviour).
-    const result = fmtDate(d);
+    const result = fmtDate(d, "en");
     expect(result).toContain("18");
     expect(result).toMatch(/apr/i);
+  });
+
+  it("formats a date using the es-CO locale when requested", () => {
+    const d = new Date(2026, 3, 18, 12, 0, 0);
+    const result = fmtDate(d, "es-CO").toLowerCase();
+    expect(result).toContain("18");
+    expect(result).toMatch(/abr|sáb|sab/);
   });
 });
 

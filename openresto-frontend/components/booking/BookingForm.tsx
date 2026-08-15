@@ -18,6 +18,7 @@ import { getHoursForDate, HoursSource } from "@/utils/openingHours";
 import { isWalkInOnlyOnDate, walkInDaysLabel } from "@/utils/walkIn";
 import WalkInNotice from "./WalkInNotice";
 import WalkInDaysBanner from "./WalkInDaysBanner";
+import { useI18n } from "@/context/I18nContext";
 
 const isWeb = Platform.OS === "web";
 
@@ -89,6 +90,7 @@ export default function BookingForm({
   initialTime?: string;
   initialSeats?: number;
 }) {
+  const { t } = useI18n();
   const { colors, primaryColor: PRIMARY } = useAppTheme();
   const [customerEmail, setCustomerEmail] = useState("");
   const [customerName, setCustomerName] = useState("");
@@ -341,12 +343,12 @@ export default function BookingForm({
       <WalkInDaysBanner restaurant={restaurant} />
       <View style={styles.availabilityHeader}>
         <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 4 }}>
-          <ThemedText style={styles.label}>Popular Times</ThemedText>
+          <ThemedText style={styles.label}>{t("booking.popularTimes")}</ThemedText>
           {loadingAvailability && <ActivityIndicator size="small" color={PRIMARY} />}
         </View>
         {isClosedDay ? (
           <ThemedText style={[styles.closedDayNotice, { color: colors.error }]}>
-            The restaurant is closed on this day. Please select a different date.
+            {t("booking.closedDay")}
           </ThemedText>
         ) : isWalkInDay ? (
           <WalkInNotice scope="day" daysLabel={walkInDaysLabel(restaurant) ?? undefined} />
@@ -364,7 +366,7 @@ export default function BookingForm({
       {/* Row 1: Guests + Date */}
       <View style={isWeb ? styles.fieldRow : undefined}>
         <View style={[styles.field, isWeb && styles.fieldHalf]}>
-          <ThemedText style={styles.label}>Number of Guests</ThemedText>
+          <ThemedText style={styles.label}>{t("booking.guestCount")}</ThemedText>
           <Select
             selectedValue={seats}
             onSelect={(v) => setSeats(v as number)}
@@ -372,7 +374,7 @@ export default function BookingForm({
           />
         </View>
         <View style={[styles.field, isWeb && styles.fieldHalf]}>
-          <ThemedText style={styles.label}>Date</ThemedText>
+          <ThemedText style={styles.label}>{t("booking.date")}</ThemedText>
           {/* Customer flow: future-dates-only is intentional. Do NOT pass allowPast
               here — only the admin New Booking modal opts in to back-dating (#160). */}
           <DatePicker
@@ -386,7 +388,7 @@ export default function BookingForm({
       {/* Row 2: Time + Section */}
       <View style={isWeb ? styles.fieldRow : undefined}>
         <View style={[styles.field, isWeb && styles.fieldHalf]}>
-          <ThemedText style={styles.label}>Time</ThemedText>
+          <ThemedText style={styles.label}>{t("booking.time")}</ThemedText>
           <TimePicker
             selectedTime={time}
             onSelect={setTime}
@@ -395,7 +397,7 @@ export default function BookingForm({
           />
         </View>
         <View style={[styles.field, isWeb && styles.fieldHalf]}>
-          <ThemedText style={styles.label}>Section</ThemedText>
+          <ThemedText style={styles.label}>{t("booking.section")}</ThemedText>
           <Select
             selectedValue={sectionId}
             onSelect={(val) => {
@@ -405,7 +407,7 @@ export default function BookingForm({
               setSectionId(val as number);
             }}
             options={sectionOptions}
-            placeholder="Select a section"
+            placeholder={t("booking.selectSection")}
           />
         </View>
       </View>
@@ -419,15 +421,15 @@ export default function BookingForm({
       {/* Row 3: Table + Full Name */}
       <View style={isWeb ? styles.fieldRow : undefined}>
         <View style={[styles.field, isWeb && styles.fieldHalf]}>
-          <ThemedText style={styles.label}>Table</ThemedText>
+          <ThemedText style={styles.label}>{t("booking.table")}</ThemedText>
           {isAutoAssign ? (
             <ThemedText style={[styles.autoAssignHint, { color: colors.muted }]}>
-              We'll seat you at the best available table
-              {resolvedTableId ? "" : " across all sections"}.
+              {t("booking.autoAssign")}
+              {resolvedTableId ? "" : t("booking.autoAssignAllSections")}.
             </ThemedText>
           ) : eligibleTables.length === 0 ? (
             <ThemedText style={[styles.noTables, { color: colors.error }]}>
-              No tables available for {seats} guests.
+              {t("booking.noTables", { seats })}
             </ThemedText>
           ) : (
             <Select
@@ -439,14 +441,14 @@ export default function BookingForm({
                 setTableId(val as number | undefined);
               }}
               options={tableOptions}
-              placeholder="Select a table"
+              placeholder={t("booking.selectTable")}
             />
           )}
         </View>
         <View style={[styles.field, isWeb && styles.fieldHalf]}>
-          <ThemedText style={styles.label}>Full Name</ThemedText>
+          <ThemedText style={styles.label}>{t("booking.fullName")}</ThemedText>
           <Input
-            placeholder="Your full name"
+            placeholder={t("booking.fullNamePlaceholder")}
             value={customerName}
             onChangeText={setCustomerName}
             autoCapitalize="words"
@@ -459,9 +461,9 @@ export default function BookingForm({
       {/* Row 4: Email + Special Requests */}
       <View style={isWeb ? [styles.fieldRow, styles.fieldRowStretch] : undefined}>
         <View style={[styles.field, isWeb && styles.fieldHalf]}>
-          <ThemedText style={styles.label}>Email</ThemedText>
+          <ThemedText style={styles.label}>{t("booking.email")}</ThemedText>
           <Input
-            placeholder="your@email.com"
+            placeholder={t("booking.emailPlaceholder")}
             value={customerEmail}
             onChangeText={setCustomerEmail}
             keyboardType="email-address"
@@ -480,9 +482,9 @@ export default function BookingForm({
           </View>
         </View>
         <View style={[styles.field, isWeb && styles.fieldHalf]}>
-          <ThemedText style={styles.label}>Special Requests / Allergies</ThemedText>
+          <ThemedText style={styles.label}>{t("booking.specialRequests")}</ThemedText>
           <Input
-            placeholder="e.g. nut allergy, high chair needed… (optional)"
+            placeholder={t("booking.specialRequestsPlaceholder")}
             value={specialRequests}
             onChangeText={setSpecialRequests}
             multiline
@@ -503,15 +505,15 @@ export default function BookingForm({
         {submitting ? (
           <View style={styles.submitContent}>
             <ActivityIndicator size="small" color="#fff" />
-            <ThemedText style={styles.submitText}>Confirming…</ThemedText>
+            <ThemedText style={styles.submitText}>{t("booking.confirming")}</ThemedText>
           </View>
         ) : (
-          "Confirm Booking"
+          t("booking.confirm")
         )}
       </Button>
 
       {!submitting && holdStatus !== "held" && (isAutoAssign || tableId) && date && time && (
-        <ThemedText style={styles.hint}>A table hold is required before confirming.</ThemedText>
+        <ThemedText style={styles.hint}>{t("booking.holdRequired")}</ThemedText>
       )}
     </View>
   );

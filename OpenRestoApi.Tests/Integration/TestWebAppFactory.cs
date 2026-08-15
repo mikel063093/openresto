@@ -133,7 +133,7 @@ public class TestWebAppFactory : WebApplicationFactory<Program>
     /// <summary>
     /// Creates an HttpClient with a valid JWT Authorization header.
     /// </summary>
-    public HttpClient CreateAuthenticatedClient(AdminRole role = AdminRole.SuperAdmin)
+    public HttpClient CreateAuthenticatedClient(AdminRole role = AdminRole.SuperAdmin, string? locale = null)
     {
         int adminCredentialId;
         using (IServiceScope scope = Services.CreateScope())
@@ -145,6 +145,15 @@ public class TestWebAppFactory : WebApplicationFactory<Program>
         HttpClient client = CreateClient();
         client.DefaultRequestHeaders.Authorization =
             new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", GenerateTestJwt(adminCredentialId, AdminEmail, role));
+        if (!string.IsNullOrWhiteSpace(locale))
+            client.DefaultRequestHeaders.AcceptLanguage.ParseAdd(locale);
+        return client;
+    }
+
+    public HttpClient CreateLocalizedClient(string locale)
+    {
+        HttpClient client = CreateClient();
+        client.DefaultRequestHeaders.AcceptLanguage.ParseAdd(locale);
         return client;
     }
 
@@ -199,9 +208,9 @@ public class TestWebAppFactory : WebApplicationFactory<Program>
 
     private sealed class NoOpNotificationQueue : INotificationQueue
     {
-        public void EnqueueBookingCreated(Booking booking, string restaurantName) { }
-        public void EnqueueBookingCancelled(Booking booking, string restaurantName) { }
-        public void EnqueueCapacityCheck(int restaurantId, string restaurantName, DateTime bookingDate) { }
+        public void EnqueueBookingCreated(Booking booking, string restaurantName, string locale = "en") { }
+        public void EnqueueBookingCancelled(Booking booking, string restaurantName, string locale = "en") { }
+        public void EnqueueCapacityCheck(int restaurantId, string restaurantName, DateTime bookingDate, string locale = "en") { }
         public bool EnqueueOperatorEscalation(Booking booking, string restaurantName, string operatorIdentifier, string reason, int? notificationId = null) => true;
     }
 }

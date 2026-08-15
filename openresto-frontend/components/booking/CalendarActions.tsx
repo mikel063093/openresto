@@ -3,6 +3,7 @@ import { ThemedText } from "@/components/themed-text";
 import { Ionicons } from "@expo/vector-icons";
 import { useAppTheme } from "@/hooks/use-app-theme";
 import { buildCalendarUrls } from "@/utils/calendar";
+import { useI18n } from "@/context/I18nContext";
 
 interface CalendarActionsProps {
   bookingRef: string;
@@ -18,6 +19,7 @@ interface CalendarActionsProps {
 }
 
 export default function CalendarActions(props: CalendarActionsProps) {
+  const { t } = useI18n();
   const { isDark, colors, primaryColor } = useAppTheme();
   const { googleUrl, outlookUrl, downloadIcs } = buildCalendarUrls(props);
 
@@ -30,18 +32,18 @@ export default function CalendarActions(props: CalendarActionsProps) {
         ]}
       >
         <ThemedText style={[styles.sectionTitle, { color: colors.muted }]}>
-          ADD TO CALENDAR
+          {t("calendar.addToCalendar")}
         </ThemedText>
         <View style={styles.compactRow}>
           <CalBtn
-            label="Google"
+            label={t("common.google")}
             icon="logo-google"
             color={primaryColor}
             isDark={isDark}
             onPress={/* istanbul ignore next */ () => window.open(googleUrl, "_blank")}
           />
           <CalBtn
-            label="Outlook"
+            label={t("common.outlook")}
             icon="calendar-outline"
             color={primaryColor}
             isDark={isDark}
@@ -62,10 +64,10 @@ export default function CalendarActions(props: CalendarActionsProps) {
   return (
     <View style={styles.fullWrap}>
       <ThemedText style={[styles.sectionTitle, { color: colors.muted }]}>
-        ADD TO CALENDAR
+        {t("calendar.addToCalendar")}
       </ThemedText>
       <FullCalBtn
-        label="Google Calendar"
+        label={t("calendar.googleCalendar")}
         sub=""
         icon="logo-google"
         color={primaryColor}
@@ -75,7 +77,7 @@ export default function CalendarActions(props: CalendarActionsProps) {
         mutedColor={colors.muted}
       />
       <FullCalBtn
-        label="Outlook Calendar"
+        label={t("calendar.outlookCalendar")}
         sub=""
         icon="calendar-outline"
         color={primaryColor}
@@ -85,8 +87,8 @@ export default function CalendarActions(props: CalendarActionsProps) {
         mutedColor={colors.muted}
       />
       <FullCalBtn
-        label="Download .ics"
-        sub="Apple Calendar, Thunderbird, etc."
+        label={t("calendar.downloadIcs")}
+        sub={t("calendar.icsApps")}
         icon="download-outline"
         isDark={isDark}
         onPress={downloadIcs}

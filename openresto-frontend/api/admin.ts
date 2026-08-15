@@ -1,4 +1,4 @@
-import { get, post, patch, del, put, buildUrl } from "./client";
+import { get, post, patch, del, put, apiFetch } from "./client";
 
 // ---------- Types ----------
 
@@ -519,9 +519,8 @@ export async function uploadHeroImage(file: File): Promise<string | null> {
   try {
     const form = new FormData();
     form.append("file", file);
-    const res = await fetch(buildUrl("/media/hero"), {
+    const res = await apiFetch("/media/hero", {
       method: "POST",
-      credentials: "include",
       body: form,
     });
     if (!res.ok) return null;
@@ -534,9 +533,8 @@ export async function uploadHeroImage(file: File): Promise<string | null> {
 
 export async function deleteHeroImage(): Promise<boolean> {
   try {
-    const res = await fetch(buildUrl("/media/hero"), {
+    const res = await apiFetch("/media/hero", {
       method: "DELETE",
-      credentials: "include",
     });
     return res.ok;
   } catch {
@@ -740,7 +738,10 @@ export interface IssueOperatorCredentialResponse extends OperatorCredentialListI
 
 async function userError(res: Response): Promise<never> {
   const body = await res.json().catch(() => ({}));
-  throw new Error(body.message ?? "Unable to update user.");
+  const validationMessage = Object.values(body.errors ?? {})
+    .flat()
+    .find((value): value is string => typeof value === "string" && value.length > 0);
+  throw new Error(body.message ?? validationMessage ?? "Unable to update user.");
 }
 
 export async function getAdminUsers(): Promise<AdminUser[]> {

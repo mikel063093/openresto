@@ -15,34 +15,35 @@ import { adminLookupBookings } from "@/api/admin";
 import { getUnreadCount } from "@/api/notifications";
 import { BookingDetailPopup } from "@/components/admin/bookings/BookingDetailPopup";
 import { registerFocusTarget, unregisterFocusTarget } from "@/utils/focusRegistry";
+import { useI18n } from "@/context/I18nContext";
 
 const NAV_ITEMS = [
   {
-    label: "Overview",
+    labelKey: "admin.overview" as const,
     icon: "grid-outline" as const,
     href: "/admin/dashboard" as const,
     match: (p: string) => p === "/admin/dashboard",
   },
   {
-    label: "Bookings",
+    labelKey: "admin.bookings" as const,
     icon: "calendar-outline" as const,
     href: "/admin/bookings" as const,
     match: (p: string) => p === "/admin/bookings" || p.startsWith("/admin/bookings/"),
   },
   {
-    label: "Locations",
+    labelKey: "admin.locations" as const,
     icon: "storefront-outline" as const,
     href: "/admin/locations" as const,
     match: (p: string) => p === "/admin/locations",
   },
   {
-    label: "Notifications",
+    labelKey: "admin.notifications" as const,
     icon: "notifications-outline" as const,
     href: "/admin/notifications" as const,
     match: (p: string) => p === "/admin/notifications",
   },
   {
-    label: "Settings",
+    labelKey: "admin.settings" as const,
     icon: "settings-outline" as const,
     href: "/admin/settings" as const,
     match: (p: string) => p === "/admin/settings",
@@ -54,6 +55,7 @@ export default function AdminSidebar() {
   const router = useRouter();
   const { colors, isDark, brand, primaryColor: PRIMARY } = useAppTheme();
   const { toggle } = useTheme();
+  const { t } = useI18n();
   const [locationCount, setLocationCount] = useState(0);
   const [unreadNotifCount, setUnreadNotifCount] = useState(0);
   const [role, setRole] = useState<string | null>(null);
@@ -141,8 +143,8 @@ export default function AdminSidebar() {
           </ThemedText>
           <ThemedText style={[styles.brandSub, { color: colors.muted }]} numberOfLines={1}>
             {locationCount > 0
-              ? `Managing ${locationCount} location${locationCount !== 1 ? "s" : ""}`
-              : "Admin Panel"}
+              ? t("admin.managingLocations", { count: locationCount })
+              : t("admin.panel")}
           </ThemedText>
         </View>
       </View>
@@ -150,10 +152,11 @@ export default function AdminSidebar() {
       <View style={[styles.divider, { backgroundColor: colors.border }]} />
 
       <View style={styles.nav}>
-        {NAV_ITEMS.filter((item) => role !== "BookingViewer" || item.label === "Bookings")
-          .filter((item) => role !== "BookingEditor" || item.label === "Bookings")
-          .map(({ label, icon, href, match }) => {
+        {NAV_ITEMS.filter((item) => role !== "BookingViewer" || item.labelKey === "admin.bookings")
+          .filter((item) => role !== "BookingEditor" || item.labelKey === "admin.bookings")
+          .map(({ labelKey, icon, href, match }) => {
             const active = match(pathname);
+            const label = t(labelKey);
             return (
               <Pressable
                 key={href}
@@ -168,7 +171,7 @@ export default function AdminSidebar() {
               >
                 <View style={{ position: "relative", width: 20 }}>
                   <Ionicons name={icon} size={18} color={active ? PRIMARY : colors.muted} />
-                  {label === "Notifications" && unreadNotifCount > 0 && (
+                  {labelKey === "admin.notifications" && unreadNotifCount > 0 && (
                     <View
                       style={{
                         position: "absolute",
@@ -214,7 +217,7 @@ export default function AdminSidebar() {
 
       <View style={styles.ctaWrapper}>
         <ThemedText style={[styles.lookupLabel, { color: colors.muted }]}>
-          Lookup Booking
+          {t("admin.lookupBooking")}
         </ThemedText>
         <TextInput
           ref={lookupInputRef}
@@ -226,7 +229,7 @@ export default function AdminSidebar() {
               backgroundColor: colors.input,
             },
           ]}
-          placeholder="Email or reference…"
+          placeholder={t("admin.emailOrReference")}
           placeholderTextColor={colors.muted}
           value={lookupQuery}
           onChangeText={(t) => {
@@ -251,23 +254,23 @@ export default function AdminSidebar() {
           ) : (
             <>
               <Ionicons name="search-outline" size={15} color={theme.colors.white} />
-              <ThemedText style={styles.lookupBtnText}>Search</ThemedText>
+              <ThemedText style={styles.lookupBtnText}>{t("common.search")}</ThemedText>
             </>
           )}
         </Pressable>
         {lookupStatus === "not_found" && (
           <ThemedText style={[styles.lookupHint, { color: theme.colors.error }]}>
-            No booking found.
+            {t("admin.noBookingFound")}
           </ThemedText>
         )}
         {lookupStatus === "multiple" && (
           <ThemedText style={[styles.lookupHint, { color: PRIMARY }]}>
-            Showing all matches…
+            {t("admin.searchMatches")}
           </ThemedText>
         )}
         {lookupStatus === "idle" && (
           <ThemedText style={[styles.lookupHint, { color: PRIMARY }]}>
-            Partial matching search is supported
+            {t("admin.partialSearchHelp")}
           </ThemedText>
         )}
       </View>
@@ -288,7 +291,9 @@ export default function AdminSidebar() {
           ]}
         >
           <Ionicons name="arrow-back-outline" size={15} color={colors.muted} />
-          <ThemedText style={[styles.footerText, { color: colors.muted }]}>Back to site</ThemedText>
+          <ThemedText style={[styles.footerText, { color: colors.muted }]}>
+            {t("admin.backToSite", { appName: brand.appName })}
+          </ThemedText>
         </Pressable>
         <Pressable
           style={(state) => [
@@ -296,7 +301,7 @@ export default function AdminSidebar() {
             (state as { hovered?: boolean }).hovered && { backgroundColor: hoverBg },
           ]}
           onPress={toggle}
-          accessibilityLabel={isDark ? "Switch to light mode" : "Switch to dark mode"}
+          accessibilityLabel={isDark ? t("admin.switchToLightMode") : t("admin.switchToDarkMode")}
         >
           <Ionicons
             name={isDark ? "sunny-outline" : "moon-outline"}
@@ -304,7 +309,7 @@ export default function AdminSidebar() {
             color={colors.muted}
           />
           <ThemedText style={[styles.footerText, { color: colors.muted }]}>
-            {isDark ? "Light mode" : "Dark mode"}
+            {isDark ? t("admin.lightMode") : t("admin.darkMode")}
           </ThemedText>
         </Pressable>
         <Pressable
@@ -315,7 +320,9 @@ export default function AdminSidebar() {
           onPress={handleLogout}
         >
           <Ionicons name="log-out-outline" size={15} color={colors.muted} />
-          <ThemedText style={[styles.footerText, { color: colors.muted }]}>Log out</ThemedText>
+          <ThemedText style={[styles.footerText, { color: colors.muted }]}>
+            {t("admin.logOut")}
+          </ThemedText>
         </Pressable>
       </View>
     </ThemedView>

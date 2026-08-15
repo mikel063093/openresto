@@ -2,6 +2,7 @@ import React from "react";
 import { render, screen } from "@testing-library/react-native";
 import BookingDetailRows from "@/components/booking/BookingDetailRows";
 import { BookingDto } from "@/api/bookings";
+import { I18nProvider } from "@/context/I18nContext";
 
 jest.mock("@expo/vector-icons", () => ({
   Ionicons: () => null,
@@ -29,8 +30,12 @@ describe("BookingDetailRows", () => {
     address: "123 Main St",
   };
 
+  function renderWithI18n(ui: React.ReactElement) {
+    return render(<I18nProvider>{ui}</I18nProvider>);
+  }
+
   it("renders all rows when data is complete", () => {
-    render(
+    renderWithI18n(
       <BookingDetailRows
         booking={mockBooking}
         restaurant={mockRestaurant as any}
@@ -55,7 +60,7 @@ describe("BookingDetailRows", () => {
       tableName: undefined,
       specialRequests: undefined,
     };
-    render(
+    renderWithI18n(
       <BookingDetailRows
         booking={incompleteBooking}
         restaurant={null}
@@ -76,7 +81,7 @@ describe("BookingDetailRows", () => {
       ...mockBooking,
       sectionName: undefined,
     };
-    render(
+    renderWithI18n(
       <BookingDetailRows
         booking={noSectionBooking}
         restaurant={null}

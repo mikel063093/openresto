@@ -32,6 +32,7 @@ describe("createHold", () => {
     const [url, opts] = mockFetch.mock.calls[0];
     expect(url).toContain("/api/holds");
     expect(opts.method).toBe("POST");
+    expect(opts.headers["Accept-Language"]).toBe("en");
     expect(JSON.parse(opts.body)).toEqual(request);
   });
 

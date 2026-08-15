@@ -77,7 +77,6 @@ server {
     location ^~ /api/private/channels/whatsapp/ {
         return 404;
     }
-
     # Interactive Scalar API reference backed by the runtime-generated OpenAPI spec.
     # This must bypass the Expo fallback so /api-reference always reaches ASP.NET Core.
     location ^~ /api-reference {

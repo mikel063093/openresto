@@ -2,6 +2,7 @@ import { Modal, Pressable, StyleSheet, View } from "react-native";
 import { ThemedText } from "@/components/themed-text";
 import { theme } from "@/theme/theme";
 import { useAppTheme } from "@/hooks/use-app-theme";
+import { useI18n } from "@/context/I18nContext";
 
 interface AlertModalProps {
   visible: boolean;
@@ -13,21 +14,24 @@ interface AlertModalProps {
 
 export default function AlertModal({
   visible,
-  title = "Notice",
+  title,
   message,
-  buttonLabel = "OK",
+  buttonLabel,
   onClose,
 }: AlertModalProps) {
+  const { t } = useI18n();
   const { colors, primaryColor } = useAppTheme();
+  const resolvedTitle = title ?? t("common.notice");
+  const resolvedButtonLabel = buttonLabel ?? t("common.ok");
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <Pressable style={styles.backdrop} onPress={onClose}>
         <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
-          <ThemedText type="h3">{title}</ThemedText>
+          <ThemedText type="h3">{resolvedTitle}</ThemedText>
           <ThemedText style={[styles.message, { color: colors.muted }]}>{message}</ThemedText>
           <Pressable style={[styles.btn, { backgroundColor: primaryColor }]} onPress={onClose}>
-            <ThemedText style={styles.btnText}>{buttonLabel}</ThemedText>
+            <ThemedText style={styles.btnText}>{resolvedButtonLabel}</ThemedText>
           </Pressable>
         </View>
       </Pressable>

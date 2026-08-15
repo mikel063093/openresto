@@ -184,7 +184,11 @@ public class BookingServiceTests
 
         var holdMock = new Mock<IHoldService>();
         holdMock
-            .Setup(h => h.IsTableHeld(It.IsAny<int>(), It.IsAny<DateTime>(), It.IsAny<string?>(), It.IsAny<int>()))
+            .Setup(h => h.IsTableHeld(
+                It.IsAny<int>(),
+                It.IsAny<DateTime>(),
+                It.IsAny<string?>(),
+                It.IsAny<int>()))
             .Returns(true);
 
         BookingService svc = CreateService(db, holdMock.Object);
@@ -212,7 +216,11 @@ public class BookingServiceTests
 
         var holdMock = new Mock<IHoldService>();
         holdMock
-            .Setup(h => h.IsTableHeld(It.IsAny<int>(), It.IsAny<DateTime>(), "my-hold-id", It.IsAny<int>()))
+            .Setup(h => h.IsTableHeld(
+                It.IsAny<int>(),
+                It.IsAny<DateTime>(),
+                "my-hold-id",
+                It.IsAny<int>()))
             .Returns(false);
 
         BookingService svc = CreateService(db, holdMock.Object);

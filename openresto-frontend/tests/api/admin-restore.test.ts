@@ -20,7 +20,7 @@ describe("adminRestoreBooking", () => {
     expect(fetch).toHaveBeenCalledWith("/api/admin/bookings/123/restore", {
       method: "POST",
       credentials: "include",
-      headers: {},
+      headers: { "Accept-Language": "en" },
       body: undefined,
     });
     expect(result).toBe(true);

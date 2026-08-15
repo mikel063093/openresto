@@ -48,6 +48,26 @@ jest.mock("@/context/BrandContext", () => ({
   useBrand: () => ({ appName: "Test App", primaryColor: "#000" }),
 }));
 
+jest.mock("@/context/I18nContext", () => ({
+  useI18n: () => ({
+    t: (_key: string) => {
+      const map: Record<string, string> = {
+        "admin.desktopOnlyTitle": "Screen too small",
+        "admin.desktopOnlyBody":
+          "The admin dashboard requires a wider screen.\nTry rotating your device or using a larger screen.",
+        "admin.dashboardTitle": "Dashboard",
+        "admin.settings": "Settings",
+        "admin.bookings": "Bookings",
+        "admin.newWalkInTitle": "New Walk-in",
+        "admin.locations": "Locations",
+        "admin.loginTitle": "Admin Login",
+        "admin.bookingDetailTitle": "Booking Detail",
+      };
+      return map[_key] ?? _key;
+    },
+  }),
+}));
+
 describe("AdminLayout", () => {
   const mockRouter = {
     replace: jest.fn(),

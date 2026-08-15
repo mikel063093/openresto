@@ -3,6 +3,8 @@ import { Modal, StyleSheet, View, Pressable } from "react-native";
 import { ThemedText } from "@/components/themed-text";
 import { theme } from "@/theme/theme";
 import { useAppTheme } from "@/hooks/use-app-theme";
+import { useI18n } from "@/context/I18nContext";
+import { fmtDateTime } from "@/utils/formatters";
 
 const WEEKDAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const MONTH_LABELS = [
@@ -56,6 +58,7 @@ export default function DatePicker({
    */
   allowPast?: boolean;
 }) {
+  const { locale } = useI18n();
   const { colors, primaryColor } = useAppTheme();
   const borderColor = colors.border;
   const bg = colors.input;
@@ -129,7 +132,7 @@ export default function DatePicker({
   while (cells.length % 7 !== 0) cells.push(null);
 
   const selectedLabel = selectedDate
-    ? new Date(selectedDate + "T12:00:00").toLocaleDateString(undefined, {
+    ? fmtDateTime(new Date(selectedDate + "T12:00:00"), locale, {
         weekday: "short",
         month: "short",
         day: "numeric",

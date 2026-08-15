@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using OpenRestoApi.Core.Application.DTOs;
 using OpenRestoApi.Core.Application.Services;
+using OpenRestoApi.Infrastructure.Localization;
 using OpenRestoApi.Infrastructure.OpenApi;
 
 namespace OpenRestoApi.Controllers;
@@ -32,10 +33,10 @@ public class MediaController(MediaService mediaService) : ControllerBase
     public async Task<IActionResult> UploadHero(IFormFile file)
     {
         if (!_allowedTypes.Contains(file.ContentType))
-            return BadRequest(new { message = "Only JPEG, PNG, and WebP images are accepted." });
+            return BadRequest(new { message = ApiLocalization.Localize(HttpContext, "Only JPEG, PNG, and WebP images are accepted.") });
 
         if (file.Length > _maxHeroBytes)
-            return BadRequest(new { message = "Hero image must be under 5 MB." });
+            return BadRequest(new { message = ApiLocalization.Localize(HttpContext, "Hero image must be under 5 MB.") });
 
         await using Stream stream = file.OpenReadStream();
         string url = await _mediaService.UploadHeroAsync(stream, file.ContentType);
@@ -59,10 +60,10 @@ public class MediaController(MediaService mediaService) : ControllerBase
     public async Task<IActionResult> UploadLocation(int id, IFormFile file)
     {
         if (!_allowedTypes.Contains(file.ContentType))
-            return BadRequest(new { message = "Only JPEG, PNG, and WebP images are accepted." });
+            return BadRequest(new { message = ApiLocalization.Localize(HttpContext, "Only JPEG, PNG, and WebP images are accepted.") });
 
         if (file.Length > _maxLocationBytes)
-            return BadRequest(new { message = "Location image must be under 2 MB." });
+            return BadRequest(new { message = ApiLocalization.Localize(HttpContext, "Location image must be under 2 MB.") });
 
         await using Stream stream = file.OpenReadStream();
         string? url = await _mediaService.UploadLocationAsync(id, stream, file.ContentType);
@@ -89,10 +90,10 @@ public class MediaController(MediaService mediaService) : ControllerBase
     public async Task<IActionResult> UploadMenu(int id, IFormFile file)
     {
         if (file.ContentType != _menuContentType)
-            return BadRequest(new { message = "Only PDF menu files are accepted." });
+            return BadRequest(new { message = ApiLocalization.Localize(HttpContext, "Only PDF menu files are accepted.") });
 
         if (file.Length > _maxMenuBytes)
-            return BadRequest(new { message = "Menu file must be under 10 MB." });
+            return BadRequest(new { message = ApiLocalization.Localize(HttpContext, "Menu file must be under 10 MB.") });
 
         await using Stream stream = file.OpenReadStream();
         string? url = await _mediaService.UploadMenuAsync(id, stream);

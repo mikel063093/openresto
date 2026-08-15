@@ -1,6 +1,24 @@
 import { test, expect } from "@playwright/test";
 
 test.describe("Home Page", () => {
+  test("persists Spanish locale, sends Accept-Language, and preserves authored restaurant names", async ({
+    page,
+  }) => {
+    await page.goto("/");
+    await expect(page.getByRole("link", { name: "Locations" })).toBeVisible({ timeout: 15_000 });
+
+    await page.getByRole("radio", { name: "Switch language to Spanish" }).click();
+
+    await expect(page.getByRole("link", { name: "Ubicaciones" })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("link", { name: "Mis reservas" })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText("Nuestras ubicaciones")).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText("Pasta Place", { exact: true })).toBeVisible({ timeout: 15_000 });
+
+    await page.reload();
+    await expect(page.getByRole("link", { name: "Ubicaciones" })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText("Pasta Place", { exact: true })).toBeVisible({ timeout: 15_000 });
+  });
+
   test("should load the home page and show restaurants", async ({ page }) => {
     await page.goto("/");
 

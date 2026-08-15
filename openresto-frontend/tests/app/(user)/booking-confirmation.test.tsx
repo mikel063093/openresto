@@ -254,6 +254,19 @@ describe("BookingConfirmationScreen", () => {
     expect(mockReplace).toHaveBeenCalledWith("/");
   });
 
+  it("renders localized es-CO confirmation copy", async () => {
+    const { useLocalSearchParams } = require("expo-router");
+    useLocalSearchParams.mockReturnValue({ bookingRef: "REF123", email: "test@test.com" });
+
+    renderWithProviders(<BookingConfirmationScreen />, { locale: "es-CO" });
+    await waitFor(() => expect(screen.getByText("Reserva confirmada")).toBeTruthy());
+
+    expect(screen.getByText("Referencia de reserva")).toBeTruthy();
+    expect(
+      screen.getByText("Usa esta referencia y tu correo para consultar tu reserva")
+    ).toBeTruthy();
+  });
+
   it("shows customer name in subtitle when booking has customerName", async () => {
     const { useLocalSearchParams } = require("expo-router");
     useLocalSearchParams.mockReturnValue({ bookingRef: "REF123", email: "test@test.com" });

@@ -79,6 +79,36 @@ public class HoldsControllerTests(TestWebAppFactory factory) : IClassFixture<Tes
     }
 
     [Fact]
+    public async Task PlaceHold_OnAlreadyHeldTable_WithSpanishLocale_ReturnsLocalizedMessage()
+    {
+        HttpClient client = _factory.CreateClient();
+        client.DefaultRequestHeaders.AcceptLanguage.ParseAdd("es-CO");
+        (int restaurantId, int sectionId, int tableId) = GetSeededIds();
+        string date = DateTime.UtcNow.AddDays(131).ToString("yyyy-MM-ddT12:00:00");
+
+        HttpResponseMessage first = await client.PostAsJsonAsync("/api/holds", new
+        {
+            restaurantId,
+            sectionId,
+            tableId,
+            date
+        });
+        Assert.Equal(HttpStatusCode.OK, first.StatusCode);
+
+        HttpResponseMessage second = await client.PostAsJsonAsync("/api/holds", new
+        {
+            restaurantId,
+            sectionId,
+            tableId,
+            date
+        });
+
+        Assert.Equal(HttpStatusCode.Conflict, second.StatusCode);
+        JsonElement body = await second.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal("Esta mesa ya esta retenida por otro usuario. Selecciona otra mesa o intentalo de nuevo pronto.", body.GetProperty("message").GetString());
+    }
+
+    [Fact]
     public async Task ReleaseHold_Succeeds()
     {
         HttpClient client = _factory.CreateClient();
@@ -229,6 +259,26 @@ public class HoldsControllerTests(TestWebAppFactory factory) : IClassFixture<Tes
         });
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task PlaceHold_AutoAssign_WithSpanishLocale_ReturnsLocalizedSeatsRequiredMessage()
+    {
+        HttpClient client = _factory.CreateLocalizedClient("es-CO");
+        int restaurantId = GetPastaPlaceTableIds().restaurantId;
+        string date = DateTime.UtcNow.AddDays(123).ToString("yyyy-MM-ddT12:00:00");
+
+        HttpResponseMessage response = await client.PostAsJsonAsync("/api/holds", new
+        {
+            restaurantId,
+            date
+        });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        JsonElement body = await response.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal(
+            "Se requiere Seats para la asignacion automatica para que el servidor pueda elegir una mesa adecuada para su grupo.",
+            body.GetProperty("message").GetString());
     }
 
     [Fact]

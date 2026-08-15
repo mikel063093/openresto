@@ -56,7 +56,6 @@ public class OpenApiDocumentationTests(TestWebAppFactory factory) : IClassFixtur
         Assert.Contains("POST /api/mcp/operator", description, StringComparison.Ordinal);
         Assert.Contains(GuidePath, description, StringComparison.Ordinal);
         Assert.Contains("must not be exercised through REST \"Try it\"", description, StringComparison.Ordinal);
-
         AssertEveryOperationHasDocumentedResponseBodies(root);
     }
 
@@ -111,7 +110,6 @@ public class OpenApiDocumentationTests(TestWebAppFactory factory) : IClassFixtur
         Assert.Equal("SuperAdminOnly", authorizeData.Policy);
         Assert.Equal("Bearer", authorizeData.AuthenticationSchemes);
     }
-
     private async Task<JsonElement> GetOpenApiDocumentAsync()
     {
         HttpResponseMessage response = await _factory.CreateClient().GetAsync("/openapi/v1.json");

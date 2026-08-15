@@ -1,4 +1,5 @@
 using System.Net;
+using System.Text.Json;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -130,6 +131,31 @@ public class BookingNotificationServiceTests : IDisposable
         Assert.Equal("Guest", n!.CustomerName);
     }
 
+    [Fact]
+    public async Task NotifyBookingCreatedAsync_LocalizesSpanishPushPayload()
+    {
+        await SeedRestaurantAsync();
+        await SeedPushSubscriptionAsync();
+        var booking = MakeBooking();
+        booking.Date = new DateTime(2026, 8, 1, 19, 0, 0, DateTimeKind.Utc);
+        _db.Bookings.Add(booking);
+        await _db.SaveChangesAsync();
+
+        string? payloadJson = null;
+        _webPushClientMock
+            .Setup(c => c.SendNotificationAsync(It.IsAny<PushSubscription>(), It.IsAny<string>(), It.IsAny<VapidDetails>(), It.IsAny<CancellationToken>()))
+            .Callback<PushSubscription, string, VapidDetails, CancellationToken>((_, json, _, _) => payloadJson = json)
+            .Returns(Task.CompletedTask);
+
+        await CreateService(ConfiguredVapid()).NotifyBookingCreatedAsync(booking, "Resto", "es-CO");
+
+        Assert.NotNull(payloadJson);
+        using JsonDocument doc = JsonDocument.Parse(payloadJson);
+        Assert.Equal("Nueva reserva - Resto", doc.RootElement.GetProperty("title").GetString());
+        Assert.Contains("2 comensales", doc.RootElement.GetProperty("body").GetString());
+        Assert.Contains("a las", doc.RootElement.GetProperty("body").GetString());
+    }
+
     // ── NotifyBookingCancelledAsync ───────────────────────────────────────────
 
     [Fact]
@@ -160,6 +186,29 @@ public class BookingNotificationServiceTests : IDisposable
 
         AdminNotification? n = await _db.AdminNotifications.FirstOrDefaultAsync();
         Assert.Equal("Guest", n!.CustomerName);
+    }
+
+    [Fact]
+    public async Task NotifyBookingCancelledAsync_FallsBackToEnglishPushPayload_WhenLocaleUnsupported()
+    {
+        await SeedRestaurantAsync();
+        await SeedPushSubscriptionAsync();
+        var booking = MakeBooking();
+        _db.Bookings.Add(booking);
+        await _db.SaveChangesAsync();
+
+        string? payloadJson = null;
+        _webPushClientMock
+            .Setup(c => c.SendNotificationAsync(It.IsAny<PushSubscription>(), It.IsAny<string>(), It.IsAny<VapidDetails>(), It.IsAny<CancellationToken>()))
+            .Callback<PushSubscription, string, VapidDetails, CancellationToken>((_, json, _, _) => payloadJson = json)
+            .Returns(Task.CompletedTask);
+
+        await CreateService(ConfiguredVapid()).NotifyBookingCancelledAsync(booking, "Resto", "fr-FR");
+
+        Assert.NotNull(payloadJson);
+        using JsonDocument doc = JsonDocument.Parse(payloadJson);
+        Assert.Equal("Booking cancelled - Resto", doc.RootElement.GetProperty("title").GetString());
+        Assert.Contains("2 guests", doc.RootElement.GetProperty("body").GetString());
     }
 
     [Fact]
@@ -284,6 +333,50 @@ public class BookingNotificationServiceTests : IDisposable
         await CreateService().CheckAndNotifyCapacityAsync(1, "Resto", date);
 
         Assert.Equal(1, await _db.AdminNotifications.CountAsync());
+    }
+
+    [Fact]
+    public async Task CheckAndNotifyCapacityAsync_LocalizesSpanishNearlyFullPayload()
+    {
+        await SeedRestaurantAsync();
+        var section = new Section { Name = "Main", RestaurantId = 1 };
+        _db.Sections.Add(section);
+        await _db.SaveChangesAsync();
+        for (int i = 0; i < 5; i++)
+            _db.Tables.Add(new Table { Name = $"T{i}", Seats = 4, SectionId = section.Id });
+        await _db.SaveChangesAsync();
+
+        DateTime date = DateTime.UtcNow.Date.AddHours(12);
+        int tableId = 1;
+        foreach (Table t in await _db.Tables.ToListAsync())
+        {
+            if (tableId > 4) break;
+            _db.Bookings.Add(new Booking
+            {
+                BookingRef = $"REF{tableId}",
+                RestaurantId = 1,
+                TableId = t.Id,
+                Date = date,
+                Seats = 2,
+                IsCancelled = false,
+            });
+            tableId++;
+        }
+        await _db.SaveChangesAsync();
+
+        string? payloadJson = null;
+        _webPushClientMock
+            .Setup(c => c.SendNotificationAsync(It.IsAny<PushSubscription>(), It.IsAny<string>(), It.IsAny<VapidDetails>(), It.IsAny<CancellationToken>()))
+            .Callback<PushSubscription, string, VapidDetails, CancellationToken>((_, json, _, _) => payloadJson = json)
+            .Returns(Task.CompletedTask);
+
+        await SeedPushSubscriptionAsync();
+        await CreateService(ConfiguredVapid()).CheckAndNotifyCapacityAsync(1, "Resto", date, "es-CO");
+
+        Assert.NotNull(payloadJson);
+        using JsonDocument doc = JsonDocument.Parse(payloadJson);
+        Assert.Equal("Casi lleno - Resto", doc.RootElement.GetProperty("title").GetString());
+        Assert.Equal("4 de 5 mesas reservadas hoy (80%)", doc.RootElement.GetProperty("body").GetString());
     }
 
     // ── SendPushAsync (via NotifyBookingCreatedAsync) ─────────────────────────

@@ -1,6 +1,7 @@
 import React from "react";
 import { render, screen, fireEvent } from "@testing-library/react-native";
 import DatePicker, { generateDateOptions } from "@/components/common/DatePicker";
+import { I18nProvider } from "@/context/I18nContext";
 
 jest.mock("@/hooks/use-color-scheme", () => ({
   useColorScheme: () => "light",
@@ -19,6 +20,10 @@ function localDateValue(d: Date): string {
 }
 
 describe("DatePicker (native)", () => {
+  function renderWithI18n(ui: React.ReactElement) {
+    return render(<I18nProvider>{ui}</I18nProvider>);
+  }
+
   const today = new Date();
   const todayStr = today.toISOString().split("T")[0];
   const todayLabel = today.toLocaleDateString(undefined, {
@@ -28,17 +33,17 @@ describe("DatePicker (native)", () => {
   });
 
   it("renders trigger with placeholder when no date selected", () => {
-    render(<DatePicker onSelect={jest.fn()} />);
+    renderWithI18n(<DatePicker onSelect={jest.fn()} />);
     expect(screen.getByText("Select a date")).toBeTruthy();
   });
 
   it("renders the selected date label", () => {
-    render(<DatePicker selectedDate={todayStr} onSelect={jest.fn()} />);
+    renderWithI18n(<DatePicker selectedDate={todayStr} onSelect={jest.fn()} />);
     expect(screen.getByText(todayLabel)).toBeTruthy();
   });
 
   it("opens modal when trigger is pressed", () => {
-    render(<DatePicker onSelect={jest.fn()} />);
+    renderWithI18n(<DatePicker onSelect={jest.fn()} />);
     fireEvent.press(screen.getByText("Select a date"));
     // Modal title is also "Select a date" in the modal header
     // Options should be visible now
@@ -47,24 +52,24 @@ describe("DatePicker (native)", () => {
 
   it("calls onSelect when a date is selected", () => {
     const onSelect = jest.fn();
-    render(<DatePicker onSelect={onSelect} />);
+    renderWithI18n(<DatePicker onSelect={onSelect} />);
     fireEvent.press(screen.getByText("Select a date"));
     fireEvent.press(screen.getByText(todayLabel));
     expect(onSelect).toHaveBeenCalledWith(todayStr);
   });
 
   it("renders chevron indicator", () => {
-    render(<DatePicker onSelect={jest.fn()} />);
+    renderWithI18n(<DatePicker onSelect={jest.fn()} />);
     expect(screen.getByText("▾")).toBeTruthy();
   });
 
   it("filters date options to open days only", () => {
-    render(<DatePicker onSelect={jest.fn()} openDays={[1, 2, 3, 4, 5]} />);
+    renderWithI18n(<DatePicker onSelect={jest.fn()} openDays={[1, 2, 3, 4, 5]} />);
     expect(screen.getByText("Select a date")).toBeTruthy();
   });
 
   it("shows selected item styling when modal is open with pre-selected date", () => {
-    render(<DatePicker selectedDate={todayStr} onSelect={jest.fn()} />);
+    renderWithI18n(<DatePicker selectedDate={todayStr} onSelect={jest.fn()} />);
     // Trigger shows the date label (not "Select a date")
     fireEvent.press(screen.getByText(todayLabel));
     // Both the trigger and the modal item show todayLabel; selected item has checkmark
@@ -74,7 +79,7 @@ describe("DatePicker (native)", () => {
   it("falls back to COLORS.primary when brand has no primaryColor", () => {
     const { useBrand } = require("@/context/BrandContext");
     (useBrand as jest.Mock).mockReturnValueOnce({ appName: "Test", primaryColor: "" });
-    render(<DatePicker onSelect={jest.fn()} />);
+    renderWithI18n(<DatePicker onSelect={jest.fn()} />);
     expect(screen.getByText("Select a date")).toBeTruthy();
   });
 
@@ -101,7 +106,7 @@ describe("DatePicker (native)", () => {
     });
 
     it("renders without crashing when allowPast is passed", () => {
-      render(<DatePicker onSelect={jest.fn()} allowPast />);
+      renderWithI18n(<DatePicker onSelect={jest.fn()} allowPast />);
       fireEvent.press(screen.getByText("Select a date"));
       expect(screen.getAllByText("Select a date").length).toBeGreaterThan(0);
     });

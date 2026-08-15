@@ -15,9 +15,11 @@ import { UsersRolesCard } from "@/components/admin/settings/UsersRolesCard";
 import { OperatorCredentialsCard } from "@/components/admin/settings/OperatorCredentialsCard";
 import { checkSession } from "@/api/auth";
 import { styles } from "@/components/admin/settings/settings.styles";
+import { useI18n } from "@/context/I18nContext";
 
 export default function AdminSettingsScreen() {
   const { colors, isDark } = useAppTheme();
+  const { t } = useI18n();
   const [role, setRole] = useState<string | null>(null);
   useEffect(() => {
     checkSession().then((session) => {
@@ -31,14 +33,14 @@ export default function AdminSettingsScreen() {
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      {Platform.OS !== "web" && <Stack.Screen options={{ title: "Settings" }} />}
+      {Platform.OS !== "web" && <Stack.Screen options={{ title: t("admin.settings") }} />}
 
       {/* Page header */}
       <View style={styles.pageHeader}>
         <View>
-          <ThemedText type="h1">Settings</ThemedText>
+          <ThemedText type="h1">{t("admin.settings")}</ThemedText>
           <ThemedText style={[styles.pageSub, { color: mutedColor }]}>
-            Manage brand, email, and security.
+            {t("admin.settingsSubtitle")}
           </ThemedText>
         </View>
       </View>
@@ -46,7 +48,7 @@ export default function AdminSettingsScreen() {
       {/* Global Settings */}
       <View style={styles.section}>
         <ThemedText style={[styles.sectionHeading, { color: mutedColor }]}>
-          GLOBAL SETTINGS
+          {t("admin.globalSettings")}
         </ThemedText>
         <BrandSettingsCard borderColor={borderColor} mutedColor={mutedColor} cardBg={cardBg} />
         <FooterSettingsCard borderColor={borderColor} mutedColor={mutedColor} cardBg={cardBg} />
@@ -63,7 +65,7 @@ export default function AdminSettingsScreen() {
       {/* Account Security */}
       <View style={styles.section}>
         <ThemedText style={[styles.sectionHeading, { color: mutedColor }]}>
-          ACCOUNT SECURITY
+          {t("admin.accountSecurity")}
         </ThemedText>
         <SecurityCard borderColor={borderColor} mutedColor={mutedColor} cardBg={cardBg} />
       </View>
@@ -71,7 +73,7 @@ export default function AdminSettingsScreen() {
         <>
           <View style={styles.section}>
             <ThemedText style={[styles.sectionHeading, { color: mutedColor }]}>
-              ACCESS MANAGEMENT
+              {t("admin.accessManagement")}
             </ThemedText>
             <UsersRolesCard borderColor={borderColor} mutedColor={mutedColor} cardBg={cardBg} />
           </View>

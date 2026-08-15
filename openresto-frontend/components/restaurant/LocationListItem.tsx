@@ -19,6 +19,7 @@ import BookingForm, { BookingFormData } from "@/components/booking/BookingForm";
 import WalkInNotice from "@/components/booking/WalkInNotice";
 import { createBooking } from "@/api/bookings";
 import { convertLocalToUtc } from "@/utils/date";
+import { useI18n } from "@/context/I18nContext";
 
 /**
  * A single location in the Locations list. The collapsed header shows the same
@@ -49,6 +50,7 @@ export default function LocationListItem({
 }) {
   const router = useRouter();
   const { colors, isDark, primaryColor } = useAppTheme();
+  const { t } = useI18n();
   const mutedColor = colors.muted;
   const borderColor = colors.border;
 
@@ -511,11 +513,11 @@ export default function LocationListItem({
                     `https://maps.apple.com/?q=${encodeURIComponent(restaurant.address || "")}`
                   )
                 }
-                accessibilityLabel="Open in Apple Maps"
+                accessibilityLabel={t("booking.openAppleMaps")}
               >
                 <Ionicons name="navigate-outline" size={12} color={mutedColor} />
                 <ThemedText style={[styles.mapLinkText, { color: mutedColor }]}>
-                  Apple Maps
+                  {t("common.apple")}
                 </ThemedText>
               </Pressable>
             </View>
@@ -524,7 +526,7 @@ export default function LocationListItem({
           {/* Full weekly hours */}
           <View style={styles.subSection}>
             <ThemedText type="defaultSemiBold" style={styles.subHeading}>
-              Opening hours
+              {t("restaurant.openingHours")}
             </ThemedText>
             <OpeningHoursTable restaurant={restaurant} />
           </View>
@@ -537,7 +539,7 @@ export default function LocationListItem({
             ) : (
               <>
                 <ThemedText type="defaultSemiBold" style={styles.subHeading}>
-                  Book a table
+                  {t("booking.bookTable")}
                 </ThemedText>
                 {submitError && (
                   <ThemedView style={styles.errorBanner}>
@@ -564,7 +566,7 @@ export default function LocationListItem({
           {restaurant.sections.length > 0 && (
             <View style={styles.subSection}>
               <ThemedText type="defaultSemiBold" style={styles.subHeading}>
-                Seating &amp; tables
+                {t("restaurant.seatingTables")}
               </ThemedText>
               <View style={styles.sectionsGrid}>
                 {restaurant.sections.map((section) => (
@@ -585,10 +587,10 @@ export default function LocationListItem({
                           ]}
                         >
                           <ThemedText style={styles.tableName}>
-                            {table.name ?? `Table ${table.id}`}
+                            {table.name ?? t("restaurant.tableFallback", { id: table.id })}
                           </ThemedText>
                           <ThemedText style={[styles.tableSeats, { color: mutedColor }]}>
-                            {table.seats} seats
+                            {t("restaurant.tableSeats", { count: table.seats })}
                           </ThemedText>
                         </View>
                       ))}

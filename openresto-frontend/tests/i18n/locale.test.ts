@@ -2,9 +2,9 @@ import { detectLocale, normalizeLocale } from "@/i18n/locale";
 
 describe("locale resolution", () => {
   it.each([
-    ["es", "es"],
-    ["es-CO", "es"],
-    ["es_MX", "es"],
+    ["es", "es-CO"],
+    ["es-CO", "es-CO"],
+    ["es_MX", "es-CO"],
     ["en-US", "en"],
     ["fr-FR", "en"],
     [undefined, "en"],
@@ -17,8 +17,12 @@ describe("locale resolution", () => {
   });
 
   it("uses the first supported browser language when no override exists", () => {
-    expect(detectLocale({ storedLocale: null, browserLanguages: ["fr-FR", "es-CO", "en-US"] })).toBe(
-      "es"
-    );
+    expect(
+      detectLocale({ storedLocale: null, browserLanguages: ["fr-FR", "es-CO", "en-US"] })
+    ).toBe("es-CO");
+  });
+
+  it("upgrades a legacy stored `es` override to `es-CO`", () => {
+    expect(detectLocale({ storedLocale: "es", browserLanguages: ["en-US"] })).toBe("es-CO");
   });
 });

@@ -1,8 +1,9 @@
 import React from "react";
-import { render, waitFor } from "@testing-library/react-native";
+import { waitFor } from "@testing-library/react-native";
 import AdminLayout from "@/app/admin/_layout";
 import { checkSession } from "@/api/auth";
 import { useRouter, usePathname } from "expo-router";
+import { render } from "@testing-library/react-native";
 
 jest.mock("@/api/auth", () => ({
   checkSession: jest.fn(),
@@ -24,6 +25,26 @@ jest.mock("@expo/vector-icons", () => ({
 
 jest.mock("@/context/BrandContext", () => ({
   useBrand: () => ({ primaryColor: "#0a7ea4", appName: "Open Resto" }),
+}));
+
+jest.mock("@/context/I18nContext", () => ({
+  useI18n: () => ({
+    t: (_key: string) => {
+      const map: Record<string, string> = {
+        "admin.desktopOnlyTitle": "Screen too small",
+        "admin.desktopOnlyBody":
+          "The admin dashboard requires a wider screen.\nTry rotating your device or using a larger screen.",
+        "admin.dashboardTitle": "Dashboard",
+        "admin.settings": "Settings",
+        "admin.bookings": "Bookings",
+        "admin.newWalkInTitle": "New Walk-in",
+        "admin.locations": "Locations",
+        "admin.loginTitle": "Admin Login",
+        "admin.bookingDetailTitle": "Booking Detail",
+      };
+      return map[_key] ?? _key;
+    },
+  }),
 }));
 
 jest.mock("@/hooks/use-color-scheme", () => ({

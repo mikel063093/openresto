@@ -1,7 +1,11 @@
+/**
+ * @jest-environment jsdom
+ */
 import React from "react";
 import { render, screen, fireEvent } from "@testing-library/react-native";
 import { BookingsWideTable } from "@/components/admin/bookings/BookingsWideTable";
 import { BookingDetailDto } from "@/api/admin";
+import { renderWithProviders } from "@/tests/helpers/renderWithProviders";
 
 jest.mock("@expo/vector-icons", () => ({
   Ionicons: () => null,
@@ -64,7 +68,7 @@ describe("BookingsWideTable", () => {
         {...theme}
       />
     );
-    expect(screen.getByLabelText("Cancel booking")).toBeTruthy();
+    expect(screen.getByLabelText("Cancel Booking")).toBeTruthy();
   });
 
   it("omits the cancel button for a cancelled booking", () => {
@@ -80,7 +84,7 @@ describe("BookingsWideTable", () => {
         {...theme}
       />
     );
-    expect(screen.queryByLabelText("Cancel booking")).toBeNull();
+    expect(screen.queryByLabelText("Cancel Booking")).toBeNull();
     expect(screen.getByText("Cancelled")).toBeTruthy();
   });
 
@@ -114,7 +118,7 @@ describe("BookingsWideTable", () => {
         {...theme}
       />
     );
-    fireEvent.press(screen.getByLabelText("Cancel booking"));
+    fireEvent.press(screen.getByLabelText("Cancel Booking"));
     expect(onCancel).toHaveBeenCalledWith(activeBooking);
   });
 
@@ -130,11 +134,11 @@ describe("BookingsWideTable", () => {
         {...theme}
       />
     );
-    expect(screen.getByLabelText(/Sort by TIME/)).toBeTruthy();
-    expect(screen.getByLabelText(/Sort by GUEST/)).toBeTruthy();
-    expect(screen.getByLabelText(/Sort by PARTY/)).toBeTruthy();
-    expect(screen.getByLabelText(/Sort by TABLE/)).toBeTruthy();
-    expect(screen.getByLabelText(/Sort by STATUS/)).toBeTruthy();
+    expect(screen.getByLabelText(/Sort by Time/)).toBeTruthy();
+    expect(screen.getByLabelText(/Sort by Guest/)).toBeTruthy();
+    expect(screen.getByLabelText(/Sort by Party/)).toBeTruthy();
+    expect(screen.getByLabelText(/Sort by Table/)).toBeTruthy();
+    expect(screen.getByLabelText(/Sort by Status/)).toBeTruthy();
   });
 
   it("marks the active column header with its sort direction in the label", () => {
@@ -149,9 +153,9 @@ describe("BookingsWideTable", () => {
         {...theme}
       />
     );
-    expect(screen.getByLabelText("Sort by GUEST, descending")).toBeTruthy();
+    expect(screen.getByLabelText("Sort by Guest, descending")).toBeTruthy();
     // An inactive header is labeled "not sorted".
-    expect(screen.getByLabelText("Sort by TIME, not sorted")).toBeTruthy();
+    expect(screen.getByLabelText("Sort by Time, not sorted")).toBeTruthy();
   });
 
   it("calls onSortChange with the column key when a header is pressed", () => {
@@ -169,5 +173,24 @@ describe("BookingsWideTable", () => {
     );
     fireEvent.press(screen.getByTestId("sort-header-table"));
     expect(onSort).toHaveBeenCalledWith("table");
+  });
+
+  it("renders translated headers in es-CO while preserving booking data", () => {
+    renderWithProviders(
+      <BookingsWideTable
+        bookings={[activeBooking]}
+        focusedRowId={null}
+        onOpenBooking={() => {}}
+        onCancelBooking={() => {}}
+        sort={sort}
+        onSortChange={() => {}}
+        {...theme}
+      />,
+      { locale: "es-CO" }
+    );
+    expect(screen.getByLabelText(/Ordenar por Hora/)).toBeTruthy();
+    expect(screen.getByLabelText(/Ordenar por Cliente/)).toBeTruthy();
+    expect(screen.getByText("Alice Wong")).toBeTruthy();
+    expect(screen.getByText("alice@example.com")).toBeTruthy();
   });
 });
