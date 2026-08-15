@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Net;
 using System.Text.Json;
 using Microsoft.Extensions.Options;
@@ -221,6 +222,9 @@ public sealed class BookingNotificationService(
     }
 
     // ── Private helpers ───────────────────────────────────────────────────────
+
+    private static string FormatUtcAsLocalTime(DateTime utc) =>
+        utc.ToString("ddd d MMM 'at' h:mm tt", CultureInfo.InvariantCulture);
 
     private async Task SendPushAsync(int restaurantId, int notificationId, PushPayload payload)
     {
