@@ -27,6 +27,11 @@ Execute the remaining work to deliver the WhatsApp Business reservation channel 
 
 ### Phase 1. Reconcile OpenResto WhatsApp authority baseline
 
+#### Execution status
+- Completed on Wednesday, July 29, 2026.
+- Acceptance criteria satisfied in the current worktree.
+- Verification captured in `.planning/features/whatsapp-reservations-test/VERIFICATION.md`.
+
 #### Objective
 Close the remaining OpenResto authority gaps so the backend owns every write-critical rule before any bot/n8n orchestration is added.
 
@@ -103,6 +108,11 @@ Close the remaining OpenResto authority gaps so the backend owns every write-cri
 
 ### Phase 2. Lock the reservation-bot internal service contract
 
+#### Execution status
+- Completed on Wednesday, July 29, 2026.
+- Acceptance criteria satisfied in the current worktree.
+- Verification captured in `.planning/features/whatsapp-reservations-test/VERIFICATION.md`.
+
 #### Objective
 Add a dedicated internal bot service with a fixed operation contract that cannot expand into arbitrary tool execution.
 
@@ -126,7 +136,7 @@ Add a dedicated internal bot service with a fixed operation contract that cannot
 
 #### Work
 1. Create a separate ASP.NET Core service for `reservation-bot-test`.
-2. Define a small request/response contract for the seven allowed operations.
+2. Define a small request/response contract for the eight allowed operations: availability, create, list, detail, update, cancel, occasion catalog, and handoff.
 3. Add request authentication between n8n and bot.
 4. Forward the n8n-issued assertion and correlation metadata unchanged to OpenResto.
 5. Keep provider abstraction separate from tool execution logic.
@@ -160,6 +170,11 @@ Add a dedicated internal bot service with a fixed operation contract that cannot
 
 ### Phase 3. Add durable n8n test stack and state storage
 
+#### Execution status
+- Completed on Wednesday, July 29, 2026.
+- Acceptance criteria satisfied in the current worktree.
+- Verification captured in `.planning/features/whatsapp-reservations-test/VERIFICATION.md`.
+
 #### Objective
 Create the test-only n8n stack and durable storage layout needed for Meta webhook handling, session state, dedupe, ordering, and replay-safe observability.
 
@@ -177,7 +192,7 @@ Create the test-only n8n stack and durable storage layout needed for Meta webhoo
 
 #### Work
 1. Decide and record durable state backend for n8n test.
-2. Define internal-only networking between n8n, bot, and OpenResto.
+2. Define internal-only networking where n8n reaches only the bot, the bot bridges to OpenResto, and no public Traefik/DNS route is introduced in Phase 3.
 3. Define stored artifacts:
   - session state
   - dedupe ledger
@@ -189,12 +204,14 @@ Create the test-only n8n stack and durable storage layout needed for Meta webhoo
 
 #### Trust boundaries
 - Meta and OpenAI credentials live only in n8n secret store.
-- n8n may call bot, but not arbitrary private OpenResto routes beyond planned internal connections.
+- n8n may call bot, but not arbitrary private OpenResto routes or the backend network directly.
+- Public topology, DNS, and external webhook exposure are deferred to Phase 6.
 
 #### Acceptance criteria
 - n8n stack definition is durable across restart.
 - Required state categories are persisted.
 - Secrets placeholders are documented but no real secrets are stored in repo.
+- Phase 3 adds no public n8n or bot route and no shared n8n/backend network.
 
 #### TDD test matrix
 - Compose/config validation checks.
@@ -206,9 +223,14 @@ Create the test-only n8n stack and durable storage layout needed for Meta webhoo
 - Remove n8n test-only definitions and docs only.
 
 #### Deployment boundary
-- Test-only compose and docs. No live deploy.
+- Test-only compose and docs. No live deploy, public DNS, or Traefik exposure in this phase.
 
 ### Phase 4. Implement n8n workflows for Meta, LLM, confirmations, and handoff
+
+#### Execution status
+- Completed on Wednesday, July 29, 2026.
+- Acceptance criteria satisfied in the current worktree through versioned workflow exports, contract documentation, static contract tests, import validation, compose validation, and targeted secret scanning.
+- Verification captured in `.planning/features/whatsapp-reservations-test/VERIFICATION.md`.
 
 #### Objective
 Define the complete orchestration layer in n8n for inbound Meta events through outbound customer replies and human handoff.
@@ -267,6 +289,11 @@ Define the complete orchestration layer in n8n for inbound Meta events through o
 
 ### Phase 5. Add admin backend and Expo UI for WhatsApp settings
 
+#### Execution status
+- Completed on Wednesday, July 29, 2026.
+- Acceptance criteria satisfied in the current worktree.
+- Verification captured in `.planning/features/whatsapp-reservations-test/VERIFICATION.md`.
+
 #### Objective
 Expose SuperAdmin-managed catalog and WhatsApp/handoff controls through the existing admin stack.
 
@@ -314,6 +341,11 @@ Expose SuperAdmin-managed catalog and WhatsApp/handoff controls through the exis
 - None. Local UI/API verification only.
 
 ### Phase 6. Define test-only deployment topology, network boundaries, and secrets injection
+
+#### Execution status
+- Completed locally on Wednesday, July 29, 2026.
+- Repository topology and placeholder-only secret-injection contract were independently revalidated; this is not a deployment.
+- Verification captured in `.planning/features/whatsapp-reservations-test/VERIFICATION.md`.
 
 #### Objective
 Add the deployment-ready but test-only topology definition for `n8n-test` and `reservation-bot-test`.
@@ -374,6 +406,11 @@ Add the deployment-ready but test-only topology definition for `n8n-test` and `r
 - Test-only checklist and dry-run validation only.
 
 ### Phase 7. Write Meta/WABA provisioning and operator runbook
+
+#### Execution status
+- Completed locally on Wednesday, July 29, 2026.
+- The runbook identifies every external Meta/WABA, DNS, secret-injection, webhook, and rotation step as `USER/AWAITING`; no activation was attempted.
+- Verification captured in `.planning/features/whatsapp-reservations-test/VERIFICATION.md`.
 
 #### Objective
 Create the external prerequisite runbook and mark all user-owned steps explicitly.

@@ -1,0 +1,95 @@
+{
+  "name": "OpenResto WhatsApp Meta Verification v1",
+  "nodes": [
+    {
+      "id": "2acd29c00307617a",
+      "name": "Meta Verify Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -560,
+        0
+      ],
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "whatsapp/meta",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "webhookId": "c98be39abd19c229"
+    },
+    {
+      "id": "beb303a19e1ba431",
+      "name": "Validate Verify Query",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -280,
+        0
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const query = $json.query ?? {};\nconst mode = query[\"hub.mode\"] ?? query.mode ?? null;\nconst challenge = query[\"hub.challenge\"] ?? query.challenge ?? \"\";\nconst token = query[\"hub.verify_token\"] ?? query.verify_token ?? \"\";\nconst expected = $env.N8N_TEST_META_VERIFY_TOKEN ?? \"\";\nconst verified = mode === \"subscribe\" && token.length > 0 && token === expected;\nreturn [{\n  json: {\n    verified,\n    responseCode: verified ? 200 : 403,\n    responseBody: verified ? String(challenge) : \"forbidden\",\n    contractVersion: \"phase-4-v1\",\n    credentialPlaceholders: [\n      \"Meta Verify Token (placeholder)\"\n    ]\n  }\n}];"
+      }
+    },
+    {
+      "id": "fe11f72a838eb70e",
+      "name": "Respond Verify Challenge",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "={{ $json.responseBody }}",
+        "options": {
+          "responseCode": "={{ $json.responseCode }}"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Meta Verify Webhook": {
+      "main": [
+        [
+          {
+            "node": "Validate Verify Query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Verify Query": {
+      "main": [
+        [
+          {
+            "node": "Respond Verify Challenge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataErrorExecution": "none",
+    "saveDataSuccessExecution": "none",
+    "saveDataProgressExecution": false,
+    "saveManualExecutions": false
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 0,
+  "versionId": "50c019c482cfb137",
+  "meta": {
+    "openrestoWorkflowVersion": "phase-4-v1",
+    "templateCredsSetupCompleted": true,
+    "purpose": "Meta GET verification"
+  },
+  "active": false
+}

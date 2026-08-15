@@ -43,10 +43,12 @@ import {
   deactivateAdminUser,
   getAdminUsers,
   updateAdminUser,
-  createAdminUser,
-  deactivateAdminUser,
-  getAdminUsers,
-  updateAdminUser,
+  getRestaurantWhatsAppSettings,
+  updateRestaurantWhatsAppSettings,
+  getOccasionCatalog,
+  createOccasionCatalogItem,
+  updateOccasionCatalogItem,
+  deleteOccasionCatalogItem,
 } from "@/api/admin";
 
 // Admin API now uses credentials: "include" for cookie-based auth — no mock needed
@@ -129,6 +131,80 @@ describe("operator credential admin API", () => {
 
     expect(mockFetch.mock.calls[0][0]).toContain("/api/admin/operator-credentials/9/revoke");
     expect(mockFetch.mock.calls[0][1].method).toBe("POST");
+  });
+});
+
+describe("restaurant WhatsApp settings admin API", () => {
+  it("fetches restaurant WhatsApp settings", async () => {
+    const settings = {
+      restaurantId: 7,
+      isWhatsAppTestEnabled: true,
+      handoffWhatsAppE164: "+573001112233",
+    };
+    mockFetch.mockResolvedValueOnce({ ok: true, json: async () => settings });
+
+    const result = await getRestaurantWhatsAppSettings(7);
+
+    expect(result).toEqual(settings);
+    expect(mockFetch.mock.calls[0][0]).toContain("/api/admin/restaurants/7/whatsapp-settings");
+  });
+
+  it("updates restaurant WhatsApp settings", async () => {
+    const settings = {
+      restaurantId: 7,
+      isWhatsAppTestEnabled: false,
+      handoffWhatsAppE164: null,
+    };
+    mockFetch.mockResolvedValueOnce({ ok: true, json: async () => settings });
+
+    const result = await updateRestaurantWhatsAppSettings(7, settings);
+
+    expect(result).toEqual(settings);
+    expect(mockFetch.mock.calls[0][1].method).toBe("PUT");
+  });
+});
+
+describe("occasion catalog admin API", () => {
+  it("fetches the occasion catalog", async () => {
+    const items = [{ id: 1, name: "Cumpleaños", description: null, estimatedPriceCop: 80000 }];
+    mockFetch.mockResolvedValueOnce({ ok: true, json: async () => items });
+
+    const result = await getOccasionCatalog(7);
+
+    expect(result).toEqual(items);
+    expect(mockFetch.mock.calls[0][0]).toContain("/api/admin/restaurants/7/occasion-catalog");
+  });
+
+  it("creates, updates, and deletes catalog items", async () => {
+    const item = {
+      id: 1,
+      name: "Aniversario",
+      description: "Mesa decorada",
+      estimatedPriceCop: 95000,
+      isActive: true,
+      sortOrder: 0,
+    };
+    mockFetch.mockResolvedValueOnce({ ok: true, json: async () => item });
+    mockFetch.mockResolvedValueOnce({ ok: true, json: async () => ({ ...item, name: "Premium" }) });
+    mockFetch.mockResolvedValueOnce({ ok: true, json: async () => ({}) });
+
+    expect(
+      await createOccasionCatalogItem(7, {
+        name: item.name,
+        description: item.description,
+        estimatedPriceCop: item.estimatedPriceCop,
+        isActive: true,
+      })
+    ).toEqual(item);
+    expect(
+      await updateOccasionCatalogItem(7, 1, {
+        name: "Premium",
+        description: item.description,
+        estimatedPriceCop: item.estimatedPriceCop,
+        isActive: true,
+      })
+    ).toEqual({ ...item, name: "Premium" });
+    await expect(deleteOccasionCatalogItem(7, 1)).resolves.toBeUndefined();
   });
 });
 

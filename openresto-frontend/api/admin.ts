@@ -736,6 +736,33 @@ export interface IssueOperatorCredentialResponse extends OperatorCredentialListI
   plaintextToken: string;
 }
 
+export interface RestaurantWhatsAppSettingsDto {
+  restaurantId: number;
+  isWhatsAppTestEnabled: boolean;
+  handoffWhatsAppE164: string | null;
+}
+
+export interface UpdateRestaurantWhatsAppSettingsRequest {
+  isWhatsAppTestEnabled: boolean;
+  handoffWhatsAppE164: string | null;
+}
+
+export interface OccasionCatalogItemDto {
+  id: number;
+  name: string;
+  description: string | null;
+  estimatedPriceCop: number;
+  isActive: boolean;
+  sortOrder: number;
+}
+
+export interface UpsertOccasionCatalogItemRequest {
+  name: string;
+  description?: string | null;
+  estimatedPriceCop: number;
+  isActive: boolean;
+}
+
 async function userError(res: Response): Promise<never> {
   const body = await res.json().catch(() => ({}));
   const validationMessage = Object.values(body.errors ?? {})
@@ -791,4 +818,64 @@ export async function issueOperatorCredential(
 export async function revokeOperatorCredential(credentialId: number): Promise<void> {
   const res = await post(`/admin/operator-credentials/${credentialId}/revoke`);
   if (!res.ok) return operatorCredentialError(res);
+}
+
+async function restaurantWhatsAppSettingsError(res: Response): Promise<never> {
+  const body = await res.json().catch(() => ({}));
+  throw new Error(body.message ?? "No fue posible guardar la configuración de WhatsApp.");
+}
+
+export async function getRestaurantWhatsAppSettings(
+  restaurantId: number
+): Promise<RestaurantWhatsAppSettingsDto> {
+  const res = await get(`/admin/restaurants/${restaurantId}/whatsapp-settings`);
+  if (!res.ok) return restaurantWhatsAppSettingsError(res);
+  return res.json();
+}
+
+export async function updateRestaurantWhatsAppSettings(
+  restaurantId: number,
+  request: UpdateRestaurantWhatsAppSettingsRequest
+): Promise<RestaurantWhatsAppSettingsDto> {
+  const res = await put(`/admin/restaurants/${restaurantId}/whatsapp-settings`, request);
+  if (!res.ok) return restaurantWhatsAppSettingsError(res);
+  return res.json();
+}
+
+async function occasionCatalogError(res: Response): Promise<never> {
+  const body = await res.json().catch(() => ({}));
+  throw new Error(body.message ?? "No fue posible administrar el catálogo de ocasiones.");
+}
+
+export async function getOccasionCatalog(restaurantId: number): Promise<OccasionCatalogItemDto[]> {
+  const res = await get(`/admin/restaurants/${restaurantId}/occasion-catalog`);
+  if (!res.ok) return occasionCatalogError(res);
+  return res.json();
+}
+
+export async function createOccasionCatalogItem(
+  restaurantId: number,
+  request: UpsertOccasionCatalogItemRequest
+): Promise<OccasionCatalogItemDto> {
+  const res = await post(`/admin/restaurants/${restaurantId}/occasion-catalog`, request);
+  if (!res.ok) return occasionCatalogError(res);
+  return res.json();
+}
+
+export async function updateOccasionCatalogItem(
+  restaurantId: number,
+  itemId: number,
+  request: UpsertOccasionCatalogItemRequest
+): Promise<OccasionCatalogItemDto> {
+  const res = await put(`/admin/restaurants/${restaurantId}/occasion-catalog/${itemId}`, request);
+  if (!res.ok) return occasionCatalogError(res);
+  return res.json();
+}
+
+export async function deleteOccasionCatalogItem(
+  restaurantId: number,
+  itemId: number
+): Promise<void> {
+  const res = await del(`/admin/restaurants/${restaurantId}/occasion-catalog/${itemId}`);
+  if (!res.ok) return occasionCatalogError(res);
 }

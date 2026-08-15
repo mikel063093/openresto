@@ -57,6 +57,8 @@ public class Restaurant
     public string? MenuUrl { get; set; }
 
     public bool IsArchived { get; set; }
+    public bool IsWhatsAppTestEnabled { get; set; }
+    public string? HandoffWhatsAppE164 { get; set; }
 
     /// <summary>
     /// When true the location accepts walk-ins only: it stays listed publicly

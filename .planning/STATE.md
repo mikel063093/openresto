@@ -7,6 +7,7 @@
 - The implementation plan and recorded local verification are under `.planning/features/internal-operator-mcp/`.
 - A new Level-C planning set for the test-only WhatsApp reservation channel now exists under `.planning/features/whatsapp-reservations-test/`.
 - The current feature branch already contains partial OpenResto-side WhatsApp channel implementation work that has been assessed against `develop` and folded into the new planning baseline.
+- Phases 3 through 7 for `whatsapp-reservations-test` have now been executed in-worktree with a durable `n8n-test` foundation, explicit state storage, versioned workflow exports, contract documentation, SuperAdmin-only admin settings APIs, Expo WhatsApp settings cards, a webhook-only test edge topology, and a Meta/WABA operator runbook that marks all external work `USER/AWAITING`. No test deployment, DNS mutation, or external webhook activation has occurred.
 
 ## Implemented Decisions
 - The remote Streamable HTTP MCP server lives in the existing ASP.NET Core backend at `/api/mcp/operator`.
@@ -18,7 +19,9 @@
 - Implementation commit: `3bf56e6 feat(api): add authenticated operator MCP server`.
 - Full backend suite was run locally in the .NET 10 SDK container; consult `VERIFICATION.md` for the recorded command and results.
 - No push, merge, or deployment was performed from this worktree.
+- The WhatsApp test stack now includes a checked-in `n8n-test` compose foundation with Postgres-backed state, persistent volumes for session, dedupe, ordering, replay, and outbound correlation artifacts, and a bridged bot boundary that prevents direct `n8n` reachability to the OpenResto backend.
+- Phase 4 now adds importable workflow exports for Meta verification, inbound routing, confirmation state, handoff, observability, and `es-CO` template replies, plus static tests that enforce the fixed bot contract and workflow security invariants.
 
 ## Next Recommended Step
 - For `internal-operator-mcp`, obtain independent review approval, then decide whether to deploy the feature branch to the isolated `test-rest` environment.
-- For `whatsapp-reservations-test`, execute Phase 1 from `.planning/features/whatsapp-reservations-test/PLAN.md` and keep all work test-only with no production promotion path.
+- For `whatsapp-reservations-test`, Phase 8 remains locally verified but incomplete. At 16:03 UTC on July 31, focused boundary/security tests again passed (12/12), synthetic compose rendering passed while an omitted immutable n8n digest failed closed, and targeted Gitleaks plus tracked-assignment audits found no leaks. The committed test-only Traefik ingress hardening (1 MiB body cap, 20 in-flight ceiling, 30/minute with 60 burst) remains synchronized to `/etc/dokploy/traefik/dynamic/test-rest.yml`; hashes match. The active Docker host has no `test-rest` stack. Deployment is blocked because the externally injected contract is incomplete: backend/base values, n8n state/encryption/basic-auth settings, immutable n8n digest, webhook base URL, bot/internal credentials, and active WhatsApp assertion configuration are unavailable. Phase 8 cannot close until those test-only inputs, Meta/WABA/test-number provisioning, test DNS/TLS (`n8n-test` does not resolve), webhook registration/template prerequisites, and a healthy test-rest edge (currently `502`) are available. No production action is included.

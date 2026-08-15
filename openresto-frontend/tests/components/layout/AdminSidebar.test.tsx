@@ -56,8 +56,8 @@ jest.mock("@/context/ThemeContext", () => ({
 }));
 
 jest.mock("@/api/auth", () => ({
+  checkSession: jest.fn().mockResolvedValue({ email: "admin@test.com", role: "SuperAdmin" }),
   logout: jest.fn().mockResolvedValue(undefined),
-  checkSession: jest.fn().mockResolvedValue({ role: "SuperAdmin" }),
 }));
 
 jest.mock("@/api/restaurants", () => ({

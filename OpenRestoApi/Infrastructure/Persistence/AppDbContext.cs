@@ -6,6 +6,9 @@ namespace OpenRestoApi.Infrastructure.Persistence;
 
 public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(options)
 {
+    public const int WhatsAppHandoffSummaryMaxLength = 1024;
+    public const int WhatsAppHandoffDestinationMaxLength = 32;
+
     public DbSet<Restaurant> Restaurants { get; set; } = null!;
     public DbSet<Section> Sections { get; set; } = null!;
     public DbSet<Table> Tables { get; set; } = null!;
@@ -27,6 +30,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<ChannelMutationIdempotencyRecord> ChannelMutationIdempotencyRecords { get; set; } = null!;
     public DbSet<RestaurantOccasionCatalogItem> RestaurantOccasionCatalogItems { get; set; } = null!;
     public DbSet<BookingOccasionSnapshot> BookingOccasionSnapshots { get; set; } = null!;
+    public DbSet<WhatsAppHandoffAudit> WhatsAppHandoffAudits { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -60,6 +64,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
         {
             rb.HasKey(r => r.Id);
             rb.Property(r => r.Name).IsRequired();
+            rb.Property(r => r.IsWhatsAppTestEnabled).HasDefaultValue(false);
             rb.HasMany(r => r.Sections)
               .WithOne(s => s.Restaurant)
               .HasForeignKey(s => s.RestaurantId)
@@ -128,6 +133,34 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
                 .OnDelete(DeleteBehavior.Cascade);
             snapshot.HasIndex(x => x.BookingId);
             snapshot.HasIndex(x => new { x.BookingId, x.RestaurantOccasionCatalogItemId }).IsUnique();
+        });
+
+        modelBuilder.Entity<WhatsAppHandoffAudit>(audit =>
+        {
+            audit.ToTable(t =>
+            {
+                t.HasCheckConstraint(
+                    "CK_WhatsAppHandoffAudits_SummarySnapshot_MaxLength",
+                    $"length(\"SummarySnapshot\") <= {WhatsAppHandoffSummaryMaxLength}");
+                t.HasCheckConstraint(
+                    "CK_WhatsAppHandoffAudits_HandoffDestinationSnapshot_MaxLength",
+                    $"length(\"HandoffDestinationSnapshot\") <= {WhatsAppHandoffDestinationMaxLength}");
+            });
+            audit.HasKey(x => x.Id);
+            audit.Property(x => x.VerifiedPhoneE164).IsRequired();
+            audit.Property(x => x.VerifiedPhoneNormalized).IsRequired();
+            audit.Property(x => x.SummarySnapshot).IsRequired().HasMaxLength(WhatsAppHandoffSummaryMaxLength);
+            audit.Property(x => x.HandoffDestinationSnapshot).IsRequired().HasMaxLength(WhatsAppHandoffDestinationMaxLength);
+            audit.HasOne(x => x.Restaurant)
+                .WithMany()
+                .HasForeignKey(x => x.RestaurantId)
+                .OnDelete(DeleteBehavior.Cascade);
+            audit.HasOne(x => x.Booking)
+                .WithMany()
+                .HasForeignKey(x => x.BookingId)
+                .OnDelete(DeleteBehavior.SetNull);
+            audit.HasIndex(x => new { x.RestaurantId, x.CreatedAtUtc });
+            audit.HasIndex(x => new { x.VerifiedPhoneNormalized, x.CreatedAtUtc });
         });
 
         modelBuilder.Entity<AdminCredential>(a =>
@@ -260,5 +293,42 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             audit.HasIndex(x => new { x.RestaurantId, x.CreatedAt });
             audit.HasIndex(x => new { x.BookingId, x.CreatedAt });
         });
+    }
+
+    public override int SaveChanges()
+    {
+        ApplyBookingConcurrencyTokens();
+        return base.SaveChanges();
+    }
+
+    public override int SaveChanges(bool acceptAllChangesOnSuccess)
+    {
+        ApplyBookingConcurrencyTokens();
+        return base.SaveChanges(acceptAllChangesOnSuccess);
+    }
+
+    public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+    {
+        ApplyBookingConcurrencyTokens();
+        return base.SaveChangesAsync(cancellationToken);
+    }
+
+    public override Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default)
+    {
+        ApplyBookingConcurrencyTokens();
+        return base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
+    }
+
+    private void ApplyBookingConcurrencyTokens()
+    {
+        foreach (var entry in ChangeTracker.Entries<Booking>())
+        {
+            if (entry.State != EntityState.Modified)
+            {
+                continue;
+            }
+
+            entry.Entity.ConcurrencyToken = entry.OriginalValues.GetValue<int>(nameof(Booking.ConcurrencyToken)) + 1;
+        }
     }
 }

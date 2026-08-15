@@ -1,0 +1,125 @@
+{
+  "name": "OpenResto WhatsApp Observability v1",
+  "nodes": [
+    {
+      "id": "eab77a6ab14a379f",
+      "name": "Execute Workflow Trigger",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [
+        -720,
+        0
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "3f2cbd20740b1a61",
+      "name": "PII Redaction",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -420,
+        0
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const redact = (value) => String(value ?? \"\")\n  .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}/gi, \"[correo-redactado]\")\n  .replace(/\\+?\\d[\\d\\s-]{6,}\\d/g, \"[telefono-redactado]\");\nconst maskedSender = $json.verifiedSender?.normalized ? String($json.verifiedSender.normalized).slice(0, 4) + \"***\" : null;\nconst sanitized = {\n  correlationId: $json.conversation?.correlationId,\n  sender: maskedSender,\n  inboundText: redact($json.inboundText),\n  rawBody: redact($json.replayBodyRaw),\n  llmResult: $json.llmResult,\n  botRequest: $json.botRequest,\n  botResponse: $json.botResponse,\n  storedAtUtc: new Date().toISOString()\n};\nreturn [{ json: { ...$json, redactedReplay: sanitized } }];"
+      }
+    },
+    {
+      "id": "65f23ab55fadde79",
+      "name": "Persist Redacted Replay",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        -120,
+        0
+      ],
+      "parameters": {
+        "command": "node -e \"const fs=require('fs'); const path=require('path'); const payload=JSON.parse(process.env.REPLAY_PAYLOAD); const dir='/data/channel-state/replay'; fs.mkdirSync(dir,{recursive:true}); const key=(payload.correlationId || 'unknown').replace(/[^a-zA-Z0-9._-]/g,'_'); const out=path.join(dir, key + '.json'); fs.writeFileSync(out, JSON.stringify(payload, null, 2)); console.log(JSON.stringify({ persisted: true, path: out }));\"",
+        "environmentVariablesUi": {
+          "parameter": [
+            {
+              "name": "REPLAY_PAYLOAD",
+              "value": "={{ JSON.stringify($json.redactedReplay) }}"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "c4288297e56923f0",
+      "name": "Persist Outbound Correlation",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        180,
+        0
+      ],
+      "parameters": {
+        "command": "node -e \"const fs=require('fs'); const path=require('path'); const payload=JSON.parse(process.env.OUTBOUND_PAYLOAD); const dir='/data/channel-state/outbound'; fs.mkdirSync(dir,{recursive:true}); const key=(payload.correlationId || 'unknown').replace(/[^a-zA-Z0-9._-]/g,'_'); const out=path.join(dir, key + '.json'); fs.writeFileSync(out, JSON.stringify(payload, null, 2)); console.log(JSON.stringify({ persisted: true, path: out }));\"",
+        "environmentVariablesUi": {
+          "parameter": [
+            {
+              "name": "OUTBOUND_PAYLOAD",
+              "value": "={{ JSON.stringify({ correlationId: $json.conversation.correlationId, sender: $json.verifiedSender.normalized, templateKey: $json.templateContext?.templateKey ?? null, storedAtUtc: new Date().toISOString() }) }}"
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Execute Workflow Trigger": {
+      "main": [
+        [
+          {
+            "node": "PII Redaction",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PII Redaction": {
+      "main": [
+        [
+          {
+            "node": "Persist Redacted Replay",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Persist Redacted Replay": {
+      "main": [
+        [
+          {
+            "node": "Persist Outbound Correlation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataErrorExecution": "none",
+    "saveDataSuccessExecution": "none",
+    "saveDataProgressExecution": false,
+    "saveManualExecutions": false
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 0,
+  "versionId": "9d060aa09b36bac4",
+  "meta": {
+    "openrestoWorkflowVersion": "phase-4-v1",
+    "templateCredsSetupCompleted": true,
+    "purpose": "PII-redacted replay and outbound correlation persistence"
+  },
+  "active": false
+}

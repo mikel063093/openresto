@@ -1,0 +1,161 @@
+{
+  "name": "OpenResto WhatsApp Handoff v1",
+  "nodes": [
+    {
+      "id": "eab77a6ab14a379f",
+      "name": "Execute Workflow Trigger",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [
+        -820,
+        0
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "7f4f6cfe6b5c54e3",
+      "name": "Sanitize Handoff Summary",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -520,
+        0
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const redact = (value) => String(value ?? \"\")\n  .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}/gi, \"[correo-redactado]\")\n  .replace(/\\+?\\d[\\d\\s-]{6,}\\d/g, \"[telefono-redactado]\")\n  .slice(0, 600);\nconst summary = redact($json.summary ?? $json.inboundText ?? \"\");\nreturn [{ json: { ...$json, sanitizedSummary: summary } }];"
+      }
+    },
+    {
+      "id": "9dfc1a3a3e42b7c1",
+      "name": "Call Reservation Bot Handoff",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -220,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "http://reservation-bot-test:8080/api/internal/reservation-bot/operations",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-OpenResto-Channel-Assertion",
+              "value": "={{ $json.issuedAssertion }}"
+            },
+            {
+              "name": "X-Correlation-Id",
+              "value": "={{ $json.conversation.correlationId }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "bodyParametersJson": "={{ JSON.stringify({ operation: 'handoff', handoff: { restaurantId: $json.restaurantId ?? $json.llmResult?.entities?.restaurantId, bookingId: $json.bookingId ?? $json.llmResult?.entities?.reservationId ?? null, summary: $json.sanitizedSummary, confirmed: true, idempotencyKey: String($json.conversation.correlationId) + ':handoff' } }) }}",
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "f54f8475365f3e8a",
+          "name": "Reservation Bot Internal Credential (placeholder)"
+        }
+      }
+    },
+    {
+      "id": "fb124f15feb1b27d",
+      "name": "Send Human Summary Via Meta",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        80,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://graph.facebook.com/v23.0/{{$json.meta.phoneNumberId}}/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "bodyParametersJson": "={{ JSON.stringify({ messaging_product: 'whatsapp', to: $json.body?.handoff?.result?.handoffWhatsAppE164 ?? $json.handoff?.result?.handoffWhatsAppE164, type: 'text', text: { body: 'Handoff OpenResto ' + String($json.conversation.correlationId) + ': ' + String($json.sanitizedSummary) } }) }}",
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "33476be42e80ae85",
+          "name": "Meta Access Token (placeholder)"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Execute Workflow Trigger": {
+      "main": [
+        [
+          {
+            "node": "Sanitize Handoff Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sanitize Handoff Summary": {
+      "main": [
+        [
+          {
+            "node": "Call Reservation Bot Handoff",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call Reservation Bot Handoff": {
+      "main": [
+        [
+          {
+            "node": "Send Human Summary Via Meta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataErrorExecution": "none",
+    "saveDataSuccessExecution": "none",
+    "saveDataProgressExecution": false,
+    "saveManualExecutions": false
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 0,
+  "versionId": "ad792a9acb777b20",
+  "meta": {
+    "openrestoWorkflowVersion": "phase-4-v1",
+    "templateCredsSetupCompleted": true,
+    "purpose": "Unsupported intent and operator handoff"
+  },
+  "active": false
+}

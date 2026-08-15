@@ -46,4 +46,17 @@ public class RoleAuthorizationTests(TestWebAppFactory factory) : IClassFixture<T
         Assert.NotEqual(HttpStatusCode.Forbidden, superAdminList.StatusCode);
         Assert.Equal(HttpStatusCode.Forbidden, editorList.StatusCode);
     }
+
+    [Fact]
+    public async Task WhatsAppSettings_Management_Is_SuperAdmin_Only()
+    {
+        HttpClient superAdmin = _factory.CreateAuthenticatedClient(AdminRole.SuperAdmin);
+        HttpClient bookingEditor = _factory.CreateAuthenticatedClient(AdminRole.BookingEditor);
+
+        HttpResponseMessage superAdminResponse = await superAdmin.GetAsync("/api/admin/restaurants/999/whatsapp-settings");
+        HttpResponseMessage editorResponse = await bookingEditor.GetAsync("/api/admin/restaurants/999/whatsapp-settings");
+
+        Assert.NotEqual(HttpStatusCode.Forbidden, superAdminResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, editorResponse.StatusCode);
+    }
 }

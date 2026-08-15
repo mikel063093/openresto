@@ -1,0 +1,93 @@
+{
+  "name": "OpenResto WhatsApp Confirmation State Machine v1",
+  "nodes": [
+    {
+      "id": "eab77a6ab14a379f",
+      "name": "Execute Workflow Trigger",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [
+        -620,
+        0
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "a6f6ea6bfedbc6be",
+      "name": "Evaluate Confirmation State",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -260,
+        0
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const payload = $json;\nconst intent = payload.llmResult?.intent ?? \"unsupported\";\nconst entities = payload.llmResult?.entities ?? {};\nconst text = String(payload.inboundText ?? \"\").trim().toLowerCase();\nconst affirmative = [\"si\", \"sí\", \"confirmo\", \"dale\", \"listo\", \"acepto\"];\nconst negative = [\"no\", \"cancelar\", \"detener\"];\nconst isAffirmative = affirmative.some(value => text === value || text.includes(value));\nconst isNegative = negative.some(value => text === value || text.includes(value));\nconst mutationIntents = new Set([\"create\", \"update\", \"cancel\", \"handoff\"]);\nconst requiresConfirmation = mutationIntents.has(intent);\nconst idempotencyBase = String(payload.conversation.correlationId);\nconst confirmation = {\n  intent,\n  requiresConfirmation,\n  confirmed: requiresConfirmation ? isAffirmative : true,\n  denied: requiresConfirmation ? isNegative : false,\n  prompt: null,\n  status: \"ready\"\n};\nif (requiresConfirmation && !isAffirmative && !isNegative) {\n  confirmation.status = \"awaiting-confirmation\";\n  confirmation.prompt = intent === \"create\"\n    ? \"Vas a reservar para \" + String(entities.seats ?? \"?\") + \" personas en el restaurante \" + String(entities.restaurantId ?? \"seleccionado\") + \" el \" + String(entities.date ?? \"la fecha indicada\") + \". Responde SI para confirmar o NO para cancelar.\"\n    : intent === \"update\"\n      ? \"Voy a cambiar tu reserva \" + String(entities.reservationId ?? \"\") + \". Responde SI para confirmar o NO para cancelar.\"\n      : intent === \"cancel\"\n        ? \"Voy a cancelar tu reserva \" + String(entities.reservationId ?? \"\") + \". Responde SI para confirmar o NO para cancelar.\"\n        : \"Voy a pasarte con una persona del restaurante. Responde SI para continuar o NO para volver al menú.\";\n}\nif (confirmation.denied) {\n  confirmation.status = \"cancelled-by-user\";\n}\nconst operationBodies = {\n  availability: { operation: \"availability\", availability: { restaurantId: entities.restaurantId, date: entities.date, seats: entities.seats } },\n  create: { operation: \"create\", create: { restaurantId: entities.restaurantId, date: entities.date, seats: entities.seats, customerEmail: entities.customerEmail, customerName: entities.customerName, specialRequests: entities.specialRequests ?? null, confirmed: confirmation.confirmed, idempotencyKey: idempotencyBase + \":create\", occasionCatalogItemIds: entities.occasionCatalogItemIds ?? [] } },\n  list: { operation: \"list\", list: {} },\n  detail: { operation: \"detail\", detail: { reservationId: entities.reservationId } },\n  update: { operation: \"update\", update: { reservationId: entities.reservationId, date: entities.date, seats: entities.seats, confirmed: confirmation.confirmed, idempotencyKey: idempotencyBase + \":update\", expectedConcurrencyToken: entities.expectedConcurrencyToken ?? 0 } },\n  cancel: { operation: \"cancel\", cancel: { reservationId: entities.reservationId, confirmed: confirmation.confirmed, idempotencyKey: idempotencyBase + \":cancel\", expectedConcurrencyToken: entities.expectedConcurrencyToken ?? 0, reason: \"Solicitud del cliente por WhatsApp\" } },\n  occasionCatalog: { operation: \"occasionCatalog\", occasionCatalog: { restaurantId: entities.restaurantId } },\n  handoff: { operation: \"handoff\", handoff: { restaurantId: entities.restaurantId, bookingId: entities.reservationId ?? null, summary: payload.llmResult?.handoffReason ?? payload.inboundText, confirmed: confirmation.confirmed, idempotencyKey: idempotencyBase + \":handoff\" } }\n};\nconst templateKey = confirmation.status === \"awaiting-confirmation\"\n  ? \"confirmation_prompt\"\n  : confirmation.status === \"cancelled-by-user\"\n    ? \"confirmation_cancelled\"\n    : intent === \"unsupported\"\n      ? \"unsupported\"\n      : intent + \"_result\";\nreturn [{ json: { ...payload, confirmation, botRequest: operationBodies[intent] ?? operationBodies.handoff, templateContext: { templateKey, confirmationPrompt: confirmation.prompt } } }];"
+      }
+    },
+    {
+      "id": "447c6aa9f17d7a78",
+      "name": "Persist Session State",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        80,
+        0
+      ],
+      "parameters": {
+        "command": "node -e \"const fs=require('fs'); const path=require('path'); const payload=JSON.parse(process.env.SESSION_PAYLOAD); const dir='/data/channel-state/sessions'; fs.mkdirSync(dir,{recursive:true}); const key=(payload.sender || 'unknown').replace(/[^a-zA-Z0-9._-]/g,'_'); const out=path.join(dir, key + '.json'); fs.writeFileSync(out, JSON.stringify(payload, null, 2)); console.log(JSON.stringify({ persisted: true, path: out }));\"",
+        "environmentVariablesUi": {
+          "parameter": [
+            {
+              "name": "SESSION_PAYLOAD",
+              "value": "={{ JSON.stringify({ sender: $json.verifiedSender.normalized, correlationId: $json.conversation.correlationId, intent: $json.llmResult.intent, confirmation: $json.confirmation, templateContext: $json.templateContext, updatedAtUtc: new Date().toISOString() }) }}"
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Execute Workflow Trigger": {
+      "main": [
+        [
+          {
+            "node": "Evaluate Confirmation State",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Evaluate Confirmation State": {
+      "main": [
+        [
+          {
+            "node": "Persist Session State",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataErrorExecution": "none",
+    "saveDataSuccessExecution": "none",
+    "saveDataProgressExecution": false,
+    "saveManualExecutions": false
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 0,
+  "versionId": "9de5ebe4779048fd",
+  "meta": {
+    "openrestoWorkflowVersion": "phase-4-v1",
+    "templateCredsSetupCompleted": true,
+    "purpose": "Explicit confirmation gate and durable session state"
+  },
+  "active": false
+}

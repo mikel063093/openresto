@@ -165,14 +165,15 @@ Complete a test-only WhatsApp Business reservation channel where Meta webhook tr
   - reject same key with different fingerprint
 
 ### Reservation-bot fixed contract
-- n8n may call bot only through bounded operations:
-  - `availability.lookup`
-  - `reservation.create`
-  - `reservation.list`
-  - `reservation.get`
-  - `reservation.change`
-  - `reservation.cancel`
-  - `reservation.handoff`
+- n8n may call bot only through these eight bounded operations:
+  - `availability`
+  - `create`
+  - `list`
+  - `detail`
+  - `update`
+  - `cancel`
+  - `occasionCatalog`
+  - `handoff`
 - Bot may not accept:
   - arbitrary URLs
   - arbitrary MCP tool names

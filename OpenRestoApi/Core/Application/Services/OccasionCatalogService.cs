@@ -26,6 +26,34 @@ public sealed class OccasionCatalogService(AppDbContext db)
             .ToListAsync();
     }
 
+    public async Task<IReadOnlyList<RestaurantOccasionCatalogItem>> GetActiveItemsForCreateAsync(
+        int restaurantId,
+        IReadOnlyCollection<int> catalogItemIds)
+    {
+        if (catalogItemIds.Count == 0)
+        {
+            return [];
+        }
+
+        if (catalogItemIds.Count != catalogItemIds.Distinct().Count())
+        {
+            throw new ValidationException("La solicitud contiene ítems duplicados del catálogo.");
+        }
+
+        List<RestaurantOccasionCatalogItem> items = await _db.RestaurantOccasionCatalogItems
+            .Where(x => x.RestaurantId == restaurantId && x.IsActive && catalogItemIds.Contains(x.Id))
+            .OrderBy(x => x.SortOrder)
+            .ThenBy(x => x.Id)
+            .ToListAsync();
+
+        if (items.Count != catalogItemIds.Count)
+        {
+            throw new ValidationException("Uno o más ítems del catálogo no existen o no están activos para este restaurante.");
+        }
+
+        return items;
+    }
+
     public async Task<OccasionCatalogItemDto> CreateAsync(int restaurantId, UpsertOccasionCatalogItemRequest request)
     {
         await EnsureRestaurantExistsAsync(restaurantId);

@@ -166,33 +166,41 @@ public sealed class OperatorMcpFoundationMigrationTests : IDisposable
 
     private static async Task SeedAuditGraphAsync(AppDbContext db)
     {
-        var restaurant = new OpenRestoApi.Core.Domain.Restaurant
-        {
-            Name = "Audit Restaurant",
-            OpenTime = "11:00",
-            CloseTime = "13:00",
-            Timezone = "UTC"
-        };
-        var principal = new OpenRestoApi.Core.Domain.OperatorPrincipal
-        {
-            Identifier = "operator@test.com",
-            NormalizedIdentifier = "operator@test.com",
-            IsActive = true,
-            CreatedAt = DateTime.UtcNow
-        };
-
-        db.Restaurants.Add(restaurant);
-        db.OperatorPrincipals.Add(principal);
-        await db.SaveChangesAsync();
+        int restaurantId = await InsertLegacyRestaurantAsync(db);
+        int principalId = await InsertLegacyOperatorPrincipalAsync(db);
 
         db.OperatorActionAudits.Add(new OpenRestoApi.Core.Domain.OperatorActionAudit
         {
-            OperatorPrincipalId = principal.Id,
-            RestaurantId = restaurant.Id,
+            OperatorPrincipalId = principalId,
+            RestaurantId = restaurantId,
             Action = "reservation.list",
             Outcome = "success",
             CreatedAt = DateTime.UtcNow,
         });
         await db.SaveChangesAsync();
+    }
+
+    private static async Task<int> InsertLegacyRestaurantAsync(AppDbContext db)
+    {
+        await using var cmd = db.Database.GetDbConnection().CreateCommand();
+        cmd.CommandText = """
+            INSERT INTO "Restaurants" (
+                "Name", "OpenTime", "CloseTime", "OpenDays", "Timezone",
+                "IsArchived", "WalkInOnly", "DefaultBookingDurationMinutes", "BookingSlotIntervalMinutes")
+            VALUES ('Audit Restaurant', '11:00', '13:00', '1,2,3,4,5,6,7', 'UTC', 0, 0, 60, 30);
+            SELECT last_insert_rowid();
+            """;
+        return Convert.ToInt32((long)(await cmd.ExecuteScalarAsync() ?? throw new InvalidOperationException("Restaurant insert failed.")));
+    }
+
+    private static async Task<int> InsertLegacyOperatorPrincipalAsync(AppDbContext db)
+    {
+        await using var cmd = db.Database.GetDbConnection().CreateCommand();
+        cmd.CommandText = """
+            INSERT INTO "OperatorPrincipals" ("Identifier", "NormalizedIdentifier", "IsActive", "CreatedAt")
+            VALUES ('operator@test.com', 'operator@test.com', 1, CURRENT_TIMESTAMP);
+            SELECT last_insert_rowid();
+            """;
+        return Convert.ToInt32((long)(await cmd.ExecuteScalarAsync() ?? throw new InvalidOperationException("Principal insert failed.")));
     }
 }

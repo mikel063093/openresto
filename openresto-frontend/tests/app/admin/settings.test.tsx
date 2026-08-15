@@ -31,6 +31,15 @@ jest.mock("@/components/admin/settings/UsersRolesCard", () => ({
 jest.mock("@/components/admin/settings/OperatorCredentialsCard", () => ({
   OperatorCredentialsCard: () => null,
 }));
+jest.mock("@/components/admin/settings/WhatsAppTestSettingsCard", () => ({
+  WhatsAppTestSettingsCard: () => null,
+}));
+jest.mock("@/components/admin/settings/HandoffWhatsAppCard", () => ({
+  HandoffWhatsAppCard: () => null,
+}));
+jest.mock("@/components/admin/settings/OccasionCatalogCard", () => ({
+  OccasionCatalogCard: () => null,
+}));
 jest.mock("@/api/auth", () => ({
   checkSession: jest.fn(),
 }));
@@ -66,11 +75,13 @@ describe("AdminSettingsScreen", () => {
     });
     renderWithProviders(<AdminSettingsScreen />);
     await waitFor(() => expect(screen.getByText("ACCESO MCP INTERNO")).toBeTruthy());
+    expect(screen.getByText("WHATSAPP DE PRUEBA")).toBeTruthy();
   });
 
   it("hides MCP access section for non-SuperAdmin", async () => {
     renderWithProviders(<AdminSettingsScreen />);
     await waitFor(() => expect(screen.getByText("Settings")).toBeTruthy());
     expect(screen.queryByText("ACCESO MCP INTERNO")).toBeNull();
+    expect(screen.queryByText("WHATSAPP DE PRUEBA")).toBeNull();
   });
 });

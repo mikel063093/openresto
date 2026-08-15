@@ -18,13 +18,18 @@ public sealed class WhatsAppChannelAuthenticationHandler(
     ILoggerFactory logger,
     UrlEncoder encoder,
     IConfiguration configuration,
-    AppDbContext db) : AuthenticationHandler<AuthenticationSchemeOptions>(options, logger, encoder)
+    ChannelIdempotencyService channelIdempotencyService) : AuthenticationHandler<AuthenticationSchemeOptions>(options, logger, encoder)
 {
     private readonly IConfiguration _configuration = configuration;
-    private readonly AppDbContext _db = db;
+    private readonly ChannelIdempotencyService _channelIdempotencyService = channelIdempotencyService;
 
     protected override async Task<AuthenticateResult> HandleAuthenticateAsync()
     {
+        if (!bool.TryParse(_configuration["WhatsAppChannel:Enabled"], out bool enabled) || !enabled)
+        {
+            return AuthenticateResult.Fail("WhatsApp channel is disabled.");
+        }
+
         string? header = Request.Headers.Authorization;
         if (string.IsNullOrWhiteSpace(header) || !header.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
         {
@@ -54,6 +59,15 @@ public sealed class WhatsAppChannelAuthenticationHandler(
                 return AuthenticateResult.Fail("Invalid WhatsApp channel assertion.");
             }
 
+            string? activeKid = _configuration["WhatsAppChannel:Assertion:ActiveKid"];
+            string? previousKid = _configuration["WhatsAppChannel:Assertion:PreviousKid"];
+            if (string.IsNullOrWhiteSpace(jwt.Header.Kid) ||
+                (!string.Equals(jwt.Header.Kid, activeKid, StringComparison.Ordinal) &&
+                 !string.Equals(jwt.Header.Kid, previousKid, StringComparison.Ordinal)))
+            {
+                return AuthenticateResult.Fail("Invalid WhatsApp channel assertion.");
+            }
+
             string? action = validatedPrincipal.FindFirstValue(WhatsAppChannelAuthenticationDefaults.ActionClaim);
             string? scope = validatedPrincipal.FindFirstValue(WhatsAppChannelAuthenticationDefaults.ScopeClaim);
             string? requiredScope = _configuration["WhatsAppChannel:Assertion:RequiredScope"];
@@ -69,7 +83,7 @@ public sealed class WhatsAppChannelAuthenticationHandler(
             }
 
             string? jwtId = jwt.Id;
-            if (string.IsNullOrWhiteSpace(jwtId) || await HasAssertionBeenReplayedAsync(jwtId))
+            if (string.IsNullOrWhiteSpace(jwtId) || await HasAssertionBeenReplayedAsync(jwtId, jwt.ValidTo))
             {
                 return AuthenticateResult.Fail("WhatsApp channel assertion replay detected.");
             }
@@ -102,60 +116,60 @@ public sealed class WhatsAppChannelAuthenticationHandler(
     {
         string signingKey = _configuration["WhatsAppChannel:Assertion:SigningKey"]
             ?? throw new InvalidOperationException("Missing WhatsApp assertion signing key.");
+        string activeKid = _configuration["WhatsAppChannel:Assertion:ActiveKid"]
+            ?? throw new InvalidOperationException("Missing WhatsApp assertion active kid.");
+        string? previousSigningKey = _configuration["WhatsAppChannel:Assertion:PreviousSigningKey"];
+        string? previousKid = _configuration["WhatsAppChannel:Assertion:PreviousKid"];
         string issuer = _configuration["WhatsAppChannel:Assertion:Issuer"]
             ?? throw new InvalidOperationException("Missing WhatsApp assertion issuer.");
         string audience = _configuration["WhatsAppChannel:Assertion:Audience"]
             ?? throw new InvalidOperationException("Missing WhatsApp assertion audience.");
 
+        Dictionary<string, SecurityKey> signingKeys = new(StringComparer.Ordinal)
+        {
+            [activeKid] = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(signingKey))
+        };
+
+        if (!string.IsNullOrWhiteSpace(previousKid) && !string.IsNullOrWhiteSpace(previousSigningKey))
+        {
+            signingKeys[previousKid] = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(previousSigningKey));
+        }
+
         return new TokenValidationParameters
         {
             ValidateIssuerSigningKey = true,
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(signingKey)),
+            IssuerSigningKeyResolver = (_, _, kid, _) =>
+            {
+                if (string.IsNullOrWhiteSpace(kid) || !signingKeys.TryGetValue(kid, out SecurityKey? key))
+                {
+                    return [];
+                }
+
+                return [key];
+            },
             ValidateIssuer = true,
             ValidIssuer = issuer,
             ValidateAudience = true,
             ValidAudience = audience,
             ValidateLifetime = true,
             ClockSkew = TimeSpan.Zero,
+            ValidAlgorithms = [SecurityAlgorithms.HmacSha256],
             NameClaimType = JwtRegisteredClaimNames.Sub,
             RoleClaimType = WhatsAppChannelAuthenticationDefaults.ActionClaim,
         };
     }
 
-    private async Task<bool> HasAssertionBeenReplayedAsync(string jwtId)
+    private async Task<bool> HasAssertionBeenReplayedAsync(string jwtId, DateTime validToUtc)
     {
         string requiredAction = ResolveRequiredAction(Request);
         string replayFingerprint = $"{Request.Method}:{Request.Path}:{requiredAction}";
-
-        ChannelMutationIdempotencyRecord? existing = await _db.ChannelMutationIdempotencyRecords
-            .FirstOrDefaultAsync(x => x.Channel == "whatsapp_assertion" && x.ReplayKey == jwtId);
-        if (existing != null)
-        {
-            return true;
-        }
-
-        _db.ChannelMutationIdempotencyRecords.Add(new ChannelMutationIdempotencyRecord
-        {
-            Channel = "whatsapp_assertion",
-            MutationScope = requiredAction,
-            IdempotencyKey = jwtId,
-            ReplayKey = jwtId,
-            Fingerprint = replayFingerprint,
-            State = "consumed",
-            CreatedAtUtc = DateTime.UtcNow,
-            ExpiresAtUtc = DateTime.UtcNow.AddMinutes(5),
-            CompletedAtUtc = DateTime.UtcNow,
-        });
-
-        try
-        {
-            await _db.SaveChangesAsync();
-            return false;
-        }
-        catch (DbUpdateException)
-        {
-            return true;
-        }
+        ChannelReplayRegistrationResult registration = await _channelIdempotencyService.RegisterReplayKeyAsync(
+            channel: "whatsapp_assertion",
+            replayKey: jwtId,
+            mutationScope: requiredAction,
+            fingerprint: replayFingerprint,
+            expiresAtUtc: validToUtc);
+        return registration.WasReplayed;
     }
 
     private static bool ConstantTimeEquals(string candidate, string? configured)

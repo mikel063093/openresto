@@ -708,11 +708,19 @@ namespace OpenRestoApi.Migrations
                     b.Property<string>("Description")
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("HandoffWhatsAppE164")
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("ImageUrl")
                         .HasColumnType("TEXT");
 
                     b.Property<bool>("IsArchived")
                         .HasColumnType("INTEGER");
+
+                    b.Property<bool>("IsWhatsAppTestEnabled")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasDefaultValue(false);
 
                     b.Property<int?>("MaxTableOversizeSeats")
                         .HasColumnType("INTEGER");
@@ -890,6 +898,55 @@ namespace OpenRestoApi.Migrations
                     b.HasIndex("SectionId");
 
                     b.ToTable("Tables");
+                });
+
+            modelBuilder.Entity("OpenRestoApi.Core.Domain.WhatsAppHandoffAudit", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("BookingId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("HandoffDestinationSnapshot")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("RestaurantId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("SummarySnapshot")
+                        .IsRequired()
+                        .HasMaxLength(1024)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("VerifiedPhoneE164")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("VerifiedPhoneNormalized")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BookingId");
+
+                    b.HasIndex("RestaurantId", "CreatedAtUtc");
+
+                    b.HasIndex("VerifiedPhoneNormalized", "CreatedAtUtc");
+
+                    b.ToTable("WhatsAppHandoffAudits", t =>
+                        {
+                            t.HasCheckConstraint("CK_WhatsAppHandoffAudits_HandoffDestinationSnapshot_MaxLength", "length(\"HandoffDestinationSnapshot\") <= 32");
+
+                            t.HasCheckConstraint("CK_WhatsAppHandoffAudits_SummarySnapshot_MaxLength", "length(\"SummarySnapshot\") <= 1024");
+                        });
                 });
 
             modelBuilder.Entity("OpenRestoApi.Core.Domain.AdminCredentialManagementAudit", b =>
@@ -1099,6 +1156,24 @@ namespace OpenRestoApi.Migrations
                         .IsRequired();
 
                     b.Navigation("Section");
+                });
+
+            modelBuilder.Entity("OpenRestoApi.Core.Domain.WhatsAppHandoffAudit", b =>
+                {
+                    b.HasOne("OpenRestoApi.Core.Domain.Booking", "Booking")
+                        .WithMany()
+                        .HasForeignKey("BookingId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("OpenRestoApi.Core.Domain.Restaurant", "Restaurant")
+                        .WithMany()
+                        .HasForeignKey("RestaurantId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Booking");
+
+                    b.Navigation("Restaurant");
                 });
 
             modelBuilder.Entity("OpenRestoApi.Core.Domain.OperatorAgentCredential", b =>

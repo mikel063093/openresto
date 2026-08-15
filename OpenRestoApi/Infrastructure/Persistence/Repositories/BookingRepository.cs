@@ -1,5 +1,6 @@
 using CustomAccessibility.Attributes;
 using Microsoft.EntityFrameworkCore;
+using OpenRestoApi.Core.Application.Exceptions;
 using OpenRestoApi.Core.Application.Interfaces;
 using OpenRestoApi.Core.Domain;
 
@@ -24,6 +25,7 @@ namespace OpenRestoApi.Infrastructure.Persistence.Repositories
     [ExternalAccessAllowed]
     internal class BookingRepository(AppDbContext db) : IBookingRepository
     {
+        private const string StaleBookingMessage = "The reservation was changed by another writer. Refresh and retry.";
         private readonly AppDbContext _db = db;
 
         public async Task<Booking> AddAsync(Booking booking)
@@ -63,9 +65,37 @@ namespace OpenRestoApi.Infrastructure.Persistence.Repositories
 
         public async Task<Booking> UpdateAsync(Booking booking)
         {
-            _db.Entry(booking).State = EntityState.Modified;
-            await _db.SaveChangesAsync();
-            return booking;
+            Booking? tracked = await _db.Bookings.FindAsync(booking.Id);
+            if (tracked is null)
+            {
+                throw new InvalidOperationException($"Booking {booking.Id} was not found.");
+            }
+
+            var entry = _db.Entry(tracked);
+            entry.Property(x => x.ConcurrencyToken).OriginalValue = booking.ConcurrencyToken;
+
+            tracked.TableId = booking.TableId;
+            tracked.SectionId = booking.SectionId;
+            tracked.RestaurantId = booking.RestaurantId;
+            tracked.Date = booking.Date;
+            tracked.CustomerEmail = booking.CustomerEmail;
+            tracked.CustomerName = booking.CustomerName;
+            tracked.Seats = booking.Seats;
+            tracked.SpecialRequests = booking.SpecialRequests;
+            tracked.EndTime = booking.EndTime;
+            tracked.IsCancelled = booking.IsCancelled;
+            tracked.CancelledAt = booking.CancelledAt;
+
+            try
+            {
+                await _db.SaveChangesAsync();
+            }
+            catch (DbUpdateConcurrencyException ex)
+            {
+                throw new ConflictException(StaleBookingMessage, ex);
+            }
+
+            return tracked;
         }
 
         public async Task DeleteAsync(int id)

@@ -6,12 +6,14 @@ using OpenRestoApi.Core.Application.Services;
 using OpenRestoApi.Core.Domain;
 using OpenRestoApi.Infrastructure.Persistence;
 using OpenRestoApi.Infrastructure.Persistence.Repositories;
+using OpenRestoApi.Tests.Holds;
 
 namespace OpenRestoApi.Tests.Services;
 
 public sealed class ChannelIdempotencyServiceTests : IDisposable
 {
     private readonly string _databasePath = Path.Combine(Path.GetTempPath(), $"channel-idempotency-{Guid.NewGuid():N}.db");
+    private readonly FakeClock _clock = new(new DateTime(2026, 7, 29, 12, 0, 0, DateTimeKind.Utc));
 
     public void Dispose()
     {
@@ -28,7 +30,7 @@ public sealed class ChannelIdempotencyServiceTests : IDisposable
     {
         await using AppDbContext db = CreateSqliteContext();
         var repository = new ChannelMutationIdempotencyRepository(db);
-        var service = new ChannelIdempotencyService(repository, db);
+        var service = new ChannelIdempotencyService(repository, db, _clock);
 
         ChannelMutationExecutionResult<string> first = await service.ExecuteAsync(
             channel: "whatsapp",
@@ -55,7 +57,7 @@ public sealed class ChannelIdempotencyServiceTests : IDisposable
     {
         await using AppDbContext db = CreateSqliteContext();
         var repository = new ChannelMutationIdempotencyRepository(db);
-        var service = new ChannelIdempotencyService(repository, db);
+        var service = new ChannelIdempotencyService(repository, db, _clock);
 
         await service.ExecuteAsync(
             channel: "whatsapp",
@@ -79,7 +81,7 @@ public sealed class ChannelIdempotencyServiceTests : IDisposable
     {
         await using AppDbContext db = CreateSqliteContext();
         var repository = new ChannelMutationIdempotencyRepository(db);
-        var service = new ChannelIdempotencyService(repository, db);
+        var service = new ChannelIdempotencyService(repository, db, _clock);
 
         await Assert.ThrowsAsync<ValidationException>(() => service.ExecuteAsync<string>(
             channel: "whatsapp",
@@ -112,10 +114,12 @@ public sealed class ChannelIdempotencyServiceTests : IDisposable
 
         var firstService = new ChannelIdempotencyService(
             new RacingRepository(new ChannelMutationIdempotencyRepository(firstDb), gate),
-            firstDb);
+            firstDb,
+            _clock);
         var secondService = new ChannelIdempotencyService(
             new RacingRepository(new ChannelMutationIdempotencyRepository(secondDb), gate),
-            secondDb);
+            secondDb,
+            _clock);
 
         Task<ChannelMutationExecutionResult<string>> firstTask = firstService.ExecuteAsync(
             channel: "whatsapp",
@@ -151,10 +155,12 @@ public sealed class ChannelIdempotencyServiceTests : IDisposable
 
         var firstService = new ChannelIdempotencyService(
             new RacingRepository(new ChannelMutationIdempotencyRepository(firstDb), gate),
-            firstDb);
+            firstDb,
+            _clock);
         var secondService = new ChannelIdempotencyService(
             new RacingRepository(new ChannelMutationIdempotencyRepository(secondDb), gate),
-            secondDb);
+            secondDb,
+            _clock);
 
         Task<ChannelMutationExecutionResult<string>> firstTask = firstService.ExecuteAsync(
             channel: "whatsapp",
@@ -174,6 +180,95 @@ public sealed class ChannelIdempotencyServiceTests : IDisposable
 
         Assert.Equal(ChannelMutationExecutionOutcome.Executed, firstResult.Outcome);
         Assert.Contains("idempotency", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task RegisterReplayKeyAsync_PurgesExpiredReplayRecordBeforeUniquenessCheck()
+    {
+        await using AppDbContext db = CreateSqliteContext();
+        db.ChannelMutationIdempotencyRecords.Add(new ChannelMutationIdempotencyRecord
+        {
+            Channel = "whatsapp_assertion",
+            MutationScope = "reservations.read",
+            IdempotencyKey = "expired-jti",
+            ReplayKey = "expired-jti",
+            Fingerprint = "GET:/api/private/channels/whatsapp/reservations:reservations.read",
+            State = ChannelMutationState.Consumed,
+            CreatedAtUtc = _clock.UtcNow.AddMinutes(-10),
+            CompletedAtUtc = _clock.UtcNow.AddMinutes(-10),
+            ExpiresAtUtc = _clock.UtcNow.AddMinutes(-1),
+        });
+        await db.SaveChangesAsync();
+
+        var repository = new ChannelMutationIdempotencyRepository(db);
+        var service = new ChannelIdempotencyService(repository, db, _clock);
+
+        ChannelReplayRegistrationResult result = await service.RegisterReplayKeyAsync(
+            channel: "whatsapp_assertion",
+            replayKey: "expired-jti",
+            mutationScope: "reservations.read",
+            fingerprint: "GET:/api/private/channels/whatsapp/restaurants:reservations.read",
+            expiresAtUtc: _clock.UtcNow.AddMinutes(5));
+
+        Assert.False(result.WasReplayed);
+
+        List<ChannelMutationIdempotencyRecord> records = await db.ChannelMutationIdempotencyRecords
+            .Where(x => x.Channel == "whatsapp_assertion" && x.ReplayKey == "expired-jti")
+            .ToListAsync();
+        ChannelMutationIdempotencyRecord persisted = Assert.Single(records);
+        Assert.True(persisted.ExpiresAtUtc > _clock.UtcNow);
+        Assert.Equal("GET:/api/private/channels/whatsapp/restaurants:reservations.read", persisted.Fingerprint);
+    }
+
+    [Fact]
+    public async Task RegisterReplayKeyAsync_DoesNotReuseStillValidLongLivedAssertion_BeforeActualExpiry_AndPurgesAfterExpiry()
+    {
+        await using AppDbContext db = CreateSqliteContext();
+        var repository = new ChannelMutationIdempotencyRepository(db);
+        var service = new ChannelIdempotencyService(repository, db, _clock);
+        DateTime originalExpiry = _clock.UtcNow.AddMinutes(9);
+
+        ChannelReplayRegistrationResult first = await service.RegisterReplayKeyAsync(
+            channel: "whatsapp_assertion",
+            replayKey: "long-lived-jti",
+            mutationScope: "reservations.read",
+            fingerprint: "GET:/api/private/channels/whatsapp/reservations:reservations.read",
+            expiresAtUtc: originalExpiry);
+
+        Assert.False(first.WasReplayed);
+
+        _clock.Advance(TimeSpan.FromMinutes(6));
+
+        ChannelReplayRegistrationResult beforeExpiryReplay = await service.RegisterReplayKeyAsync(
+            channel: "whatsapp_assertion",
+            replayKey: "long-lived-jti",
+            mutationScope: "reservations.read",
+            fingerprint: "GET:/api/private/channels/whatsapp/reservations:reservations.read",
+            expiresAtUtc: _clock.UtcNow.AddMinutes(2));
+
+        Assert.True(beforeExpiryReplay.WasReplayed);
+        Assert.Equal(first.Record.Id, beforeExpiryReplay.Record.Id);
+        Assert.Equal(originalExpiry, beforeExpiryReplay.Record.ExpiresAtUtc);
+
+        _clock.Advance(TimeSpan.FromMinutes(4));
+
+        ChannelReplayRegistrationResult afterExpiryReplay = await service.RegisterReplayKeyAsync(
+            channel: "whatsapp_assertion",
+            replayKey: "long-lived-jti",
+            mutationScope: "reservations.read",
+            fingerprint: "GET:/api/private/channels/whatsapp/reservations:reservations.read",
+            expiresAtUtc: _clock.UtcNow.AddMinutes(2));
+
+        Assert.False(afterExpiryReplay.WasReplayed);
+        Assert.NotEqual(first.Record.Id, afterExpiryReplay.Record.Id);
+
+        List<ChannelMutationIdempotencyRecord> records = await db.ChannelMutationIdempotencyRecords
+            .Where(x => x.Channel == "whatsapp_assertion" && x.ReplayKey == "long-lived-jti")
+            .OrderBy(x => x.Id)
+            .ToListAsync();
+        ChannelMutationIdempotencyRecord persisted = Assert.Single(records);
+        Assert.Equal(afterExpiryReplay.Record.Id, persisted.Id);
+        Assert.Equal(_clock.UtcNow.AddMinutes(2), persisted.ExpiresAtUtc);
     }
 
     private AppDbContext CreateSqliteContext()
