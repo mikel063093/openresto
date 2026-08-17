@@ -29,9 +29,8 @@ builder.Services.AddCustomCors(builder.Configuration);
 builder.Services.AddCustomRateLimiting(builder.Environment);
 builder.Services.AddCustomAuthentication(builder.Configuration);
 
-DatabaseProvider databaseProvider = builder.Configuration.GetDatabaseProvider();
-string connectionString = builder.Configuration.GetAppConnectionString(databaseProvider, builder.Environment);
-builder.Services.AddDatabaseSetup(connectionString, databaseProvider, builder.Environment);
+string connectionString = builder.Configuration.GetAppConnectionString(builder.Environment);
+builder.Services.AddDatabaseSetup(connectionString, builder.Environment);
 
 WebApplication app = builder.Build();
 
@@ -100,7 +99,7 @@ app.MapFallback("/api/{**catchAll}", (HttpContext ctx) =>
         title: "Not Found",
         detail: $"The requested API endpoint '{ctx.Request.Path}' does not exist."));
 
-app.InitializeDatabase(connectionString, databaseProvider, builder.Configuration);
+app.InitializeDatabase(connectionString, builder.Configuration);
 
 // Health endpoint: JSON body (consistent with the rest of the API), and opted
 // out of rate limiting so liveness probes / scanners never get throttled.

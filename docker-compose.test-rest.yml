@@ -25,8 +25,8 @@ networks:
 services:
   backend:
     build:
-      context: .
-      dockerfile: OpenRestoApi/Dockerfile
+      context: ./OpenRestoApi
+      dockerfile: Dockerfile
     restart: unless-stopped
     environment:
       ASPNETCORE_ENVIRONMENT: Production
