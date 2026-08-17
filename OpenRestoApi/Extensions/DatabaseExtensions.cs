@@ -14,8 +14,8 @@ public static partial class DatabaseExtensions
     [LoggerMessage(Level = LogLevel.Information, Message = "Startup Diagnostics:")]
     private static partial void LogStartupDiagnostics(ILogger logger);
 
-    [LoggerMessage(Level = LogLevel.Information, Message = "  - Connection String: {ConnectionString}")]
-    private static partial void LogConnectionString(ILogger logger, string connectionString);
+    [LoggerMessage(Level = LogLevel.Information, Message = "  - Database provider: {Provider} (connection string redacted)")]
+    private static partial void LogDatabaseProvider(ILogger logger, DatabaseProvider provider);
 
     [LoggerMessage(Level = LogLevel.Information, Message = "  - Current User: {User}")]
     private static partial void LogCurrentUser(ILogger logger, string user);
@@ -271,6 +271,7 @@ public static partial class DatabaseExtensions
             {
                 options.UseNpgsql(connectionString, postgresOptions =>
                 {
+                    postgresOptions.MigrationsAssembly("OpenRestoApi.PostgresMigrations");
                     postgresOptions.CommandTimeout(30);
                     postgresOptions.EnableRetryOnFailure();
                 });
@@ -354,7 +355,7 @@ public static partial class DatabaseExtensions
         try
         {
             LogStartupDiagnostics(logger);
-            LogConnectionString(logger, connectionString);
+            LogDatabaseProvider(logger, provider);
             LogCurrentUser(logger, Environment.UserName);
 
             if (provider == DatabaseProvider.Sqlite)
@@ -425,6 +426,18 @@ public static partial class DatabaseExtensions
 
                 // Only SQLite deployments can have the pre-consolidation SQLite migration history.
                 RemapLegacyMigrationHistory(db, logger);
+            }
+
+            if (provider == DatabaseProvider.Postgres)
+            {
+                string migrationsAssemblyPath = Path.Combine(AppContext.BaseDirectory, "OpenRestoApi.PostgresMigrations.dll");
+                if (!File.Exists(migrationsAssemblyPath))
+                {
+                    throw new InvalidOperationException(
+                        "PostgreSQL migrations assembly is missing from the application deployment.");
+                }
+
+                _ = System.Runtime.Loader.AssemblyLoadContext.Default.LoadFromAssemblyPath(migrationsAssemblyPath);
             }
 
             // Apply any pending EF migrations (creates DB on first run, adds columns on upgrade)
