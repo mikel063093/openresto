@@ -12,7 +12,7 @@ using OpenRestoApi.Infrastructure.Persistence;
 namespace OpenRestoApi.Tests.Extensions;
 
 /// <summary>
-/// Exercises <see cref="DatabaseExtensions.InitializeDatabase"/> end-to-end against real
+/// Exercises <see cref="DatabaseExtensions.InitializeDatabase(WebApplication, string, IConfiguration)"/> end-to-end against real
 /// file-backed SQLite databases (rather than mocks) since its logic — directory bootstrap,
 /// legacy-migration-history remap, WAL diagnostics — is all raw ADO.NET/filesystem work that
 /// only a real database file can meaningfully exercise.
