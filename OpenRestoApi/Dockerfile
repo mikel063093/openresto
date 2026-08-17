@@ -5,19 +5,21 @@ FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
 
 # Copy the project file and restore dependencies
-COPY ["OpenRestoApi.csproj", "."]
-RUN dotnet restore "./OpenRestoApi.csproj"
+COPY ["OpenRestoApi/OpenRestoApi.csproj", "OpenRestoApi/"]
+COPY ["OpenRestoApi.PostgresMigrations/OpenRestoApi.PostgresMigrations.csproj", "OpenRestoApi.PostgresMigrations/"]
+RUN dotnet restore "./OpenRestoApi/OpenRestoApi.csproj"
 
 # Copy the remaining source code
 COPY . .
 # Remove local db files so they don't get copied into the image
-RUN rm -f openresto.db*
+RUN rm -f OpenRestoApi/openresto.db*
 
-WORKDIR "/src/."
-RUN dotnet build "OpenRestoApi.csproj" -c Release -o /app/build
+RUN dotnet build "OpenRestoApi/OpenRestoApi.csproj" -c Release -o /app/build && \
+    dotnet build "OpenRestoApi.PostgresMigrations/OpenRestoApi.PostgresMigrations.csproj" -c Release -o /app/postgres-migrations
 
 FROM build AS publish
-RUN dotnet publish "OpenRestoApi.csproj" -c Release -o /app/publish
+RUN dotnet publish "OpenRestoApi/OpenRestoApi.csproj" -c Release -o /app/publish && \
+    cp /app/postgres-migrations/OpenRestoApi.PostgresMigrations.dll /app/publish/
 
 # Use the official ASP.NET runtime image for the final application
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS final
@@ -31,7 +33,7 @@ RUN apt-get update && apt-get install -y curl sqlite3 && rm -rf /var/lib/apt/lis
 COPY --from=publish /app/publish .
 
 # Copy and prepare entrypoint (runs as root, fixes volume permissions, drops to app)
-COPY entrypoint.sh /entrypoint.sh
+COPY OpenRestoApi/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
 # Pre-create volume mount points with correct ownership so fresh volumes

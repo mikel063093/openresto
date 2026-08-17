@@ -3,13 +3,19 @@ using OpenRestoApi.Infrastructure.Persistence;
 
 namespace OpenRestoApi.Extensions;
 
+public enum DatabaseProvider
+{
+    Sqlite,
+    Postgres,
+}
+
 public static partial class DatabaseExtensions
 {
     [LoggerMessage(Level = LogLevel.Information, Message = "Startup Diagnostics:")]
     private static partial void LogStartupDiagnostics(ILogger logger);
 
-    [LoggerMessage(Level = LogLevel.Information, Message = "  - Connection String: {ConnectionString}")]
-    private static partial void LogConnectionString(ILogger logger, string connectionString);
+    [LoggerMessage(Level = LogLevel.Information, Message = "  - Database provider: {Provider} (connection string redacted)")]
+    private static partial void LogDatabaseProvider(ILogger logger, DatabaseProvider provider);
 
     [LoggerMessage(Level = LogLevel.Information, Message = "  - Current User: {User}")]
     private static partial void LogCurrentUser(ILogger logger, string user);
@@ -207,32 +213,70 @@ public static partial class DatabaseExtensions
         }
     }
 
-    public static string GetAppConnectionString(this IConfiguration configuration, IWebHostEnvironment env)
+    public static DatabaseProvider GetDatabaseProvider(this IConfiguration configuration)
+    {
+        string? configuredProvider = configuration["DATABASE_PROVIDER"];
+        if (string.IsNullOrWhiteSpace(configuredProvider))
+        {
+            return DatabaseProvider.Sqlite;
+        }
+
+        return configuredProvider.Trim().ToLowerInvariant() switch
+        {
+            "sqlite" => DatabaseProvider.Sqlite,
+            "postgres" => DatabaseProvider.Postgres,
+            _ => throw new InvalidOperationException(
+                $"Unsupported DATABASE_PROVIDER '{configuredProvider}'. Supported values are 'sqlite' and 'postgres'."),
+        };
+    }
+
+    public static string GetAppConnectionString(this IConfiguration configuration, IWebHostEnvironment env) =>
+        configuration.GetAppConnectionString(DatabaseProvider.Sqlite, env);
+
+    public static string GetAppConnectionString(this IConfiguration configuration, DatabaseProvider provider, IWebHostEnvironment env)
     {
         string? connectionString = configuration.GetConnectionString("DefaultConnection")
             ?? Environment.GetEnvironmentVariable("CONNECTION_STRING");
 
-        if (string.IsNullOrEmpty(connectionString))
+        if (!string.IsNullOrEmpty(connectionString))
         {
-            string dbPath = env.IsDevelopment() ? "./openresto.db" : "/data/openresto.db";
-            connectionString = $"Data Source={dbPath}";
+            return connectionString;
         }
 
-        return connectionString;
+        if (provider == DatabaseProvider.Postgres)
+        {
+            throw new InvalidOperationException(
+                "A connection string must be configured with ConnectionStrings:DefaultConnection or CONNECTION_STRING when DATABASE_PROVIDER=postgres.");
+        }
+
+        string dbPath = env.IsDevelopment() ? "./openresto.db" : "/data/openresto.db";
+        return $"Data Source={dbPath}";
     }
 
-    public static IServiceCollection AddDatabaseSetup(this IServiceCollection services, string connectionString, IWebHostEnvironment env)
+    public static IServiceCollection AddDatabaseSetup(this IServiceCollection services, string connectionString, DatabaseProvider provider, IWebHostEnvironment env)
     {
-        SqlitePragmaInterceptor pragmaInterceptor = new();
-
         services.AddDbContext<AppDbContext>(options =>
         {
-            options.UseSqlite(connectionString, sqliteOptions =>
+            if (provider == DatabaseProvider.Sqlite)
             {
-                sqliteOptions.CommandTimeout(30);
-                sqliteOptions.ExecutionStrategy(d => new SqliteRetryingExecutionStrategy(d));
-            });
-            options.AddInterceptors(pragmaInterceptor);
+                SqlitePragmaInterceptor pragmaInterceptor = new();
+                options.UseSqlite(connectionString, sqliteOptions =>
+                {
+                    sqliteOptions.CommandTimeout(30);
+                    sqliteOptions.ExecutionStrategy(d => new SqliteRetryingExecutionStrategy(d));
+                });
+                options.AddInterceptors(pragmaInterceptor);
+            }
+            else
+            {
+                options.UseNpgsql(connectionString, postgresOptions =>
+                {
+                    postgresOptions.MigrationsAssembly("OpenRestoApi.PostgresMigrations");
+                    postgresOptions.CommandTimeout(30);
+                    postgresOptions.EnableRetryOnFailure();
+                });
+            }
+
             options.ConfigureWarnings(w =>
                 w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.MultipleCollectionIncludeWarning));
             options.EnableSensitiveDataLogging(env.IsDevelopment());
@@ -299,7 +343,10 @@ public static partial class DatabaseExtensions
         }
     }
 
-    public static void InitializeDatabase(this WebApplication app, string connectionString, IConfiguration configuration)
+    public static void InitializeDatabase(this WebApplication app, string connectionString, IConfiguration configuration) =>
+        app.InitializeDatabase(connectionString, configuration.GetDatabaseProvider(), configuration);
+
+    public static void InitializeDatabase(this WebApplication app, string connectionString, DatabaseProvider provider, IConfiguration configuration)
     {
         using IServiceScope scope = app.Services.CreateScope();
         AppDbContext db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
@@ -308,82 +355,90 @@ public static partial class DatabaseExtensions
         try
         {
             LogStartupDiagnostics(logger);
-            LogConnectionString(logger, connectionString);
+            LogDatabaseProvider(logger, provider);
             LogCurrentUser(logger, Environment.UserName);
 
-            // Ensure the DB directory exists (needed for Docker volume mounts)
-            string dbFile = connectionString;
-            if (connectionString.Contains(';'))
+            if (provider == DatabaseProvider.Sqlite)
             {
-                var parts = connectionString.Split(';', StringSplitOptions.RemoveEmptyEntries);
-                var ds = parts.FirstOrDefault(p => p.StartsWith("Data Source=", StringComparison.OrdinalIgnoreCase));
-                if (ds != null)
+                // Ensure the SQLite DB directory exists (needed for Docker volume mounts).
+                string dbFile = connectionString;
+                if (connectionString.Contains(';'))
                 {
-                    dbFile = ds.Substring("Data Source=".Length);
-                }
-            }
-            else if (connectionString.StartsWith("Data Source=", StringComparison.OrdinalIgnoreCase))
-            {
-                dbFile = connectionString.Substring("Data Source=".Length);
-            }
-
-            if (!string.IsNullOrEmpty(dbFile))
-            {
-                string fullPath = Path.GetFullPath(dbFile);
-                string? dir = Path.GetDirectoryName(fullPath);
-                LogResolvedDbPath(logger, fullPath);
-                if (dir != null)
-                {
-                    bool dirExists = Directory.Exists(dir);
-                    LogDbDirectoryInfo(logger, dir, dirExists);
-                    if (!dirExists)
+                    var parts = connectionString.Split(';', StringSplitOptions.RemoveEmptyEntries);
+                    var ds = parts.FirstOrDefault(p => p.StartsWith("Data Source=", StringComparison.OrdinalIgnoreCase));
+                    if (ds != null)
                     {
-                        try { Directory.CreateDirectory(dir); LogCreatedDbDirectory(logger, dir); }
-                        catch (Exception ex) { LogFailedToCreateDbDirectory(logger, ex.Message); }
+                        dbFile = ds.Substring("Data Source=".Length);
                     }
-                    else
+                }
+                else if (connectionString.StartsWith("Data Source=", StringComparison.OrdinalIgnoreCase))
+                {
+                    dbFile = connectionString.Substring("Data Source=".Length);
+                }
+
+                if (!string.IsNullOrEmpty(dbFile))
+                {
+                    string fullPath = Path.GetFullPath(dbFile);
+                    string? dir = Path.GetDirectoryName(fullPath);
+                    LogResolvedDbPath(logger, fullPath);
+                    if (dir != null)
                     {
-                        try
+                        bool dirExists = Directory.Exists(dir);
+                        LogDbDirectoryInfo(logger, dir, dirExists);
+                        if (!dirExists)
                         {
-                            string testFile = Path.Combine(dir, ".write-test-" + Guid.NewGuid().ToString("N"));
-                            File.WriteAllText(testFile, "test");
-                            File.Delete(testFile);
-                            LogDbDirectoryWritable(logger);
+                            try { Directory.CreateDirectory(dir); LogCreatedDbDirectory(logger, dir); }
+                            catch (Exception ex) { LogFailedToCreateDbDirectory(logger, ex.Message); }
                         }
-                        catch (Exception ex) { LogDbDirectoryNotWritable(logger, ex.Message); }
+                        else
+                        {
+                            try
+                            {
+                                string testFile = Path.Combine(dir, ".write-test-" + Guid.NewGuid().ToString("N"));
+                                File.WriteAllText(testFile, "test");
+                                File.Delete(testFile);
+                                LogDbDirectoryWritable(logger);
+                            }
+                            catch (Exception ex) { LogDbDirectoryNotWritable(logger, ex.Message); }
+                        }
                     }
                 }
-            }
 
-            // Flush any WAL frames left by a previous abrupt shutdown (e.g. dotnet watch restart).
-            // Runs before Migrate() so the schema it sees is fully consistent.
-            if (db.Database.CanConnect())
-            {
-                try { db.Database.ExecuteSqlRaw("PRAGMA wal_checkpoint(TRUNCATE)"); }
-                catch { /* non-fatal */ }
-
-                // DIAGNOSTICS: capture DB file state + integrity before any further work, so we
-                // can tell *why* it later fails (e.g. "database disk image is malformed") after
-                // an abrupt dotnet-watch kill. Pure logging, no behavior change.
-                DiagnoseDbState(db, dbFile, logger);
-            }
-
-            // Checkpoint WAL on graceful shutdown so the next dotnet watch restart finds a clean slate.
-            app.Lifetime.ApplicationStopping.Register(() =>
-            {
-                try
+                // Flush any WAL frames left by a previous abrupt shutdown before Migrate().
+                if (db.Database.CanConnect())
                 {
-                    using IServiceScope stopScope = app.Services.CreateScope();
-                    AppDbContext stopDb = stopScope.ServiceProvider.GetRequiredService<AppDbContext>();
-                    stopDb.Database.ExecuteSqlRaw("PRAGMA wal_checkpoint(TRUNCATE)");
+                    try { db.Database.ExecuteSqlRaw("PRAGMA wal_checkpoint(TRUNCATE)"); }
+                    catch { /* non-fatal */ }
+                    DiagnoseDbState(db, dbFile, logger);
                 }
-                catch { /* best-effort */ }
-            });
 
-            // Squash migration history: if the DB still has the old incremental migration IDs
-            // (from before the consolidation into InitialCreate), replace them all with the
-            // single consolidated migration so EF doesn't try to CREATE already-existing tables.
-            RemapLegacyMigrationHistory(db, logger);
+                // Checkpoint WAL on graceful shutdown so the next restart finds a clean slate.
+                app.Lifetime.ApplicationStopping.Register(() =>
+                {
+                    try
+                    {
+                        using IServiceScope stopScope = app.Services.CreateScope();
+                        AppDbContext stopDb = stopScope.ServiceProvider.GetRequiredService<AppDbContext>();
+                        stopDb.Database.ExecuteSqlRaw("PRAGMA wal_checkpoint(TRUNCATE)");
+                    }
+                    catch { /* best-effort */ }
+                });
+
+                // Only SQLite deployments can have the pre-consolidation SQLite migration history.
+                RemapLegacyMigrationHistory(db, logger);
+            }
+
+            if (provider == DatabaseProvider.Postgres)
+            {
+                string migrationsAssemblyPath = Path.Combine(AppContext.BaseDirectory, "OpenRestoApi.PostgresMigrations.dll");
+                if (!File.Exists(migrationsAssemblyPath))
+                {
+                    throw new InvalidOperationException(
+                        "PostgreSQL migrations assembly is missing from the application deployment.");
+                }
+
+                _ = System.Runtime.Loader.AssemblyLoadContext.Default.LoadFromAssemblyPath(migrationsAssemblyPath);
+            }
 
             // Apply any pending EF migrations (creates DB on first run, adds columns on upgrade)
             int maxRetries = 10;
@@ -434,7 +489,8 @@ public static partial class DatabaseExtensions
                     success = true;
                     break;
                 }
-                catch (Microsoft.Data.Sqlite.SqliteException ex) when (ex.SqliteErrorCode == 8 || ex.SqliteErrorCode == 14 || ex.SqliteErrorCode == 5)
+                catch (Microsoft.Data.Sqlite.SqliteException ex) when (provider == DatabaseProvider.Sqlite
+                    && (ex.SqliteErrorCode == 8 || ex.SqliteErrorCode == 14 || ex.SqliteErrorCode == 5))
                 {
                     LogDatabaseRetry(logger, ex.SqliteErrorCode, i, maxRetries, retryDelayMs);
                     if (i == maxRetries)

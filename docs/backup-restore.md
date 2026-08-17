@@ -1,153 +1,113 @@
-# Backup and Restore
+# Backup, Restore, and PostgreSQL Operations
 
-OpenResto is designed for zero-dependency self-hosting. All persistent data lives in Docker volumes — no external database or storage service to back up separately.
+## Scope and current database state
 
-## What to back up
+The release Compose base defaults to **SQLite** (`DATABASE_PROVIDER=sqlite`). `docker-compose.postgres.yml` supplies the production PostgreSQL 16 topology and explicitly selects `DATABASE_PROVIDER=postgres`; it must be paired with a reviewed PostgreSQL-capable application image (Npgsql EF Core provider plus provider-compatible migrations). Do not deploy the overlay against an older SQLite-only binary: a PostgreSQL connection string alone cannot switch an EF Core provider.
 
-| Location | Contains | Priority |
-|---|---|---|
-| `/data/openresto.db` (volume `db_data`) | All bookings, restaurants, tables, sections, admin credentials, brand settings, push subscriptions | **Critical** |
-| `/app/wwwroot/media` (volume `media_data`) | Uploaded images | Medium |
-| `/data/dp-keys` (inside `db_data`) | ASP.NET Data Protection keys (encrypt the recent-bookings cookie) | Low — losing these clears the "my recent bookings" lookup but no booking data is lost |
+Until that provider release is available, retain the SQLite volume backup procedure below. PostgreSQL procedures become the production runbook only after the provider cutover acceptance criteria are complete.
 
-## Before you back up
+## PostgreSQL topology
 
-Checkpoint the SQLite WAL so the backup file is self-consistent:
+Use the overlay with the release Compose file:
 
 ```bash
-docker compose exec backend sqlite3 /data/openresto.db "PRAGMA wal_checkpoint(TRUNCATE);"
+# Validate rendered configuration; values belong in an ignored deployment .env
+# or protected host/service environment, never in Git.
+docker compose -f docker-compose.release.yml -f docker-compose.postgres.yml config -q
 ```
 
-The backend also checkpoints automatically on graceful shutdown (`docker compose stop`), so stopping before copying is equally valid.
+The overlay defines `postgres:16-alpine`, a persistent `postgres_data` volume, SCRAM authentication, a health check, and a `postgres-internal` network with `internal: true`. PostgreSQL has **no host `ports` mapping**; only `backend` joins that database network. The application connection endpoint is `postgres:5432` (Docker DNS), never `localhost` or a published host port.
 
-## Backing up named volumes (default install)
+Set `POSTGRES_DB`, `POSTGRES_USER`, and `POSTGRES_PASSWORD` only in the protected deployment environment. Use a distinct least-privilege application role after bootstrap where operational policy requires it. Do not put passwords, `PGPASSWORD`, restic repository credentials, or alert-hook URLs in Compose files, scripts, Git, logs, or shell history.
 
-The release `docker-compose.yml` uses named volumes (`db_data`, `media_data`). Back them up by spinning up a temporary Alpine container that reads the volume and writes a tarball:
+> `Ssl Mode=Disable` in the internal overlay is appropriate only for the isolated Docker network. If the database moves off-host or onto a network not controlled by the deployment, require TLS and certificate verification instead.
+
+## PostgreSQL backup
+
+`scripts/postgres-backup.sh` creates a transactional `pg_dump --format=custom` archive, validates it using `pg_restore --list --verbose`, and writes a SHA-256 checksum plus a human-inspectable archive listing. It never copies PostgreSQL data files directly.
 
 ```bash
-# Backup the database volume
-docker run --rm \
-  -v db_data:/data:ro \
-  -v "$(pwd)/backups":/backups \
-  alpine tar czf /backups/openresto-db-$(date +%Y%m%d-%H%M%S).tar.gz -C /data .
+# Run from the deployment host; Compose receives database variables from its
+# protected environment file or service manager environment.
+scripts/postgres-backup.sh
 
-# Backup the media volume
-docker run --rm \
-  -v media_data:/media:ro \
-  -v "$(pwd)/backups":/backups \
-  alpine tar czf /backups/openresto-media-$(date +%Y%m%d-%H%M%S).tar.gz -C /media .
+# A scheduler can choose a non-repository destination.
+BACKUP_DIR=/var/backups/openresto/postgres scripts/postgres-backup.sh
 ```
 
-> Replace `db_data` / `media_data` with the actual Docker volume names if you changed the project name (check with `docker volume ls`). The default names are `<project-directory-name>_db_data`.
+Artifacts are `openresto-postgres-<UTC timestamp>.dump`, `.dump.list`, and `.dump.sha256`. Keep all three together. Local retention defaults to 14 days and is configurable with `LOCAL_BACKUP_RETENTION_DAYS`.
 
-## Backing up bind mounts (VPS/custom install)
+### Optional encrypted off-host copies: restic
 
-If you mounted `./data:/data` directly (as in the `docker-compose.vps.yml`), just copy the directory:
+Restic is opt-in. The script enables it only when `RESTIC_REPOSITORY` or `RESTIC_PASSWORD_COMMAND` is present, then requires **both**. Supply all repository/backend configuration exclusively through the scheduler/service environment (for example the appropriate S3, SFTP, or REST backend variables); never source credentials from this repository.
 
 ```bash
-cp -r ./data ./backups/openresto-data-$(date +%Y%m%d-%H%M%S)
+# Illustrative variable names only; set real values in the secret manager/service.
+export RESTIC_REPOSITORY='...'
+export RESTIC_PASSWORD_COMMAND='...'
+export RESTIC_KEEP_DAILY=7
+export RESTIC_KEEP_WEEKLY=4
+export RESTIC_KEEP_MONTHLY=12
+scripts/postgres-backup.sh
 ```
 
-## Restore
+After an off-host backup, the script runs `restic forget --prune` with daily/weekly/monthly retention defaults of 7/4/12. Configure `BACKUP_ALERT_HOOK` in that same protected environment to receive a failure-only JSON POST. Alert delivery is best effort and never masks the backup failure. Schedule a daily backup and alert on both a nonzero scheduler exit and the hook; test the hook before relying on it.
+
+Example cron entry (use a locked-down service environment rather than embedding secrets in `/etc/cron.d`):
+
+```cron
+0 03 * * * openresto /usr/bin/flock -n /var/lock/openresto-postgres-backup.lock /opt/openresto/scripts/postgres-backup.sh >>/var/log/openresto/postgres-backup.log 2>&1
+```
+
+## PostgreSQL restore and restore drills
+
+A restore is destructive. First choose a maintenance window, stop the backend, preserve the failed volume/snapshot, verify the archive checksum, and get an independent confirmation of the exact target database.
 
 ```bash
-# 1. Stop the backend to avoid write conflicts
-docker compose stop backend
+# Non-destructive integrity and contents check.
+scripts/postgres-restore.sh --archive /secure/backups/openresto-postgres-TIMESTAMP.dump --list
 
-# 2. Restore the database volume (replace TIMESTAMP with your backup's timestamp)
-docker run --rm \
-  -v db_data:/data \
-  -v "$(pwd)/backups":/backups \
-  alpine sh -c "rm -rf /data/* && tar xzf /backups/openresto-db-TIMESTAMP.tar.gz -C /data"
-
-# 3. Restore the media volume (if needed)
-docker run --rm \
-  -v media_data:/media \
-  -v "$(pwd)/backups":/backups \
-  alpine sh -c "rm -rf /media/* && tar xzf /backups/openresto-media-TIMESTAMP.tar.gz -C /media"
-
-# 4. Start everything back up
-docker compose start backend
+# Destructive restore: backend must be stopped; the exact DB name is an explicit guard.
+docker compose -f docker-compose.release.yml -f docker-compose.postgres.yml stop backend
+export POSTGRES_DB='the-target-name' # supplied by the protected deployment environment in normal use
+scripts/postgres-restore.sh \
+  --archive /secure/backups/openresto-postgres-TIMESTAMP.dump \
+  --apply --confirm-database "$POSTGRES_DB"
 ```
 
-## Automated daily backups
+The restore script rejects missing/invalid checksums, a running backend, an unconfirmed database name, and restores with `--clean --if-exists --no-owner --no-privileges` only after `--apply`. Start the backend only after reviewing logs, health, expected record counts, and application smoke tests.
 
-Example cron job with 7-day retention:
+Run a restore drill at least quarterly and after any PostgreSQL major-version or backup-script change. It uses an isolated disposable PostgreSQL 16 container with no Compose network or host port, restores the archive, and requires at least one public table:
 
 ```bash
-# /etc/cron.d/openresto-backup
-0 3 * * * root /opt/openresto/backup.sh >> /var/log/openresto-backup.log 2>&1
+scripts/postgres-restore-drill.sh --archive /secure/backups/openresto-postgres-TIMESTAMP.dump
 ```
+
+A successful backup is not a successful recovery plan until this drill has passed and its date/result is recorded.
+
+## Safe EF schema migrations versus data migrations
+
+**Schema migrations** are versioned EF Core migrations. Keep them additive and backward-compatible where possible: add nullable columns/tables/indexes first, deploy code that can tolerate both shapes, backfill separately, then enforce non-null/drop old fields only in a later release. Test a fresh database and an upgrade from the immediately preceding production migration; the existing SQLite migration-check workflow enforces this invariant for the current provider. Back up and run the restore drill before every production migration. The current backend auto-runs `Database.Migrate()` at startup, so an unsafe migration can block the application before health checks pass.
+
+**Data migrations** are explicit, idempotent, observable application/job steps—not hidden side effects in an EF `Up()` method. Give each a version/checkpoint, bounded batches, retries, metrics/logging, validation queries, and a rollback/forward-fix plan. Do not combine an irreversible large data rewrite with a schema drop in one deployment. Run data migrations in staging on production-shaped data first, and retain a pre-change backup until business validation is complete.
+
+## SQLite-to-PostgreSQL cutover (planned, not enabled by this overlay)
+
+1. **Implement and test provider support first.** Add Npgsql/EF PostgreSQL support, provider-compatible migrations, and integration tests in a separate reviewed change. Do not point the current SQLite-only binary at PostgreSQL.
+2. **Rehearse in isolated staging.** Build a fresh PostgreSQL schema, import a sanitized SQLite production snapshot with a repeatable conversion tool, validate counts/foreign keys/UTC timestamps/admin access/bookings, and exercise rollback.
+3. **Prepare production safely.** Validate Compose, create a PostgreSQL backup/restore drill baseline, back up the SQLite database and media/DP keys, test first against the exact release candidate, and announce a write freeze.
+4. **Cut over during maintenance.** Stop writes/backend, take one final consistent SQLite backup, import into PostgreSQL using the rehearsed tool, validate business totals and critical flows, then deploy the PostgreSQL-capable release with the overlay. Do not run both databases as writable sources of truth.
+5. **Rollback is release + data rollback.** If validation fails before writes resume, stop the new backend and restore/restart the known-good SQLite deployment from the final backup. Once PostgreSQL accepts new writes, rollback requires an explicitly rehearsed reverse migration or a decision to repair forward; never assume `pg_dump` can reconstruct SQLite automatically.
+6. **Observe before decommissioning.** Monitor errors, migration logs, connection saturation, backups, and restore-drill status. Keep the SQLite backup read-only and retained according to recovery policy; only retire it after the agreed validation window.
+
+## Current SQLite backup and restore (until cutover)
+
+All current persistent data lives in Docker volumes: `/data/openresto.db` in `db_data`, uploaded media in `media_data`, and Data Protection keys under `/data/dp-keys`. Before copying SQLite, checkpoint WAL or stop the backend:
 
 ```bash
-#!/bin/sh
-# /opt/openresto/backup.sh
-set -e
-
-COMPOSE_DIR=/opt/openresto
-BACKUP_DIR=/opt/openresto/backups
-DATE=$(date +%Y%m%d-%H%M%S)
-
-mkdir -p "$BACKUP_DIR"
-
-# Checkpoint WAL for a consistent copy
-docker compose -f "$COMPOSE_DIR/docker-compose.yml" \
-  exec -T backend sqlite3 /data/openresto.db "PRAGMA wal_checkpoint(TRUNCATE);" || true
-
-# Backup database
-docker run --rm \
-  -v db_data:/data:ro \
-  -v "$BACKUP_DIR":/backups \
-  alpine tar czf "/backups/db-$DATE.tar.gz" -C /data .
-
-# Remove backups older than 7 days
-find "$BACKUP_DIR" -name "db-*.tar.gz" -mtime +7 -delete
-
-echo "$DATE backup complete: $BACKUP_DIR/db-$DATE.tar.gz"
+docker compose exec backend sqlite3 /data/openresto.db 'PRAGMA wal_checkpoint(TRUNCATE);'
+docker run --rm -v db_data:/data:ro -v "$(pwd)/backups":/backups alpine \
+  tar czf /backups/openresto-db-$(date -u +%Y%m%dT%H%M%SZ).tar.gz -C /data .
 ```
 
-## Point-in-time online backup
-
-For a live backup without stopping the backend, use SQLite's online backup API via the CLI:
-
-```bash
-docker compose exec backend sqlite3 /data/openresto.db \
-  ".backup /data/openresto-snapshot.db"
-```
-
-This creates `/data/openresto-snapshot.db` inside the `db_data` volume. Copy it out with:
-
-```bash
-docker run --rm \
-  -v db_data:/data:ro \
-  -v "$(pwd)/backups":/backups \
-  alpine cp /data/openresto-snapshot.db /backups/openresto-snapshot-$(date +%Y%m%d-%H%M%S).db
-```
-
-## Upgrading between versions
-
-OpenResto applies EF Core database migrations automatically on startup — your data is safe across upgrades.
-
-```bash
-# 1. Back up first (see above)
-# 2. Pull the new images
-OPENRESTO_VERSION=v1.x.x docker compose -f docker-compose.yml pull
-# 3. Restart — migrations run automatically before the health check passes
-OPENRESTO_VERSION=v1.x.x docker compose -f docker-compose.yml up -d
-```
-
-The backend logs will show lines like:
-```
-Applying migration '20260604104824_NullableBookingTableSection'...
-```
-
-If a migration fails, the container exits with a non-zero status and the health check will not pass, so your reverse proxy keeps serving a meaningful error rather than a broken app. Restore from backup, report the issue, and wait for a patch.
-
-## Checking database integrity
-
-After a restore or before an upgrade:
-
-```bash
-docker compose exec backend sqlite3 /data/openresto.db "PRAGMA integrity_check;"
-# Expected output: ok
-```
+To restore, stop the backend, restore into the correct named volume, then start it and run `PRAGMA integrity_check;`. Back up `media_data` separately when uploaded images matter. The PostgreSQL scripts do not back up SQLite volumes and must not be substituted for this procedure before the provider cutover.
