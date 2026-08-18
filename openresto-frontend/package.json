@@ -83,7 +83,8 @@
     "coverageReporters": [
       "text",
       "lcov",
-      "cobertura"
+      "cobertura",
+      "json-summary"
     ],
     "testPathIgnorePatterns": [
       "/node_modules/",
