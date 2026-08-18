@@ -48,7 +48,7 @@ jobs:
         run: npm test -- --ci --coverage --forceExit
 
       - name: Enforce frontend total line coverage (80%)
-        working-directory: ..
+        working-directory: ${{ github.workspace }}
         run: python3 scripts/ci/require-coverage.py --format jest --report openresto-frontend/coverage/coverage-summary.json --minimum 80
 
       - name: Upload Frontend Coverage to Coveralls
