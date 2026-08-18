@@ -4,3 +4,5 @@
 10109	IGNORE	(Modern Web Application - informational)
 100001	IGNORE	(Unexpected Content-Type - expected due to hybrid Frontend/API hosting)
 10036	IGNORE	(Server Leaks Version - handled by Nginx but ignored for CI stability)
+10023	IGNORE	(OpenAPI error-schema text is intentionally documented; no live debug stack trace is exposed)
+90022	IGNORE	(OpenAPI documents application error responses; scanner finding is a specification false positive)
