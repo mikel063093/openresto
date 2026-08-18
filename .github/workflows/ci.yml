@@ -2,14 +2,13 @@ name: CI
 
 on:
   push:
-    branches:
-      - main
+    branches: [develop, release]
   pull_request:
-    branches:
-      - main
+    branches: [develop, release]
 
 permissions:
   contents: read
+  packages: write
   pull-requests: write
   issues: write
   checks: write
@@ -47,6 +46,10 @@ jobs:
 
       - name: Run Tests
         run: npm test -- --ci --coverage --forceExit
+
+      - name: Enforce frontend total line coverage (80%)
+        working-directory: ..
+        run: python3 scripts/ci/require-coverage.py --format jest --report openresto-frontend/coverage/coverage-summary.json --minimum 80
 
       - name: Upload Frontend Coverage to Coveralls
         uses: coverallsapp/github-action@v2
@@ -93,8 +96,14 @@ jobs:
       - name: Install ReportGenerator
         run: dotnet tool install --global dotnet-reportgenerator-globaltool
 
-      - name: Generate Coverage Report
-        run: reportgenerator -reports:"TestResults/**/coverage.cobertura.xml" -targetdir:"CoverageReport" -reporttypes:"Html;Cobertura;lcov"
+      - name: Generate API coverage report
+        # The API is the backend deployable in this workflow. Migration/tool assemblies
+        # are covered by their dedicated PostgreSQL job and are excluded here so an
+        # unexecuted helper assembly cannot dilute the API's total line gate.
+        run: reportgenerator -reports:"TestResults/**/coverage.cobertura.xml" -targetdir:"CoverageReport" -reporttypes:"Html;Cobertura;lcov" -assemblyfilters:"+OpenRestoApi;-OpenRestoApi.PostgresMigrations;-OpenRestoApi.PostgresMigrationTool;-OpenRestoReservationBot"
+
+      - name: Enforce backend API total line coverage (80%)
+        run: python3 scripts/ci/require-coverage.py --format cobertura --report CoverageReport/Cobertura.xml --minimum 80
 
       - name: Upload Backend Coverage to Coveralls
         uses: coverallsapp/github-action@v2
@@ -390,9 +399,68 @@ jobs:
         if: failure()
         run: docker compose logs --tail=100
 
-  deploy:
-    name: Deploy to VPS
-    needs: [frontend, backend, docker, e2e]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    uses: ./.github/workflows/deploy.yml
-    secrets: inherit
+  deploy-test:
+    name: Deploy isolated test environment
+    needs: [frontend, backend, backend-postgres, docker, e2e]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
+    runs-on: [self-hosted, linux, openresto-deploy]
+    environment:
+      name: test
+      url: https://test-rest.joypaw.tech
+    concurrency:
+      group: openresto-test-deploy
+      cancel-in-progress: false
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Backup, deploy exact SHA, and verify test
+        run: scripts/ci/deploy-environment.sh --environment test --sha "$GITHUB_SHA"
+
+  publish-production-images:
+    name: Publish immutable production images
+    needs: [frontend, backend, backend-postgres, docker, e2e]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/release'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and publish exact-SHA images
+        env:
+          REGISTRY: ghcr.io/${{ github.repository_owner }}
+          TAG: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          docker buildx build --platform linux/amd64 --push --provenance=true \
+            --tag "$REGISTRY/openresto-backend:$TAG" --file OpenRestoApi/Dockerfile .
+          docker buildx build --platform linux/amd64 --push --provenance=true \
+            --tag "$REGISTRY/openresto-frontend:$TAG" --build-arg EXPO_PUBLIC_API_URL=/api \
+            --file openresto-frontend/Dockerfile openresto-frontend
+          docker buildx build --platform linux/amd64 --push --provenance=true \
+            --tag "$REGISTRY/openresto-nginx:$TAG" --file nginx/Dockerfile nginx
+
+  deploy-production:
+    name: Deploy production
+    needs: [frontend, backend, backend-postgres, docker, e2e, publish-production-images]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/release'
+    runs-on: [self-hosted, linux, openresto-deploy]
+    environment:
+      name: production
+      url: https://elsabio.joypaw.tech
+    concurrency:
+      group: openresto-production-deploy
+      cancel-in-progress: false
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Backup, deploy exact SHA, and verify production
+        run: scripts/ci/deploy-environment.sh --environment production --sha "$GITHUB_SHA"
