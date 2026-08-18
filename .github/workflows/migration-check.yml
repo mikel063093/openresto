@@ -2,13 +2,13 @@ name: Migration Safety Check
 
 on:
   pull_request:
-    branches: [main]
+    branches: [develop, release]
     paths:
       - 'OpenRestoApi/Migrations/**.cs'
       - 'OpenRestoApi.PostgresMigrations/**.cs'
       - 'OpenRestoApi/Infrastructure/Persistence/AppDbContext.cs'
   push:
-    branches: [main]
+    branches: [develop, release]
     paths:
       - 'OpenRestoApi/Migrations/**.cs'
       - 'OpenRestoApi.PostgresMigrations/**.cs'

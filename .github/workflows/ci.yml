@@ -401,9 +401,9 @@ jobs:
 
   deploy-test:
     name: Deploy isolated test environment
-    needs: [frontend, backend, backend-postgres, docker, e2e]
+    needs: [frontend, backend, backend-postgres, docker, e2e, publish-immutable-images]
     if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
-    runs-on: [self-hosted, linux, openresto-deploy]
+    runs-on: [self-hosted, linux, openresto-test-deploy]
     environment:
       name: test
       url: https://test-rest.joypaw.tech
@@ -413,14 +413,13 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v4
-      - name: Backup, deploy exact SHA, and verify test
-        run: scripts/ci/deploy-environment.sh --environment test --sha "$GITHUB_SHA"
+      - name: Backup, deploy immutable SHA image, and verify test
+        run: /opt/openresto-ci/bin/deploy-environment.sh --environment test --sha "$GITHUB_SHA"
 
-  publish-production-images:
-    name: Publish immutable production images
+  publish-immutable-images:
+    name: Publish immutable deploy images
     needs: [frontend, backend, backend-postgres, docker, e2e]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/release'
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/release')
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -449,9 +448,9 @@ jobs:
 
   deploy-production:
     name: Deploy production
-    needs: [frontend, backend, backend-postgres, docker, e2e, publish-production-images]
+    needs: [frontend, backend, backend-postgres, docker, e2e, publish-immutable-images]
     if: github.event_name == 'push' && github.ref == 'refs/heads/release'
-    runs-on: [self-hosted, linux, openresto-deploy]
+    runs-on: [self-hosted, linux, openresto-production-deploy]
     environment:
       name: production
       url: https://elsabio.joypaw.tech
@@ -461,6 +460,5 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v4
-      - name: Backup, deploy exact SHA, and verify production
-        run: scripts/ci/deploy-environment.sh --environment production --sha "$GITHUB_SHA"
+      - name: Backup, deploy immutable SHA image, and verify production
+        run: /opt/openresto-ci/bin/deploy-environment.sh --environment production --sha "$GITHUB_SHA"
