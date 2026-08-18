@@ -43,14 +43,23 @@ if [[ "$DEPLOY_PROVIDER" == postgres ]]; then
  for _ in $(seq 1 30); do docker exec "$drill" pg_isready -U postgres >/dev/null 2>&1 && break; sleep 1; done
  docker exec "$drill" pg_isready -U postgres >/dev/null
  docker exec -i "$drill" pg_restore -U postgres -d postgres --no-owner --no-privileges < "$archive"
- docker exec "$drill" psql -U postgres -d postgres -Atqc "SELECT to_regclass('public.${POSTGRES_RESTORE_TABLE}') IS NOT NULL" | grep -qx t
+ docker exec "$drill" psql -U postgres -d postgres -Atqc "SELECT to_regclass('public.\"${POSTGRES_RESTORE_TABLE}\"') IS NOT NULL" | grep -qx t
  docker rm -f "$drill" >/dev/null
  printf 'provider=postgres\narchive=%s\nchecksum=%s\nrestore_drill=passed\n' "$archive" "$archive.sha256" > "$manifest"
 else
  archive="$backup_dir/openresto-$ts.sqlite3"; "${compose[@]}" exec -T backend sqlite3 /data/openresto.db ".backup '/tmp/openresto-ci-backup.db'"
  id="$("${compose[@]}" ps -q backend)"; docker cp "$id:/tmp/openresto-ci-backup.db" "$archive"; docker run --rm -i keinos/sqlite3 sqlite3 /dev/stdin 'PRAGMA integrity_check;' < "$archive" | grep -qx ok; sha256sum "$archive" > "$archive.sha256"; printf 'provider=sqlite\narchive=%s\nchecksum=%s\n' "$archive" "$archive.sha256" > "$manifest"
 fi
-if [[ -n "${DEPLOY_MEDIA_VOLUME:-}" ]]; then media="$backup_dir/media-$ts.tar.gz"; docker run --rm -v "$DEPLOY_MEDIA_VOLUME:/media:ro" -v "$backup_dir:/backup" alpine:3.22 sh -ceu "tar -C /media -czf /backup/$(basename "$media") ."; sha256sum "$media" > "$media.sha256"; printf 'media=%s\n' "$media" >> "$manifest"; fi
+if [[ -n "${DEPLOY_MEDIA_VOLUME:-}" ]]; then
+  media="$backup_dir/media-$ts.tar.gz"
+  media_container="openresto-media-backup-$RANDOM"
+  docker create --name "$media_container" -v "$DEPLOY_MEDIA_VOLUME:/media:ro" alpine:3.22 sh -ceu 'tar -C /media -czf /tmp/media.tar.gz .' >/dev/null
+  docker start -a "$media_container" >/dev/null
+  docker cp "$media_container:/tmp/media.tar.gz" "$media"
+  docker rm "$media_container" >/dev/null
+  sha256sum "$media" > "$media.sha256"
+  printf 'media=%s\n' "$media" >> "$manifest"
+fi
 read -r -a services <<< "$DEPLOY_SERVICES"; "${compose[@]}" pull "${services[@]}"; "${compose[@]}" up -d --no-build --remove-orphans "${services[@]}"
 for n in $(seq 1 60); do code="$(curl -fsS -o /dev/null -w '%{http_code}' "$DEPLOY_URL$DEPLOY_HEALTH_PATH" || true)"; [[ "$code" == 200 ]] && break; [[ "$n" == 60 ]] && { echo "health=$code" >&2; exit 1; }; sleep 5; done
 protected="$(curl -sS -o /dev/null -w '%{http_code}' "$DEPLOY_URL$DEPLOY_PROTECTED_PATH" || true)"; [[ "$protected" == 401 || "$protected" == 403 ]] || { echo "protected=$protected" >&2; exit 1; }
