@@ -10,6 +10,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 COMPOSE_FILES=("-f" "$REPO_DIR/docker-compose.release.yml" "-f" "$REPO_DIR/docker-compose.postgres.yml")
+CUSTOM_COMPOSE_FILES=0
 ARCHIVE=""
 APPLY=0
 LIST_ONLY=0
@@ -19,7 +20,14 @@ usage() { grep '^#' "$0" | cut -c3-; }
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --archive) ARCHIVE="${2:?missing archive path}"; shift 2 ;;
-    --compose-file) COMPOSE_FILES=("-f" "${2:?missing compose file}"); shift 2 ;;
+    --compose-file)
+      if [[ "$CUSTOM_COMPOSE_FILES" -eq 0 ]]; then
+        COMPOSE_FILES=()
+        CUSTOM_COMPOSE_FILES=1
+      fi
+      COMPOSE_FILES+=("-f" "${2:?missing compose file}")
+      shift 2
+      ;;
     --apply) APPLY=1; shift ;;
     --list) LIST_ONLY=1; shift ;;
     --confirm-database) CONFIRM_DATABASE="${2:?missing database name}"; shift 2 ;;
@@ -63,7 +71,8 @@ docker cp "$ARCHIVE" "$POSTGRES_ID:$REMOTE_ARCHIVE"
 # --clean is intentionally gated above. --if-exists avoids harmless warnings
 # for objects absent from an older archive; --no-owner avoids role coupling.
 docker compose "${COMPOSE_FILES[@]}" exec -T postgres sh -ceu \
-  'exec pg_restore -U "$POSTGRES_USER" -d "$POSTGRES_DB" --clean --if-exists --no-owner --no-privileges "$1"' \
+  'export PGPASSWORD="$POSTGRES_PASSWORD";
+   exec pg_restore -h 127.0.0.1 -U "$POSTGRES_USER" -d "$POSTGRES_DB" --clean --if-exists --no-owner --no-privileges "$1"' \
   sh "$REMOTE_ARCHIVE"
 
 echo "Restore completed into database: $POSTGRES_DB"

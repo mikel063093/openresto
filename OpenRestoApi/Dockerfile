@@ -7,6 +7,7 @@ WORKDIR /src
 # Copy the project file and restore dependencies
 COPY ["OpenRestoApi/OpenRestoApi.csproj", "OpenRestoApi/"]
 COPY ["OpenRestoApi.PostgresMigrations/OpenRestoApi.PostgresMigrations.csproj", "OpenRestoApi.PostgresMigrations/"]
+COPY ["OpenRestoApi.PostgresMigrationTool/OpenRestoApi.PostgresMigrationTool.csproj", "OpenRestoApi.PostgresMigrationTool/"]
 RUN dotnet restore "./OpenRestoApi/OpenRestoApi.csproj"
 
 # Copy the remaining source code
@@ -15,11 +16,15 @@ COPY . .
 RUN rm -f OpenRestoApi/openresto.db*
 
 RUN dotnet build "OpenRestoApi/OpenRestoApi.csproj" -c Release -o /app/build && \
-    dotnet build "OpenRestoApi.PostgresMigrations/OpenRestoApi.PostgresMigrations.csproj" -c Release -o /app/postgres-migrations
+    dotnet build "OpenRestoApi.PostgresMigrations/OpenRestoApi.PostgresMigrations.csproj" -c Release -o /app/postgres-migrations && \
+    dotnet build "OpenRestoApi.PostgresMigrationTool/OpenRestoApi.PostgresMigrationTool.csproj" -c Release -o /app/postgres-migration-tool
 
 FROM build AS publish
 RUN dotnet publish "OpenRestoApi/OpenRestoApi.csproj" -c Release -o /app/publish && \
-    cp /app/postgres-migrations/OpenRestoApi.PostgresMigrations.dll /app/publish/
+    dotnet publish "OpenRestoApi.PostgresMigrationTool/OpenRestoApi.PostgresMigrationTool.csproj" -c Release -o /app/postgres-migration-tool-publish && \
+    cp /app/postgres-migrations/OpenRestoApi.PostgresMigrations.dll /app/publish/ && \
+    mkdir -p /app/publish/tools/postgres-migration-tool && \
+    cp -R /app/postgres-migration-tool-publish/. /app/publish/tools/postgres-migration-tool/
 
 # Use the official ASP.NET runtime image for the final application
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS final

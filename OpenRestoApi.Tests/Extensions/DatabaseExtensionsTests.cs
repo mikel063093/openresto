@@ -110,4 +110,22 @@ public class DatabaseExtensionsTests
         result = config.GetAppConnectionString(envMock.Object);
         Assert.Equal("Data Source=/data/openresto.db", result);
     }
+
+    [Fact]
+    public void ShouldApplyMigrationsOnStartup_DefaultsToTrue()
+    {
+        var config = new ConfigurationBuilder().Build();
+
+        Assert.True(config.ShouldApplyMigrationsOnStartup());
+    }
+
+    [Fact]
+    public void ShouldApplyMigrationsOnStartup_ParsesBooleanOverride()
+    {
+        var config = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?> { ["DATABASE_APPLY_MIGRATIONS_ON_STARTUP"] = "false" })
+            .Build();
+
+        Assert.False(config.ShouldApplyMigrationsOnStartup());
+    }
 }

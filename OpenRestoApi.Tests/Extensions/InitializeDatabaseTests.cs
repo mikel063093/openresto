@@ -142,6 +142,35 @@ public sealed class InitializeDatabaseTests : IDisposable
         Assert.True(await db.AdminCredentials.AnyAsync());
     }
 
+    [Fact]
+    public async Task StartupMigrationsDisabled_SkipsSeedAndLeavesReachableDatabaseUntouched()
+    {
+        Directory.CreateDirectory(_tempDir);
+        string dbFile = Path.Combine(_tempDir, "disabled.db");
+        string connectionString = $"Data Source={dbFile}";
+
+        await using (var connection = new SqliteConnection(connectionString))
+        {
+            await connection.OpenAsync();
+            var options = new DbContextOptionsBuilder<AppDbContext>().UseSqlite(connection).Options;
+            await using var db = new AppDbContext(options);
+            await db.Database.MigrateAsync();
+        }
+
+        using WebApplication app = BuildApp(connectionString, new Dictionary<string, string?>
+        {
+            ["DATABASE_APPLY_MIGRATIONS_ON_STARTUP"] = "false",
+            ["Admin:Email"] = "admin@openresto.com",
+            ["Admin:Password"] = "password123",
+        });
+
+        app.InitializeDatabase(connectionString, app.Configuration);
+
+        using var scope = app.Services.CreateScope();
+        AppDbContext verifyDb = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        Assert.False(await verifyDb.AdminCredentials.AnyAsync());
+    }
+
     // ── Legacy migration history remap ───────────────────────────────────────────
 
     private static void CreateLegacySchema(string dbFile, bool includeHistoryTable, bool recordConsolidatedMigration, bool includeCustomerNameColumn)

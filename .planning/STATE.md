@@ -3,6 +3,8 @@
 ## Planning Status
 - Onboarding completed for the brownfield repo.
 - A verified codebase map exists at `.planning/codebase/CODEBASE_MAP.md`.
+- This onboarding refresh corrected stale top-level planning metadata that still described older feature work rather than the repository’s current PostgreSQL migration state.
+- The SQLite-to-PostgreSQL repair track is captured under `.planning/features/postgres-migration-backups/`.
 - The binding design is captured at `.planning/features/internal-operator-mcp/SPEC.md`.
 - The implementation plan and recorded local verification are under `.planning/features/internal-operator-mcp/`.
 - A new Level-C planning set for the test-only WhatsApp reservation channel now exists under `.planning/features/whatsapp-reservations-test/`.
@@ -14,14 +16,17 @@
 - Durable `OperatorPrincipal` records use an `OperatorRestaurantScope` join table.
 - Opaque short-lived operator credentials are stored only as digests and resolve to an operator principal.
 - Escalation writes an audit record and uses the existing internal notification architecture.
+- Backend provider selection now exists in-repo via `DATABASE_PROVIDER`, with `sqlite` and `postgres` branches in `DatabaseExtensions`.
+- A dedicated PostgreSQL migrations assembly, PostgreSQL release overlay, and PostgreSQL backup/restore scripts are present in the repository, but end-to-end cutover safety is not yet proven by this planning pass.
 
-## Local Implementation Evidence
-- Implementation commit: `3bf56e6 feat(api): add authenticated operator MCP server`.
-- Full backend suite was run locally in the .NET 10 SDK container; consult `VERIFICATION.md` for the recorded command and results.
-- No push, merge, or deployment was performed from this worktree.
-- The WhatsApp test stack now includes a checked-in `n8n-test` compose foundation with Postgres-backed state, persistent volumes for session, dedupe, ordering, replay, and outbound correlation artifacts, and a bridged bot boundary that prevents direct `n8n` reachability to the OpenResto backend.
-- Phase 4 now adds importable workflow exports for Meta verification, inbound routing, confirmation state, handoff, observability, and `es-CO` template replies, plus static tests that enforce the fixed bot contract and workflow security invariants.
+## Inspection Evidence From This Pass
+- `OpenRestoApi/Extensions/DatabaseExtensions.cs` now wires both SQLite and Npgsql paths and points PostgreSQL migrations at `OpenRestoApi.PostgresMigrations`.
+- `OpenRestoApi.PostgresMigrations/` contains a generated PostgreSQL baseline migration assembly.
+- `docker-compose.postgres.yml` enforces internal-only PostgreSQL networking and `POSTGRES_INITDB_ARGS: --auth=scram-sha-256`.
+- `scripts/postgres-backup.sh`, `scripts/postgres-restore.sh`, and `scripts/postgres-restore-drill.sh` provide logical dump, checksum, restore, and disposable drill mechanics.
+- `.github/workflows/ci.yml` and `.github/workflows/migration-check.yml` still center SQLite-backed validation; no dedicated PostgreSQL CI cutover/integration gate was found during inspection.
+- No application code, tests, scripts, or deployment files were changed in this pass; only planning artifacts were updated.
 
 ## Next Recommended Step
-- For `internal-operator-mcp`, obtain independent review approval, then decide whether to deploy the feature branch to the isolated `test-rest` environment.
-- For `whatsapp-reservations-test`, Phase 8 remains locally verified but incomplete. At 16:03 UTC on July 31, focused boundary/security tests again passed (12/12), synthetic compose rendering passed while an omitted immutable n8n digest failed closed, and targeted Gitleaks plus tracked-assignment audits found no leaks. The committed test-only Traefik ingress hardening (1 MiB body cap, 20 in-flight ceiling, 30/minute with 60 burst) remains synchronized to `/etc/dokploy/traefik/dynamic/test-rest.yml`; hashes match. The active Docker host has no `test-rest` stack. Deployment is blocked because the externally injected contract is incomplete: backend/base values, n8n state/encryption/basic-auth settings, immutable n8n digest, webhook base URL, bot/internal credentials, and active WhatsApp assertion configuration are unavailable. Phase 8 cannot close until those test-only inputs, Meta/WABA/test-number provisioning, test DNS/TLS (`n8n-test` does not resolve), webhook registration/template prerequisites, and a healthy test-rest edge (currently `502`) are available. No production action is included.
+- For `postgres-migration-backups`, run a discuss/plan pass that turns the now-explicit conversion, least-privilege role, SCRAM backup/restore-drill, CI PostgreSQL integration, and test-only cutover/rollback gates into an executable implementation plan without touching production.
+- The MCP and WhatsApp planning tracks remain as separate workstreams and should not be conflated with the PostgreSQL migration repair.

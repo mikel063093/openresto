@@ -5,11 +5,13 @@ on:
     branches: [main]
     paths:
       - 'OpenRestoApi/Migrations/**.cs'
+      - 'OpenRestoApi.PostgresMigrations/**.cs'
       - 'OpenRestoApi/Infrastructure/Persistence/AppDbContext.cs'
   push:
     branches: [main]
     paths:
       - 'OpenRestoApi/Migrations/**.cs'
+      - 'OpenRestoApi.PostgresMigrations/**.cs'
       - 'OpenRestoApi/Infrastructure/Persistence/AppDbContext.cs'
 
 permissions:
@@ -19,12 +21,28 @@ jobs:
   migration-check:
     name: EF Core Migration Safety
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: postgres
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_INITDB_ARGS: --auth=scram-sha-256
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -h 127.0.0.1 -U postgres -d postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
     env:
       # Needed if EF design-time tooling invokes the app host
       ADMIN_PASSWORD: ci-migration-check-password
       JWT_KEY: ci-migration-check-jwt-key-must-be-32-chars-long
       CONNECTION_STRING: "Data Source=/tmp/ef-tools.db"
       ASPNETCORE_ENVIRONMENT: Development
+      POSTGRES_MIGRATION_CHECK_CONNECTION: "host=127.0.0.1 port=5432 dbname=postgres user=postgres password=postgres sslmode=disable"
 
     steps:
       - uses: actions/checkout@v4
@@ -54,45 +72,65 @@ jobs:
             BASE="${{ github.event.before }}"
           fi
 
-          NEW_FILES=$(git diff "$BASE"...HEAD --name-status -- 'OpenRestoApi/Migrations/*.cs' \
+          SQLITE_NEW_FILES=$(git diff "$BASE"...HEAD --name-status -- 'OpenRestoApi/Migrations/*.cs' \
             | grep "^A" \
             | grep -v "Designer\.cs\|Snapshot\." \
             | awk '{print $2}' \
             | sort)
 
-          if [ -z "$NEW_FILES" ]; then
-            echo "No new migration files — skipping upgrade-path test."
+          POSTGRES_CHANGED=$(git diff "$BASE"...HEAD --name-only -- 'OpenRestoApi.PostgresMigrations/*.cs' | tr -d '\n')
+
+          if [ -z "$SQLITE_NEW_FILES" ] && [ -z "$POSTGRES_CHANGED" ]; then
+            echo "No new SQLite or PostgreSQL migration files — skipping provider migration tests."
             echo "has_new_migrations=false" >> $GITHUB_OUTPUT
+            echo "has_new_sqlite_migrations=false" >> $GITHUB_OUTPUT
             exit 0
           fi
 
-          echo "New migration files:"
-          echo "$NEW_FILES"
-          echo "has_new_migrations=true" >> $GITHUB_OUTPUT
-
-          # Sort by filename (migration IDs are datetime-prefixed, so sort == chronological order)
-          FIRST_NEW=$(echo "$NEW_FILES" | head -1 | xargs basename | sed 's/\.cs$//')
-          echo "first_new_migration=$FIRST_NEW" >> $GITHUB_OUTPUT
-
-          # Find the migration that immediately precedes the first new one
-          ALL_MIGRATIONS=$(ls OpenRestoApi/Migrations/*.cs 2>/dev/null \
-            | grep -v "Designer\.cs\|Snapshot\." \
-            | sort \
-            | xargs -I{} basename {} .cs \
-            | sort)
-
-          BASELINE=$(echo "$ALL_MIGRATIONS" | grep -B1 "^${FIRST_NEW}$" | head -1)
-
-          # If the first new migration IS the oldest migration, there is no baseline
-          if [ "$BASELINE" = "$FIRST_NEW" ]; then
-            BASELINE=""
+          if [ -n "$SQLITE_NEW_FILES" ]; then
+            echo "New SQLite migration files:"
+            echo "$SQLITE_NEW_FILES"
           fi
 
-          echo "baseline_migration=$BASELINE" >> $GITHUB_OUTPUT
-          echo "Baseline migration: ${BASELINE:-(empty — first migration ever)}"
+          if [ -n "$POSTGRES_CHANGED" ]; then
+            echo "PostgreSQL migration files changed."
+          fi
+
+          echo "has_new_migrations=true" >> $GITHUB_OUTPUT
+          if [ -n "$SQLITE_NEW_FILES" ]; then
+            echo "has_new_sqlite_migrations=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_new_sqlite_migrations=false" >> $GITHUB_OUTPUT
+          fi
+
+          if [ -n "$SQLITE_NEW_FILES" ]; then
+            # Sort by filename (migration IDs are datetime-prefixed, so sort == chronological order)
+            FIRST_NEW=$(echo "$SQLITE_NEW_FILES" | head -1 | xargs basename | sed 's/\.cs$//')
+            echo "first_new_migration=$FIRST_NEW" >> $GITHUB_OUTPUT
+
+            # Find the migration that immediately precedes the first new one
+            ALL_MIGRATIONS=$(ls OpenRestoApi/Migrations/*.cs 2>/dev/null \
+              | grep -v "Designer\.cs\|Snapshot\." \
+              | sort \
+              | xargs -I{} basename {} .cs \
+              | sort)
+
+            BASELINE=$(echo "$ALL_MIGRATIONS" | grep -B1 "^${FIRST_NEW}$" | head -1)
+
+            # If the first new migration IS the oldest migration, there is no baseline
+            if [ "$BASELINE" = "$FIRST_NEW" ]; then
+              BASELINE=""
+            fi
+
+            echo "baseline_migration=$BASELINE" >> $GITHUB_OUTPUT
+            echo "Baseline migration: ${BASELINE:-(empty — first migration ever)}"
+          else
+            echo "first_new_migration=" >> $GITHUB_OUTPUT
+            echo "baseline_migration=" >> $GITHUB_OUTPUT
+          fi
 
       - name: Generate full migration SQL
-        if: steps.detect.outputs.has_new_migrations == 'true'
+        if: steps.detect.outputs.has_new_sqlite_migrations == 'true'
         working-directory: OpenRestoApi
         run: |
           dotnet ef migrations script \
@@ -103,7 +141,7 @@ jobs:
 
       - name: Generate baseline SQL (schema before new migrations)
         if: >
-          steps.detect.outputs.has_new_migrations == 'true' &&
+          steps.detect.outputs.has_new_sqlite_migrations == 'true' &&
           steps.detect.outputs.baseline_migration != ''
         working-directory: OpenRestoApi
         run: |
@@ -116,7 +154,7 @@ jobs:
 
       - name: Generate upgrade-only SQL (new migrations only)
         if: >
-          steps.detect.outputs.has_new_migrations == 'true' &&
+          steps.detect.outputs.has_new_sqlite_migrations == 'true' &&
           steps.detect.outputs.baseline_migration != ''
         working-directory: OpenRestoApi
         run: |
@@ -128,11 +166,15 @@ jobs:
           head -40 /tmp/upgrade-only.sql
 
       - name: Install SQLite
-        if: steps.detect.outputs.has_new_migrations == 'true'
+        if: steps.detect.outputs.has_new_sqlite_migrations == 'true'
         run: sudo apt-get install -y --no-install-recommends sqlite3
 
-      - name: Test fresh install (all migrations on empty DB)
+      - name: Install PostgreSQL client
         if: steps.detect.outputs.has_new_migrations == 'true'
+        run: sudo apt-get install -y --no-install-recommends postgresql-client
+
+      - name: Test fresh install (all migrations on empty DB)
+        if: steps.detect.outputs.has_new_sqlite_migrations == 'true'
         run: |
           sqlite3 /tmp/fresh.db < /tmp/all-migrations.sql
           echo "=== Fresh install: tables ==="
@@ -143,7 +185,7 @@ jobs:
 
       - name: Test upgrade path (baseline → new migrations)
         if: >
-          steps.detect.outputs.has_new_migrations == 'true' &&
+          steps.detect.outputs.has_new_sqlite_migrations == 'true' &&
           steps.detect.outputs.baseline_migration != ''
         run: |
           # Create a database representing an existing install at the baseline version
@@ -164,7 +206,7 @@ jobs:
 
       - name: Compare schemas — fresh install vs upgrade path
         if: >
-          steps.detect.outputs.has_new_migrations == 'true' &&
+          steps.detect.outputs.has_new_sqlite_migrations == 'true' &&
           steps.detect.outputs.baseline_migration != ''
         run: |
           # Exclude the migrations history table itself — its rows differ by design
@@ -186,3 +228,27 @@ jobs:
             exit 1
           fi
 
+      - name: Generate PostgreSQL migration SQL
+        if: steps.detect.outputs.has_new_migrations == 'true'
+        working-directory: OpenRestoApi
+        run: |
+          dotnet ef migrations script \
+            --project ../OpenRestoApi.PostgresMigrations/OpenRestoApi.PostgresMigrations.csproj \
+            --startup-project OpenRestoApi.csproj \
+            --context AppDbContext \
+            --configuration Release --no-build \
+            --output /tmp/postgres-all-migrations.sql
+          echo "=== PostgreSQL migration SQL preview (first 40 lines) ==="
+          head -40 /tmp/postgres-all-migrations.sql
+
+      - name: Apply PostgreSQL migrations to fresh database
+        if: steps.detect.outputs.has_new_migrations == 'true'
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql "$POSTGRES_MIGRATION_CHECK_CONNECTION" -c 'DROP DATABASE IF EXISTS openresto_migration_check;'
+          psql "$POSTGRES_MIGRATION_CHECK_CONNECTION" -c 'CREATE DATABASE openresto_migration_check;'
+          psql "host=127.0.0.1 port=5432 dbname=openresto_migration_check user=postgres password=postgres sslmode=disable" \
+            -f /tmp/postgres-all-migrations.sql
+          psql "host=127.0.0.1 port=5432 dbname=openresto_migration_check user=postgres password=postgres sslmode=disable" \
+            -c 'SELECT "MigrationId" FROM "__EFMigrationsHistory" ORDER BY "MigrationId";'

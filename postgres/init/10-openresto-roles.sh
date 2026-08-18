@@ -1,0 +1,37 @@
+#!/bin/sh
+set -eu
+
+: "${POSTGRES_DB:?missing POSTGRES_DB}"
+: "${POSTGRES_USER:?missing POSTGRES_USER}"
+: "${POSTGRES_RUNTIME_USER:?missing POSTGRES_RUNTIME_USER}"
+: "${POSTGRES_RUNTIME_PASSWORD:?missing POSTGRES_RUNTIME_PASSWORD}"
+: "${POSTGRES_BACKUP_USER:?missing POSTGRES_BACKUP_USER}"
+: "${POSTGRES_BACKUP_PASSWORD:?missing POSTGRES_BACKUP_PASSWORD}"
+
+psql -v ON_ERROR_STOP=1 \
+  --username "$POSTGRES_USER" \
+  --dbname "$POSTGRES_DB" \
+  --set runtime_user="$POSTGRES_RUNTIME_USER" \
+  --set runtime_password="$POSTGRES_RUNTIME_PASSWORD" \
+  --set backup_user="$POSTGRES_BACKUP_USER" \
+  --set backup_password="$POSTGRES_BACKUP_PASSWORD" \
+  --set database_name="$POSTGRES_DB" \
+  --set bootstrap_user="$POSTGRES_USER" <<'SQL'
+REVOKE CREATE ON SCHEMA public FROM PUBLIC;
+
+CREATE ROLE :"runtime_user" LOGIN PASSWORD :'runtime_password' NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT;
+CREATE ROLE :"backup_user" LOGIN PASSWORD :'backup_password' NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT;
+
+GRANT CONNECT, TEMPORARY ON DATABASE :"database_name" TO :"runtime_user";
+GRANT CONNECT ON DATABASE :"database_name" TO :"backup_user";
+GRANT USAGE ON SCHEMA public TO :"runtime_user", :"backup_user";
+
+ALTER DEFAULT PRIVILEGES FOR USER :"bootstrap_user" IN SCHEMA public
+  GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO :"runtime_user";
+ALTER DEFAULT PRIVILEGES FOR USER :"bootstrap_user" IN SCHEMA public
+  GRANT USAGE, SELECT, UPDATE ON SEQUENCES TO :"runtime_user";
+ALTER DEFAULT PRIVILEGES FOR USER :"bootstrap_user" IN SCHEMA public
+  GRANT SELECT ON TABLES TO :"backup_user";
+ALTER DEFAULT PRIVILEGES FOR USER :"bootstrap_user" IN SCHEMA public
+  GRANT SELECT ON SEQUENCES TO :"backup_user";
+SQL

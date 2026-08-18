@@ -4,7 +4,7 @@
 # by this script: docker compose reads deployment environment variables.
 #
 # Usage:
-#   scripts/postgres-backup.sh [--compose-file FILE] [--backup-dir DIR]
+#   scripts/postgres-backup.sh [--compose-file FILE ...] [--backup-dir DIR]
 #
 # Optional environment-only integration:
 #   RESTIC_REPOSITORY, RESTIC_PASSWORD_COMMAND (and the selected restic backend
@@ -15,6 +15,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 COMPOSE_FILES=("-f" "$REPO_DIR/docker-compose.release.yml" "-f" "$REPO_DIR/docker-compose.postgres.yml")
+CUSTOM_COMPOSE_FILES=0
 BACKUP_DIR="${BACKUP_DIR:-$REPO_DIR/backups/postgres}"
 
 usage() {
@@ -23,7 +24,14 @@ usage() {
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --compose-file) COMPOSE_FILES=("-f" "${2:?missing compose file}"); shift 2 ;;
+    --compose-file)
+      if [[ "$CUSTOM_COMPOSE_FILES" -eq 0 ]]; then
+        COMPOSE_FILES=()
+        CUSTOM_COMPOSE_FILES=1
+      fi
+      COMPOSE_FILES+=("-f" "${2:?missing compose file}")
+      shift 2
+      ;;
     --backup-dir) BACKUP_DIR="${2:?missing backup directory}"; shift 2 ;;
     -h|--help) usage; exit 0 ;;
     *) printf 'Unknown argument: %s\n' "$1" >&2; exit 2 ;;
@@ -58,7 +66,10 @@ trap 'rm -f "$TMP_ARCHIVE" "$TMP_LISTING"' EXIT
 # pg_dump custom archives are transactional snapshots and are suitable for
 # pg_restore; do not use a filesystem copy of the PostgreSQL data directory.
 docker compose "${COMPOSE_FILES[@]}" exec -T postgres sh -ceu \
-  'exec pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" --format=custom --no-owner --no-privileges' \
+  ': "${POSTGRES_BACKUP_USER:?Set POSTGRES_BACKUP_USER in the deployment environment}";
+   : "${POSTGRES_BACKUP_PASSWORD:?Set POSTGRES_BACKUP_PASSWORD in the deployment environment}";
+   export PGPASSWORD="$POSTGRES_BACKUP_PASSWORD";
+   exec pg_dump -h 127.0.0.1 -U "$POSTGRES_BACKUP_USER" -d "$POSTGRES_DB" --format=custom --no-owner --no-privileges' \
   > "$TMP_ARCHIVE"
 
 test -s "$TMP_ARCHIVE"

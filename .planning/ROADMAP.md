@@ -2,22 +2,33 @@
 
 ## Active Planning Track
 
-### Level C: `internal-operator-mcp`
+### Level C: `postgres-migration-backups`
 Status: planned
 
 Goal:
-Design and then implement a remote HTTPS MCP surface for internal operators that can manage only the reservations they created, using short-lived scoped credentials and server-enforced restaurant/ownership authorization.
+Repair and complete the SQLite-to-PostgreSQL provider migration path so OpenResto can cut over in test safely, validate rollback, and only then consider production adoption.
+
+Primary artifacts:
+- `.planning/features/postgres-migration-backups/CONTEXT.md`
+- `.planning/features/postgres-migration-backups/PLAN.md`
+- `.planning/features/postgres-migration-backups/VERIFICATION.md`
+
+Expected execution phases:
+1. Reconcile provider-neutral startup against the dedicated PostgreSQL migrations assembly
+2. Specify and verify the explicit SQLite-to-PostgreSQL conversion tool
+3. Lock least-privilege PostgreSQL roles, internal-only topology, and SCRAM-compatible operations
+4. Add CI PostgreSQL integration and provider-aware migration verification
+5. Define and prove test-only cutover, rollback, backup, and restore-drill acceptance gates
+
+### Level C: `internal-operator-mcp`
+Status: implemented/planned follow-up
+
+Goal:
+Maintain the existing internal operator MCP planning and execution artifacts as a separate workstream; it is not the focus of this onboarding repair pass.
 
 Primary artifacts:
 - `.planning/features/internal-operator-mcp/SPEC.md`
-- future implementation plans and execution artifacts under the same feature directory
-
-Expected execution phases:
-1. Identity and credential foundation
-2. Booking ownership data model and server authorization
-3. Internal API surface for operator-scoped reservation access
-4. Remote MCP transport, tool contracts, and observability
-5. Verification and rollout hardening
+- implementation artifacts under the same feature directory
 
 ### Level C: `whatsapp-reservations-test`
 Status: planned

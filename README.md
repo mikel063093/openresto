@@ -63,7 +63,7 @@ Download the `docker-compose.yml` from the [latest release](https://github.com/k
 docker compose up -d
 ```
 
-Pre-built `linux/amd64` and `linux/arm64` images are pulled from GHCR — no build step, works on Pi/NAS boxes out of the box. The backend applies any pending database migrations automatically before accepting traffic.
+Pre-built `linux/amd64` and `linux/arm64` images are pulled from GHCR — no build step, works on Pi/NAS boxes out of the box. The SQLite deployment path applies any pending database migrations automatically before accepting traffic. The PostgreSQL overlay keeps runtime on a least-privilege role and expects bootstrap/migration work to happen explicitly before startup.
 
 For backup and restore procedures, see [`docs/backup-restore.md`](docs/backup-restore.md).
 
@@ -99,6 +99,7 @@ Set via environment variables or `appsettings.json`:
 | ------------------- | ------------------------------- | ---------------------------- |
 | `JWT_KEY`           | JWT signing key (min 32 chars)  | Dev key in appsettings       |
 | `CONNECTION_STRING` | SQLite connection string        | `Data Source=./openresto.db` |
+| `DATABASE_APPLY_MIGRATIONS_ON_STARTUP` | Enables `Database.Migrate()` during startup | `true` |
 | `CORS_ORIGINS`      | Comma-separated allowed origins | localhost ports              |
 | `Admin:Email`       | Default admin email             | Set in appsettings           |
 | `Admin:Password`    | Default admin password          | Set in appsettings           |
@@ -172,8 +173,9 @@ Note: VSCode may not pick up on the Jest config, unless you use the command pale
 - **100% frontend coverage target** — Jest + React Native Testing Library; Playwright E2E tests against the live Docker stack.
 - **Mapperly source-gen mappers** — zero runtime reflection, compile-time DTO mappings.
 - **Self-hosted** — runs on any VPS, Pi, or NAS with Docker; SQLite included, no managed database or CDN required.
-- **Auto-migrations on startup** — the backend runs `Database.Migrate()` before accepting traffic; upgrading is `docker compose pull && docker compose up -d`.
+- **Auto-migrations on startup** — SQLite keeps the simple `Database.Migrate()` startup path. PostgreSQL can disable startup migrations with `DATABASE_APPLY_MIGRATIONS_ON_STARTUP=false` so runtime stays on a least-privilege role after explicit bootstrap/import.
 - **Migration safety CI** — every PR that adds an EF Core migration generates SQL for both a fresh install and an upgrade from the previous state, applies both to SQLite, and asserts the schemas are identical. Catches migration bugs before they reach self-hosters.
+- **PostgreSQL repair gate** — the repo includes an explicit `OpenRestoApi.PostgresMigrationTool`, PostgreSQL startup/booking integration tests, and SCRAM-authenticated backup/restore-drill scripts for test-only provider-cutover rehearsal.
 - **Multi-arch releases** — `linux/amd64` and `linux/arm64` images published to GHCR on every semver tag; Pi/NAS users get native binaries.
 
 ## Cutting a release

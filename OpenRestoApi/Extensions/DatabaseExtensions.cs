@@ -59,6 +59,9 @@ public static partial class DatabaseExtensions
     [LoggerMessage(Level = LogLevel.Critical, Message = "  - integrity_check FAILED: {Result}")]
     private static partial void LogIntegrityFailed(ILogger logger, string result);
 
+    [LoggerMessage(Level = LogLevel.Information, Message = "  - Database migrations on startup: disabled by configuration.")]
+    private static partial void LogStartupMigrationsDisabled(ILogger logger);
+
     private const string ConsolidatedMigrationId = "20260530173531_InitialCreate";
 
     private static void RemapLegacyMigrationHistory(AppDbContext db, ILogger logger)
@@ -232,6 +235,20 @@ public static partial class DatabaseExtensions
 
     public static string GetAppConnectionString(this IConfiguration configuration, IWebHostEnvironment env) =>
         configuration.GetAppConnectionString(DatabaseProvider.Sqlite, env);
+
+    public static bool ShouldApplyMigrationsOnStartup(this IConfiguration configuration)
+    {
+        string? configuredValue = configuration["DATABASE_APPLY_MIGRATIONS_ON_STARTUP"];
+        if (string.IsNullOrWhiteSpace(configuredValue))
+        {
+            return true;
+        }
+
+        return bool.TryParse(configuredValue, out bool parsed)
+            ? parsed
+            : throw new InvalidOperationException(
+                "DATABASE_APPLY_MIGRATIONS_ON_STARTUP must be 'true' or 'false' when configured.");
+    }
 
     public static string GetAppConnectionString(this IConfiguration configuration, DatabaseProvider provider, IWebHostEnvironment env)
     {
@@ -438,6 +455,17 @@ public static partial class DatabaseExtensions
                 }
 
                 _ = System.Runtime.Loader.AssemblyLoadContext.Default.LoadFromAssemblyPath(migrationsAssemblyPath);
+            }
+
+            if (!configuration.ShouldApplyMigrationsOnStartup())
+            {
+                if (!db.Database.CanConnect())
+                {
+                    throw new InvalidOperationException("Database connectivity check failed while startup migrations are disabled.");
+                }
+
+                LogStartupMigrationsDisabled(logger);
+                return;
             }
 
             // Apply any pending EF migrations (creates DB on first run, adds columns on upgrade)

@@ -1,29 +1,46 @@
-# PostgreSQL Migration and Verified Backups — Verification Matrix
+# PostgreSQL Migration Repair — Verification Matrix
 
-## Code/provider
-- [x] Targeted provider/startup tests passed: `17 passed, 0 failed` (DatabaseExtensions + InitializeDatabase focused suite).
-- [ ] Full backend test suite has not yet been rerun after the provider commit.
-- [ ] **BLOCKED:** Fresh PostgreSQL schema is not created. An isolated PostgreSQL 16 startup verification failed before any schema was written because EF Core reported `PendingModelChangesWarning`; the existing migrations/model snapshot were generated for SQLite and cannot be used as the PostgreSQL migration lineage.
-- [x] Provider selection gates SQLite-only PRAGMA/catalog/WAL/remap code behind `DatabaseProvider.Sqlite`; it is not entered for the PostgreSQL startup path.
+## Evidence gathered in this planning-only pass
+- [x] Repository inspection completed for provider wiring, PostgreSQL migrations assembly, release overlay, backup/restore scripts, and CI workflows.
+- [x] `DATABASE_PROVIDER` switching and PostgreSQL migrations assembly wiring were verified in `OpenRestoApi/Extensions/DatabaseExtensions.cs`.
+- [x] SCRAM-compatible PostgreSQL initialization was verified in `docker-compose.postgres.yml`.
+- [x] Logical backup, checksum, restore, and restore-drill scripts were verified as present in `scripts/postgres-backup.sh`, `scripts/postgres-restore.sh`, and `scripts/postgres-restore-drill.sh`.
+- [x] Existing runbook coverage was verified in `docs/backup-restore.md`.
+- [x] SQLite-centric CI emphasis was verified in `.github/workflows/ci.yml` and `.github/workflows/migration-check.yml`.
 
-**Required next implementation:** introduce a dedicated PostgreSQL migrations assembly/baseline generated under the Npgsql provider, wire `UseNpgsql(..., x => x.MigrationsAssembly(...))`, and add an automated fresh PostgreSQL migration integration test. Only then can the SQLite-to-PostgreSQL converter and a test cutover be safely implemented.
+## Not executed in this pass
+- [ ] No application code was modified.
+- [ ] No automated tests were run.
+- [ ] No backup or restore commands were executed.
+- [ ] No conversion dry run or cutover rehearsal was performed.
+- [ ] No deployment, commit, or push was performed.
 
-## Converter
-- [ ] Representative SQLite fixture imports into a clean Postgres destination.
-- [ ] Source artifact stays read-only/unchanged.
-- [ ] Row counts, IDs, natural keys, migration history, and UTC values match.
-- [ ] PostgreSQL sequences are reseeded.
-- [ ] A non-empty destination conversion is refused.
+## Open implementation gates
 
-## Backup/recovery
-- [ ] `pg_dump` custom archive completes.
-- [ ] `pg_restore --list` and checksum pass.
-- [ ] Archive is encrypted/uploaded only when credentials are injected.
-- [ ] Restore drill creates a disposable DB and validates rows/migrations.
-- [ ] Failure/stale-backup alert path is executable without exposing secrets.
+### Conversion tool
+- [ ] Explicit SQLite-to-PostgreSQL conversion command/tool is implemented and reviewable.
+- [ ] Tool refuses dirty or non-empty PostgreSQL destinations.
+- [ ] Tool preserves keys, UTC values, enums, nullable values, and current OpenResto operational tables.
+- [ ] Tool reseeds PostgreSQL identities/sequences after import.
+- [ ] Tool emits a redacted validation report outside Git.
 
-## Deployment
-- [ ] Compose topology has no host-mapped Postgres port.
-- [ ] Test cutover has snapshot, conversion report, health checks and restore evidence.
-- [ ] Production has an independently verified snapshot and rollback plan before any write.
-- [ ] Old SQLite volume is retained for agreed rollback period.
+### Least-privilege roles
+- [ ] Bootstrap/migration, runtime, backup, and restore-drill roles are specified and implemented separately.
+- [ ] Runtime application connection avoids PostgreSQL superuser credentials.
+- [ ] Backup and restore-drill credentials are compatible with least-privilege expectations.
+
+### SCRAM backup and restore verification
+- [ ] Backup verification proves `pg_dump --format=custom`, `pg_restore --list --verbose`, and checksum generation together.
+- [ ] Restore drill proves archive usability in an isolated disposable PostgreSQL target.
+- [ ] Restore-drill evidence is recorded as a required acceptance artifact, not an optional operator note.
+
+### CI PostgreSQL integration
+- [ ] CI creates a fresh PostgreSQL schema from the PostgreSQL migrations assembly.
+- [ ] CI proves application startup against PostgreSQL.
+- [ ] CI runs representative PostgreSQL integration coverage.
+- [ ] CI no longer relies exclusively on SQLite migration safety for provider-cutover sign-off.
+
+### Test-only cutover and rollback
+- [ ] Test cutover checklist exists with immutable SQLite snapshot, release-candidate identity, validation report, health checks, representative flow checks, and restore-drill evidence.
+- [ ] Rollback checklist exists with retained SQLite snapshot and exact stop/restart criteria.
+- [ ] Promotion policy explicitly blocks production cutover until the test-only acceptance criteria pass.

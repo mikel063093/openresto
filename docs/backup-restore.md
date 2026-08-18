@@ -18,13 +18,13 @@ docker compose -f docker-compose.release.yml -f docker-compose.postgres.yml conf
 
 The overlay defines `postgres:16-alpine`, a persistent `postgres_data` volume, SCRAM authentication, a health check, and a `postgres-internal` network with `internal: true`. PostgreSQL has **no host `ports` mapping**; only `backend` joins that database network. The application connection endpoint is `postgres:5432` (Docker DNS), never `localhost` or a published host port.
 
-Set `POSTGRES_DB`, `POSTGRES_USER`, and `POSTGRES_PASSWORD` only in the protected deployment environment. Use a distinct least-privilege application role after bootstrap where operational policy requires it. Do not put passwords, `PGPASSWORD`, restic repository credentials, or alert-hook URLs in Compose files, scripts, Git, logs, or shell history.
+Set `POSTGRES_DB`, `POSTGRES_BOOTSTRAP_USER`, `POSTGRES_BOOTSTRAP_PASSWORD`, `POSTGRES_RUNTIME_USER`, `POSTGRES_RUNTIME_PASSWORD`, `POSTGRES_BACKUP_USER`, and `POSTGRES_BACKUP_PASSWORD` only in the protected deployment environment. The PostgreSQL overlay creates the runtime and backup roles during first-cluster initialization and keeps the app on the runtime role with `DATABASE_APPLY_MIGRATIONS_ON_STARTUP=false`; schema creation and data import stay explicit bootstrap actions. Do not put passwords, `PGPASSWORD`, restic repository credentials, or alert-hook URLs in Compose files, scripts, Git, logs, or shell history.
 
 > `Ssl Mode=Disable` in the internal overlay is appropriate only for the isolated Docker network. If the database moves off-host or onto a network not controlled by the deployment, require TLS and certificate verification instead.
 
 ## PostgreSQL backup
 
-`scripts/postgres-backup.sh` creates a transactional `pg_dump --format=custom` archive, validates it using `pg_restore --list --verbose`, and writes a SHA-256 checksum plus a human-inspectable archive listing. It never copies PostgreSQL data files directly.
+`scripts/postgres-backup.sh` creates a transactional `pg_dump --format=custom` archive, validates it using `pg_restore --list --verbose`, and writes a SHA-256 checksum plus a human-inspectable archive listing. It authenticates with the distinct backup role over SCRAM (`PGPASSWORD` + TCP loopback inside the container) and never copies PostgreSQL data files directly.
 
 ```bash
 # Run from the deployment host; Compose receives database variables from its
@@ -75,9 +75,9 @@ scripts/postgres-restore.sh \
   --apply --confirm-database "$POSTGRES_DB"
 ```
 
-The restore script rejects missing/invalid checksums, a running backend, an unconfirmed database name, and restores with `--clean --if-exists --no-owner --no-privileges` only after `--apply`. Start the backend only after reviewing logs, health, expected record counts, and application smoke tests.
+The restore script rejects missing/invalid checksums, a running backend, an unconfirmed database name, and restores with `--clean --if-exists --no-owner --no-privileges` only after `--apply`. It authenticates over SCRAM using the bootstrap credential inside the container. Start the backend only after reviewing logs, health, expected record counts, and application smoke tests.
 
-Run a restore drill at least quarterly and after any PostgreSQL major-version or backup-script change. It uses an isolated disposable PostgreSQL 16 container with no Compose network or host port, restores the archive, and requires at least one public table:
+Run a restore drill at least quarterly and after any PostgreSQL major-version or backup-script change. It uses an isolated disposable PostgreSQL 16 container with SCRAM enabled, restores the archive with explicit credentials over TCP loopback, and requires at least one public table:
 
 ```bash
 scripts/postgres-restore-drill.sh --archive /secure/backups/openresto-postgres-TIMESTAMP.dump
@@ -91,14 +91,35 @@ A successful backup is not a successful recovery plan until this drill has passe
 
 **Data migrations** are explicit, idempotent, observable application/job steps—not hidden side effects in an EF `Up()` method. Give each a version/checkpoint, bounded batches, retries, metrics/logging, validation queries, and a rollback/forward-fix plan. Do not combine an irreversible large data rewrite with a schema drop in one deployment. Run data migrations in staging on production-shaped data first, and retain a pre-change backup until business validation is complete.
 
-## SQLite-to-PostgreSQL cutover (planned, not enabled by this overlay)
+## SQLite-to-PostgreSQL conversion and test cutover
 
-1. **Implement and test provider support first.** Add Npgsql/EF PostgreSQL support, provider-compatible migrations, and integration tests in a separate reviewed change. Do not point the current SQLite-only binary at PostgreSQL.
-2. **Rehearse in isolated staging.** Build a fresh PostgreSQL schema, import a sanitized SQLite production snapshot with a repeatable conversion tool, validate counts/foreign keys/UTC timestamps/admin access/bookings, and exercise rollback.
-3. **Prepare production safely.** Validate Compose, create a PostgreSQL backup/restore drill baseline, back up the SQLite database and media/DP keys, test first against the exact release candidate, and announce a write freeze.
-4. **Cut over during maintenance.** Stop writes/backend, take one final consistent SQLite backup, import into PostgreSQL using the rehearsed tool, validate business totals and critical flows, then deploy the PostgreSQL-capable release with the overlay. Do not run both databases as writable sources of truth.
-5. **Rollback is release + data rollback.** If validation fails before writes resume, stop the new backend and restore/restart the known-good SQLite deployment from the final backup. Once PostgreSQL accepts new writes, rollback requires an explicitly rehearsed reverse migration or a decision to repair forward; never assume `pg_dump` can reconstruct SQLite automatically.
-6. **Observe before decommissioning.** Monitor errors, migration logs, connection saturation, backups, and restore-drill status. Keep the SQLite backup read-only and retained according to recovery policy; only retire it after the agreed validation window.
+The repository now includes an explicit converter project:
+
+```bash
+docker compose -f docker-compose.release.yml -f docker-compose.postgres.yml run --rm --no-deps backend \
+  dotnet /app/tools/postgres-migration-tool/OpenRestoApi.PostgresMigrationTool.dll \
+  --source-sqlite /data/openresto.db \
+  --destination-postgres "Host=postgres;Port=5432;Database=openresto;Username=<bootstrap-user>;Password=<bootstrap-password>;Ssl Mode=Disable" \
+  --report-dir /tmp/openresto-postgres-migration-reports \
+  --confirm-import sqlite-to-postgres
+```
+
+The converter is intentionally fail-closed:
+
+- source must be SQLite and readable in read-only mode
+- destination must be PostgreSQL
+- destination must be clean before import
+- schema is built from `OpenRestoApi.PostgresMigrations`
+- import order is FK-safe and deterministic
+- primary keys, foreign keys, UTC timestamps, nullable fields, and enum-backed values are preserved
+- PostgreSQL sequences are reseeded after import
+- a redacted JSON report is written outside the repo
+
+Use the dedicated test-only runbook for rehearsal and rollback:
+
+- [`docs/postgres-test-cutover-runbook.md`](docs/postgres-test-cutover-runbook.md)
+
+Production cutover remains out of scope until that test-only runbook passes with a complete evidence package and a later feature explicitly authorizes promotion.
 
 ## Current SQLite backup and restore (until cutover)
 

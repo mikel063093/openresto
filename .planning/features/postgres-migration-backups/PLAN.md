@@ -1,86 +1,254 @@
-# PostgreSQL Migration and Verified Backups — Level-C Implementation Plan
+# PostgreSQL Migration Repair Plan
 
-> **For Hermes:** Execute in the isolated `feat/postgres-migration-backups` worktree. Test environment first. Never mutate the production SQLite volume until the test cutover, restore drill, production preflight backup, and rollback runbook have passed.
+## Goal
+Turn the repository's partial PostgreSQL support into a reviewable, test-first, rollback-first SQLite-to-PostgreSQL migration path that can be rehearsed safely in test before any production consideration.
 
-**Goal:** Move OpenResto persistence from SQLite to a dedicated PostgreSQL 16 service while preserving EF Core migrations and adding automated, encrypted off-host backups with restore verification.
+## Planning Rules
+- Planning artifact only. No code implementation, destructive operations, pushes, or commits are authorized from this worktree.
+- Respect locked decisions in `.planning/features/postgres-migration-backups/CONTEXT.md`.
+- Keep SQLite as the currently recoverable source of truth until the test-only cutover and rollback gates are proven.
+- Treat PostgreSQL support as a provider migration repair, not as a normal incremental feature.
+- Prefer additive, isolated work slices with explicit verification over one large migration change.
 
-**Verified baseline (2026-08-16):** The active test and production backend containers use `CONNECTION_STRING=Data Source=/data/openresto.db`; SQLite volumes are named `test-rest_test_rest_db_data` and `mike-openresto_openresto_db_data`. Test has 2 restaurants and zero bookings; production has 2 restaurants, 4 bookings, 1 admin credential, 17 recorded migrations, and `PRAGMA integrity_check` returned `ok`.
+## Locked Acceptance Gates
+- No implementation is acceptable if the SQLite-to-PostgreSQL conversion path is implicit, hidden in startup, or tolerant of a nonempty destination.
+- No runtime deployment is acceptable if the runtime role still requires PostgreSQL superuser privileges.
+- No backup sign-off is acceptable without both archive verification and restore-drill proof.
+- No provider-cutover sign-off is acceptable while CI remains SQLite-only.
+- No production promotion is acceptable from this feature; the highest authorized environment is test cutover rehearsal.
 
-**Architecture:** The backend selects a relational provider from a connection-string/provider setting, with PostgreSQL the production/test target. Normal application releases still execute EF `Database.Migrate()` at startup, but SQLite-to-PostgreSQL data conversion is an explicit one-shot migration tool: source is read-only, destination is created from EF migrations, then imported transactionally with identity reseeding and table-by-table invariant checks. Backup runs in an isolated container/job using a restricted Postgres login and an encrypted remote destination configured only by injected secrets.
+## Dependency Graph
+- Slice 1 establishes the provider/migration baseline used by every later slice.
+- Slice 2 depends on Slice 1 for the authoritative schema and runtime seams.
+- Slice 3 depends on Slice 2 because operational roles must match the explicit converter and runtime shape.
+- Slice 4 depends on Slices 1 through 3 because CI must validate the real provider/migration/role model.
+- Slice 5 depends on Slices 2 through 4 because cutover and rollback evidence must reference the actual converter, CI, and backup model.
 
-**Security/availability invariants:**
-- No application process uses the Postgres superuser.
-- Postgres is internal-only; no public `5432` port.
-- No secret, dump, or decrypted archive enters Git, logs, or an image layer.
-- Each mutating database migration has a tested fresh schema, upgrade path, and backup-before-deploy procedure.
-- Conversion is idempotently resumable only on a clean, named destination database; it never overwrites an existing production database.
-- Production SQLite and data-protection keys remain intact until post-cutover validation plus a successful restore drill.
-- Automated backup success is insufficient without integrity/listing verification and an alert on failure.
+## Execution Slices
 
-## Phases
+### Slice 1: Reconcile provider startup and PostgreSQL migration lineage
 
-### Phase 1 — Provider-neutral application startup and tests
+#### Objective
+Prove which repository surfaces own provider selection, schema creation, and migration lineage so later implementation does not hide conversion behavior in the normal backend startup path.
 
-1. Add `Npgsql.EntityFrameworkCore.PostgreSQL` at the EF Core 10-compatible version.
-2. Refactor `DatabaseExtensions` into provider-neutral connection parsing/configuration; retain SQLite startup checks only when SQLite is selected and add PostgreSQL connectivity/migration diagnostics without logging credentials.
-3. Replace SQLite-only exception filters/retry strategy with provider-aware execution behavior.
-4. Isolate provider-specific legacy migration-history remapping and WAL/integrity operations so they cannot execute against PostgreSQL.
-5. Extend integration-test factory/configuration to use a disposable PostgreSQL instance where PostgreSQL behavior must be proved. Preserve existing SQLite tests only where they exercise legacy import.
-6. Add unit/integration regressions for provider selection, redacted connection logs, Postgres startup migration, and PostgreSQL-safe initialization.
+#### Exact areas
+- `OpenRestoApi/Extensions/DatabaseExtensions.cs`
+- `OpenRestoApi/Program.cs`
+- `OpenRestoApi/Infrastructure/Persistence/AppDbContext.cs`
+- `OpenRestoApi/Migrations/*`
+- `OpenRestoApi.PostgresMigrations/*`
+- `CLAUDE.md`
+- `docs/backup-restore.md`
+- `OpenRestoApi.Tests/**/*`
 
-**Gate:** Backend targeted provider/startup tests and full backend test suite pass. A fresh PostgreSQL database reaches the same EF schema as the target migrations.
+#### Work
+1. Freeze `OpenRestoApi.PostgresMigrations` as the authoritative PostgreSQL schema lineage.
+2. Identify every place where startup currently migrates or assumes provider-specific behavior.
+3. Separate provider-neutral runtime startup from any future SQLite-to-PostgreSQL data-conversion command.
+4. Define the implementation seam where PostgreSQL schema creation can happen without performing data import during normal app boot.
+5. Record how current SQLite migration remap logic stays SQLite-only and does not bleed into PostgreSQL execution.
 
-### Phase 2 — Explicit SQLite-to-PostgreSQL conversion tool
+#### Deliverables
+- Updated backend/provider notes proving which assembly owns PostgreSQL schema history.
+- A concrete implementation checklist for keeping conversion out of `Database.Migrate()` startup flow.
+- Explicit test targets for provider-neutral startup behavior.
 
-1. Add a CLI project or explicit `--migrate-sqlite-to-postgres` command that requires separate source and destination connection strings.
-2. Reject equal endpoints, non-SQLite source, non-Postgres destination, missing confirmation flag, dirty/non-empty destination, or unknown source migration state.
-3. Run destination `Database.Migrate()` first; use a single destination transaction for data import.
-4. Copy tables in dependency-safe order, preserving explicit primary keys, UTC values, enum values, nullable values, and Data Protection keys stored alongside SQLite as a separately copied artifact.
-5. Reseed PostgreSQL sequences using `setval` after import.
-6. Compare row counts, primary-key checksums/counts, key natural identifiers, and latest EF migration on source/destination. Write a redacted JSON report outside Git.
-7. Add an integration fixture that creates a representative SQLite database, converts it, and verifies it through the PostgreSQL provider, including bookings, tables, sections, operator/channel/audit entities and constraints.
+#### Acceptance criteria
+- The PostgreSQL migrations assembly is named as the only PostgreSQL schema authority.
+- The future converter path is separated from the normal backend startup path.
+- SQLite-only bootstrap/remap behavior is explicitly bounded to the SQLite provider branch.
 
-**Gate:** Fresh conversion test passes; rerun refuses a non-empty destination; inserted records after conversion receive IDs above imported maxima; source file hash remains unchanged.
+#### Verification expectations
+- Read-only repo inspection of current provider wiring and migrations assemblies.
+- Planner-defined tests for provider-neutral startup and PostgreSQL migration resolution.
 
-### Phase 3 — Compose topology and migration-aware release operations
+### Slice 2: Specify the explicit SQLite-to-PostgreSQL converter
 
-1. Add a Postgres 16 service for test and production compose definitions, with named volume, healthcheck, non-superuser app role, internal network only, and credentials loaded from ignored environment files/secrets.
-2. Switch test compose to Postgres only after the conversion tool is validated. Keep a separately named legacy SQLite volume mounted read-only only during test conversion/cutover.
-3. Ensure backend waits for Postgres health and runs normal EF migrations only after it is healthy.
-4. Add a one-shot migration job/service which runs manually with an explicit profile and confirmation environment variable. It must not be a normal startup container.
-5. Add a production runbook: preflight, immutable SQLite snapshot, stop writes, convert, validation, healthcheck, rollback-to-SQLite procedure, and a final checkpoint for removing old volume only after retention expiry.
+#### Objective
+Define a one-shot conversion tool contract that imports SQLite into a clean PostgreSQL target while preserving IDs, UTC semantics, foreign keys, enum/nullability behavior, and operational tables.
 
-**Gate:** `docker compose config` validates; test stack reaches health with Postgres; legacy source remains untouched; a rollback stack can start from the retained SQLite volume.
+#### Exact areas
+- New converter surface to be chosen during execution:
+  - possible new utility project under repo root, or
+  - a tightly scoped maintenance command adjacent to `OpenRestoApi`
+- `OpenRestoApi/Infrastructure/Persistence/AppDbContext.cs`
+- `OpenRestoApi.PostgresMigrations/*`
+- `OpenRestoApi/Core/**/*`
+- `OpenRestoApi.Tests/**/*`
+- `docs/backup-restore.md`
+- feature-local implementation notes under `.planning/features/postgres-migration-backups/`
 
-### Phase 4 — Automated backup, off-host copy, alerts, restore drill
+#### Work
+1. Define the converter entrypoint, arguments, and confirmation model.
+2. Require separate source and destination targets and provider checks.
+3. Require refusal when:
+  - source is not SQLite
+  - destination is not PostgreSQL
+  - source and destination resolve to the same endpoint
+  - destination is nonempty
+  - source migration state is unsupported or indeterminate
+4. Build the PostgreSQL destination schema from `OpenRestoApi.PostgresMigrations` before import.
+5. Lock deterministic dependency-safe import order for current persisted entities.
+6. Preserve primary keys, foreign keys, UTC values, enums, nullable fields, and operational/admin/channel data required by current OpenResto features.
+7. Reseed PostgreSQL identities/sequences after import.
+8. Emit a redacted machine-readable validation report outside Git.
 
-1. Add `scripts/backup-postgres.sh` plus a restricted backup role with `pg_read_all_data`/connect capability appropriate to the server version, but no schema/drop/create privileges.
-2. Create compressed custom-format dumps via `pg_dump --format=custom`, verify them with `pg_restore --list`, calculate a checksum, and use staging/atomic rename.
-3. Encrypt and upload only through injected configuration (`BACKUP_DESTINATION`, `RESTIC_REPOSITORY`, credentials/key or S3/R2-compatible variables); never commit a destination or credential. Keep local 7 daily/4 weekly/12 monthly and remote retention configured by environment.
-4. Create a systemd service/timer or Docker scheduled job that runs daily, emits structured result/age metrics, and calls an injected alert webhook on failure or stale backup. Do not use an unauthenticated public endpoint.
-5. Add `scripts/restore-postgres-verify.sh`: restore a selected dump into a new disposable database, verify migrations/counts/integrity queries, then destroy that verification database.
-6. Update `docs/backup-restore.md` and root `CLAUDE.md` with the provider selection, schema/data-change migration rules, safe backup/restore, test-first cutover, and rollback commands.
+#### Deliverables
+- A converter contract with exact preflight and refusal semantics.
+- A data-domain inventory of tables/entities that must be preserved.
+- A validation-report schema for conversion rehearsal evidence.
 
-**Gate:** local backup list and checksum verification pass; restore drill produces a valid disposable DB; timer/job configuration validates; alerts are tested with a non-secret dry-run endpoint/command.
+#### Acceptance criteria
+- The conversion path is explicit and impossible to confuse with normal app startup.
+- The destination safety gate is fail-closed on nonempty PostgreSQL targets.
+- Preservation rules for IDs, UTC values, foreign keys, enums, nullable fields, and operational tables are written tightly enough that execution does not need to invent them.
 
-### Phase 5 — Test then production rollout
+#### Verification expectations
+- Planned unit/integration tests for preflight refusal paths.
+- Planned rehearsal tests for row counts, key invariants, and sequence reseeding.
+- Planned evidence review of the emitted validation artifact.
 
-1. Deploy only the feature branch/image to `test-rest`; take a snapshot, run the explicit migration job, validate public health/admin login/booking workflow and restore drill.
-2. Record immutable evidence: image digest, source snapshot checksum, destination row checks, health response, test results, and backup artifact ID. Do not promote with a failing or missing item.
-3. For production, repeat the exact preflight using its own snapshot. Schedule a maintenance window; stop backend writes, convert, activate Postgres backend, validate transactions and restore, retain SQLite rollback volume for at least the agreed retention period.
-4. Configure the production automated backup job only after the Postgres cutover, validate first successful backup and restore, then enable stale/failure alerting.
+### Slice 3: Lock PostgreSQL operational roles and SCRAM-compatible recovery rules
 
-## Mandatory documentation addition
+#### Objective
+Specify least-privilege role boundaries and recovery expectations that match the repository's internal-only Docker topology and existing logical backup scripts.
 
-The root `CLAUDE.md` must have a visible **Database connection, schema and data migrations** section near architecture/operations. It must say:
-- PostgreSQL is the authoritative runtime database; use `DATABASE_PROVIDER=postgres` / `CONNECTION_STRING`, never hard-code a provider.
-- EF schema migrations: update entity/configuration, generate provider-compatible migration, prove fresh + upgrade schema, back up first, deploy, check `__EFMigrationsHistory`; never rewrite applied migrations.
-- Data migrations: are versioned/idempotent application migration steps or explicit one-shot tooling, must have forward validation and a rollback/restore plan, preserve UTC and identity values, and must not run invisibly during ordinary startup.
-- SQLite-to-PostgreSQL conversion is a separately confirmed cutover, not a normal EF migration.
+#### Exact areas
+- `docker-compose.postgres.yml`
+- `docs/backup-restore.md`
+- `scripts/postgres-backup.sh`
+- `scripts/postgres-restore.sh`
+- `scripts/postgres-restore-drill.sh`
+- deployment env docs and examples already in repo
+- future role/bootstrap SQL or docs to be added during execution
 
-## Non-goals
+#### Work
+1. Define separate PostgreSQL responsibilities for:
+  - bootstrap/migration application
+  - runtime application access
+  - logical backup execution
+  - restore-drill verification
+2. Write the minimum required privileges for each role.
+3. Ensure the runtime role is not the PostgreSQL superuser.
+4. Keep the backup model aligned with:
+  - `pg_dump --format=custom`
+  - `pg_restore --list --verbose`
+  - SHA-256 checksum generation and verification
+5. Preserve SCRAM compatibility with `POSTGRES_INITDB_ARGS: --auth=scram-sha-256`.
+6. Define what extra privileges, if any, are allowed only inside the isolated restore-drill environment.
+7. Tie restore-drill evidence to the same artifact set produced by backup execution.
 
-- No production deployment without a passing test cutover.
-- No public database port, no shared Dokploy Postgres, no plaintext off-host archive.
-- No deletion of old SQLite data during this feature.
-- No claim that PITR exists unless WAL archiving plus a tested recovery process is actually configured.
+#### Deliverables
+- Least-privilege role matrix.
+- Recovery policy describing what counts as a valid backup and valid restore drill.
+- Repo-aligned operator guidance for secrets placement and internal-only topology.
+
+#### Acceptance criteria
+- Bootstrap, runtime, backup, and restore-drill responsibilities are distinct and reviewable.
+- The runtime role is explicitly narrower than bootstrap privileges.
+- Recovery policy requires both logical archive verification and restore-drill success.
+
+#### Verification expectations
+- Planned role-based integration checks proving runtime operations succeed without superuser rights.
+- Planned backup/restore script checks under SCRAM-compatible PostgreSQL setup.
+- Planned drill evidence capture linked to the generated backup archive.
+
+### Slice 4: Add PostgreSQL CI integration and provider-aware migration checks
+
+#### Objective
+Extend CI so provider-cutover confidence is based on PostgreSQL behavior and not only on SQLite migration SQL symmetry.
+
+#### Exact areas
+- `.github/workflows/ci.yml`
+- `.github/workflows/migration-check.yml`
+- `OpenRestoApi.Tests/**/*`
+- any test compose/test harness files needed for PostgreSQL execution
+- `OpenRestoApi.PostgresMigrations/*`
+- `OpenRestoApi/Extensions/DatabaseExtensions.cs`
+
+#### Work
+1. Add a PostgreSQL-aware CI path using repo-supported tooling only.
+2. Prove fresh PostgreSQL schema creation from the dedicated migrations assembly.
+3. Prove application startup against PostgreSQL with pending migrations resolved.
+4. Run representative PostgreSQL integration coverage for critical backend behavior.
+5. Separate PostgreSQL provider validation from the existing SQLite migration-diff workflow rather than replacing the SQLite check outright.
+6. Ensure CI evidence is reviewable without production secrets.
+
+#### Deliverables
+- A PostgreSQL CI matrix design.
+- A provider-aware migration-safety check design.
+- A defined representative integration-test subset that must pass under PostgreSQL before cutover rehearsal is considered.
+
+#### Acceptance criteria
+- CI no longer treats SQLite-only validation as sufficient for provider-cutover sign-off.
+- PostgreSQL schema creation, startup, and representative behavior each have explicit automated gates.
+- The migration-check story is clear for both SQLite and PostgreSQL providers.
+
+#### Verification expectations
+- Planned GitHub Actions runs using service containers or equivalent repo-native harnesses.
+- Planned artifact/log review showing PostgreSQL schema creation and startup success.
+- Planned regression proof that existing SQLite safety checks remain intact where still relevant.
+
+### Slice 5: Define test-only cutover, rollback, and sign-off evidence
+
+#### Objective
+Write the exact test-only cutover and rollback procedure that will block unsafe promotion and force recoverability proof before PostgreSQL becomes the sole writable source anywhere.
+
+#### Exact areas
+- `docs/backup-restore.md`
+- test-runbook docs under `docs/` or feature-local docs
+- deployment/test environment docs already in repo
+- future rehearsal evidence storage conventions to be defined in planning docs
+
+#### Work
+1. Write the test cutover checklist.
+2. Require immutable pre-cutover SQLite snapshot retention.
+3. Require recording of the exact release candidate or image digest used for the rehearsal.
+4. Require converter validation report review before backend startup on PostgreSQL.
+5. Require backend health, admin login, and representative booking-flow checks after cutover.
+6. Require PostgreSQL backup creation and successful restore-drill evidence from that backup set.
+7. Write the rollback checklist for failures before PostgreSQL becomes the only writable source.
+8. Define the exact stop condition that makes rollback mandatory.
+9. State clearly that production cutover remains out of scope until the test-only gates pass and a later feature authorizes promotion.
+
+#### Deliverables
+- Test-only cutover checklist.
+- Rollback checklist against the same release candidate.
+- Sign-off matrix defining required evidence and blocking conditions.
+
+#### Acceptance criteria
+- Test cutover evidence requirements are explicit and auditable.
+- Rollback evidence requirements are explicit and executable before irreversible promotion.
+- Production readiness language is blocked behind test-only success plus later approval.
+
+#### Verification expectations
+- Planned rehearsal record format for cutover and rollback.
+- Planned evidence collection for backup, restore drill, startup, and representative flows.
+- Explicit pass/fail gates for stopping the rehearsal and reverting to SQLite.
+
+## Expected Changed Areas During Future Execution
+- `OpenRestoApi/Extensions/*`
+- `OpenRestoApi/Infrastructure/Persistence/*`
+- `OpenRestoApi.PostgresMigrations/*`
+- `OpenRestoApi.Tests/**/*`
+- possible new converter project or maintenance command under the repo root
+- `.github/workflows/ci.yml`
+- `.github/workflows/migration-check.yml`
+- `docker-compose.postgres.yml`
+- `docs/backup-restore.md`
+- additional repo docs or runbooks for rehearsal evidence and least-privilege roles
+
+## Verification Gates For Execution
+- Focused tests prove provider-neutral startup and PostgreSQL migration resolution.
+- Converter tests prove provider mismatch, same-endpoint, and nonempty-destination refusal.
+- Converter rehearsal proves row-count validation, key invariants, UTC preservation, and sequence reseeding.
+- Role-based checks prove the runtime application path does not need superuser privileges.
+- Backup checks prove archive creation, `pg_restore --list --verbose`, checksum generation, and restore-drill success.
+- CI proves PostgreSQL schema creation, startup, and representative backend integration coverage.
+- Test-only cutover rehearsal proves the exact rollback boundary before PostgreSQL becomes the sole writable source.
+
+## Non-Goals
+- No production cutover approval in this planning pass.
+- No assumption that existing PostgreSQL scripts alone prove migration readiness.
+- No dual-write or mixed-write-source architecture.
+- No application implementation in this document.

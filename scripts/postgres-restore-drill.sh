@@ -38,22 +38,24 @@ docker run -d --rm --name "$container" \
   -e POSTGRES_DB=restore_drill \
   -e POSTGRES_USER=restore_drill \
   -e POSTGRES_PASSWORD="$password" \
+  -e POSTGRES_INITDB_ARGS=--auth=scram-sha-256 \
   postgres:16-alpine >/dev/null
 
 for _ in {1..30}; do
-  if docker exec "$container" pg_isready -U restore_drill -d restore_drill >/dev/null 2>&1; then
+  if docker exec "$container" pg_isready -h 127.0.0.1 -U restore_drill -d restore_drill >/dev/null 2>&1; then
     break
   fi
   sleep 1
 done
-docker exec "$container" pg_isready -U restore_drill -d restore_drill >/dev/null
+docker exec "$container" pg_isready -h 127.0.0.1 -U restore_drill -d restore_drill >/dev/null
 
 remote_archive="/tmp/$(basename "$ARCHIVE")"
 docker cp "$ARCHIVE" "$container:$remote_archive"
 docker exec "$container" sh -ceu \
-  'exec pg_restore -U "$POSTGRES_USER" -d "$POSTGRES_DB" --no-owner --no-privileges "$1"' \
+  'export PGPASSWORD="$POSTGRES_PASSWORD";
+   exec pg_restore -h 127.0.0.1 -U "$POSTGRES_USER" -d "$POSTGRES_DB" --no-owner --no-privileges "$1"' \
   sh "$remote_archive"
-table_count="$(docker exec "$container" psql -U restore_drill -d restore_drill -Atqc "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public';")"
+table_count="$(docker exec "$container" sh -ceu 'export PGPASSWORD="$POSTGRES_PASSWORD"; psql -h 127.0.0.1 -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atqc "SELECT count(*) FROM information_schema.tables WHERE table_schema = '\''public'\'';"')"
 [[ "$table_count" =~ ^[1-9][0-9]*$ ]] || { echo 'restore drill failed: archive produced no public tables' >&2; exit 1; }
 
 echo "Restore drill passed: PostgreSQL 16 restored $table_count public table(s) in disposable container $container"

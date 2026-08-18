@@ -35,6 +35,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\OpenRestoApi\OpenRestoApi.csproj" />
+    <ProjectReference Include="..\OpenRestoApi.PostgresMigrationTool\OpenRestoApi.PostgresMigrationTool.csproj" />
   </ItemGroup>
 
 </Project>
